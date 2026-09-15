@@ -1,0 +1,12 @@
+{
+  "name": "king-of-the-castle-slot",
+  "version": "1.0.0",
+  "description": "King of the Castle HTML5 5-Reel Slot Machine Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["html5", "slot-machine", "casino-game"],
+  "author": "",
+  "license": "ISC"
+}

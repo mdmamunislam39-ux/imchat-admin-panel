@@ -1,0 +1,42 @@
+{
+  "projects": {
+    "default": "imchat-84519"
+  },
+  "targets": {
+    "imchat-84519": {
+      "hosting": {
+        "admin": [
+          "admin-imchatapp"
+        ],
+        "landing": [
+          "imchat-84519"
+        ],
+        "invite": [
+          "invite-imchatapp"
+        ],
+        "official": [
+          "official-imchatapp"
+        ],
+        "greedy-market": [
+          "greedy-market-game"
+        ],
+        "king-queen-slot": [
+          "king-queen-slot-game"
+        ],
+        "greedy-delicious": [
+          "greedy-delicious-game"
+        ],
+        "greedy-cat": [
+          "greedy-cat-game"
+        ],
+        "arabian-spin-game": [
+          "arabian-spin-game"
+        ],
+        "ludu-room-game": [
+          "ludu-room-game"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

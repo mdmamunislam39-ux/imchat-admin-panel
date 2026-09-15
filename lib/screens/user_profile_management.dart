@@ -2091,149 +2091,301 @@ class _UserProfileManagementState extends State<UserProfileManagement>
 
   void _showBlockUserDialog(UserProfileModel profile) {
     final reasonController = TextEditingController();
-    PunishmentType selectedPunishmentType = PunishmentType.warning;
+    PunishmentType selectedPunishmentType = PunishmentType.voiceRoomBan;
+    bool isPermanent = false;
     int selectedDuration = 1;
     String selectedDurationUnit = 'days';
+
+    final banCategories = [
+      {
+        'type': PunishmentType.voiceRoomBan,
+        'title': '🎤 Voiceroom Ban',
+        'desc': 'User cannot take a mic or seat in voicerooms',
+        'color': Colors.purpleAccent,
+      },
+      {
+        'type': PunishmentType.postBan,
+        'title': '📝 Post Ban',
+        'desc': 'User cannot create or publish news feed posts',
+        'color': Colors.orangeAccent,
+      },
+      {
+        'type': PunishmentType.accountBan,
+        'title': '👤 Account Ban',
+        'desc': 'User gets logged out & cannot sign in with this number',
+        'color': Colors.redAccent,
+      },
+      {
+        'type': PunishmentType.deviceBan,
+        'title': '📱 Device Ban',
+        'desc': 'User gets logged out & this device is completely banned',
+        'color': Colors.deepOrange,
+      },
+    ];
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: const Color(0xFF1E1E2C),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              const Icon(Icons.block, color: Colors.red),
-              const SizedBox(width: 8),
-              const Text(
-                'Block User',
-                style: TextStyle(color: Colors.white),
+              const Icon(Icons.block, color: Colors.redAccent, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ban User: ${profile.username}',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Block ${profile.username}?',
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: reasonController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Reason for blocking',
-                  labelStyle: TextStyle(color: Colors.white),
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<PunishmentType>(
-                initialValue: selectedPunishmentType,
-                style: const TextStyle(color: Colors.white),
-                dropdownColor: Colors.grey[800],
-                decoration: const InputDecoration(
-                  labelText: 'Punishment Type',
-                  labelStyle: TextStyle(color: Colors.white),
-                  border: OutlineInputBorder(),
-                ),
-                items: PunishmentType.values.map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(
-                      type.name.toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedPunishmentType = value!;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              Row(
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      style: const TextStyle(color: Colors.white),
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration',
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) => selectedDuration = int.tryParse(value) ?? 1,
-                    ),
+                  const Text(
+                    'Select Ban Category:',
+                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: selectedDurationUnit,
-                      style: const TextStyle(color: Colors.white),
-                      dropdownColor: Colors.grey[800],
-                      decoration: const InputDecoration(
-                        labelText: 'Unit',
-                        labelStyle: TextStyle(color: Colors.white),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: ['hours', 'days', 'weeks', 'months'].map((unit) {
-                        return DropdownMenuItem(
-                          value: unit,
-                          child: Text(
-                            unit.toUpperCase(),
-                            style: const TextStyle(color: Colors.white),
+                  const SizedBox(height: 10),
+
+                  // Category Selector
+                  ...banCategories.map((category) {
+                    final isSelected = selectedPunishmentType == category['type'];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            selectedPunishmentType = category['type'] as PunishmentType;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (category['color'] as Color).withValues(alpha: 0.2)
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? (category['color'] as Color)
+                                  : Colors.white.withValues(alpha: 0.1),
+                              width: isSelected ? 1.8 : 1.0,
+                            ),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedDurationUnit = value!;
-                        });
-                      },
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: isSelected ? (category['color'] as Color) : Colors.grey,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      category['title'] as String,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.white70,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      category['desc'] as String,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 14),
+
+                  // Reason
+                  TextField(
+                    controller: reasonController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Reason for Ban',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'e.g. Inappropriate behavior / rules violation',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.black26,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
+                    maxLines: 2,
                   ),
+
+                  const SizedBox(height: 14),
+
+                  // Permanent or Timed
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Permanent Ban:',
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      Switch(
+                        value: isPermanent,
+                        activeColor: Colors.redAccent,
+                        onChanged: (val) {
+                          setState(() {
+                            isPermanent = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+
+                  if (!isPermanent) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            style: const TextStyle(color: Colors.white),
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'Duration',
+                              labelStyle: const TextStyle(color: Colors.white70),
+                              filled: true,
+                              fillColor: Colors.black26,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            controller: TextEditingController(text: selectedDuration.toString()),
+                            onChanged: (value) => selectedDuration = int.tryParse(value) ?? 1,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 3,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedDurationUnit,
+                            style: const TextStyle(color: Colors.white),
+                            dropdownColor: const Color(0xFF252538),
+                            decoration: InputDecoration(
+                              labelText: 'Unit',
+                              labelStyle: const TextStyle(color: Colors.white70),
+                              filled: true,
+                              fillColor: Colors.black26,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            items: ['hours', 'days', 'weeks', 'months'].map((unit) {
+                              return DropdownMenuItem(
+                                value: unit,
+                                child: Text(
+                                  unit.toUpperCase(),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedDurationUnit = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
+              icon: const Icon(Icons.gavel, size: 18),
               onPressed: () async {
                 try {
+                  final DateTime? expiresAt = isPermanent
+                      ? null
+                      : _calculateExpiryDate(selectedDuration, selectedDurationUnit);
+
                   final punishment = UserPunishment(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    reason: reasonController.text,
+                    reason: reasonController.text.trim().isNotEmpty
+                        ? reasonController.text.trim()
+                        : 'Violation of Community Guidelines',
                     type: selectedPunishmentType,
                     issuedAt: DateTime.now(),
-                    expiresAt: _calculateExpiryDate(selectedDuration, selectedDurationUnit),
+                    expiresAt: expiresAt,
                     issuedBy: 'Admin',
+                    isActive: true,
                   );
 
+                  // If account ban or device ban, set overall user status to blocked
+                  final bool shouldBlockAccount = selectedPunishmentType == PunishmentType.accountBan ||
+                      selectedPunishmentType == PunishmentType.deviceBan;
+
                   final updatedProfile = profile.copyWith(
-                    status: UserStatus.blocked,
+                    status: shouldBlockAccount ? UserStatus.blocked : profile.status,
                     punishments: [...profile.punishments, punishment],
                     updatedAt: DateTime.now(),
                   );
 
+                  // If device ban, record to banned_devices collection in Firestore
+                  if (selectedPunishmentType == PunishmentType.deviceBan) {
+                    try {
+                      final docSnap = await FirebaseFirestore.instance.collection('Users').doc(profile.id).get();
+                      final deviceId = docSnap.data()?['deviceId']?.toString() ?? profile.id;
+
+                      await FirebaseFirestore.instance.collection('banned_devices').doc(deviceId).set({
+                        'deviceId': deviceId,
+                        'userId': profile.userId,
+                        'reason': punishment.reason,
+                        'isPermanent': isPermanent,
+                        'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
+                        'bannedAt': FieldValue.serverTimestamp(),
+                      });
+                    } catch (e) {
+                      debugPrint('Error saving device ban to banned_devices: $e');
+                    }
+                  }
+
                   await UserProfileService.updateUserProfile(updatedProfile);
-                  
+
                   if (!mounted) return;
                   Navigator.pop(context);
                   _loadData();
-                  _showSuccessSnackBar('User blocked successfully');
+                  _showSuccessSnackBar('Ban applied successfully (Real-time enforced)!');
                 } catch (e) {
-                  _showErrorSnackBar('Error blocking user: $e');
+                  _showErrorSnackBar('Error applying ban: $e');
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Block User'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              label: const Text('Apply Ban', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -2245,25 +2397,60 @@ class _UserProfileManagementState extends State<UserProfileManagement>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
+        backgroundColor: const Color(0xFF1E1E2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            const Text(
-              'Unblock User',
-              style: TextStyle(color: Colors.white),
+            const Icon(Icons.check_circle, color: Colors.greenAccent, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Unblock User: ${profile.username}',
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
-        content: Text(
-          'Unblock ${profile.username}?',
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Remove all active bans and restore full access for ${profile.username}?',
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+            const SizedBox(height: 12),
+            if (profile.punishments.any((p) => p.isActive)) ...[
+              const Text(
+                'Active Restrictions to Clear:',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              ...profile.punishments.where((p) => p.isActive).map((p) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.remove_circle_outline, color: Colors.orangeAccent, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${p.type.name} - ${p.reason}',
+                          style: const TextStyle(color: Colors.white60, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -2274,18 +2461,28 @@ class _UserProfileManagementState extends State<UserProfileManagement>
                   updatedAt: DateTime.now(),
                 );
 
+                // Clean device ban if any
+                try {
+                  final docSnap = await FirebaseFirestore.instance.collection('Users').doc(profile.id).get();
+                  final deviceId = docSnap.data()?['deviceId']?.toString() ?? profile.id;
+                  await FirebaseFirestore.instance.collection('banned_devices').doc(deviceId).delete();
+                } catch (_) {}
+
                 await UserProfileService.updateUserProfile(updatedProfile);
-                
+
                 if (!mounted) return;
                 Navigator.pop(context);
                 _loadData();
-                _showSuccessSnackBar('User unblocked successfully');
+                _showSuccessSnackBar('All bans lifted successfully!');
               } catch (e) {
                 _showErrorSnackBar('Error unblocking user: $e');
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Unblock User'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Unblock All Restrictions', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

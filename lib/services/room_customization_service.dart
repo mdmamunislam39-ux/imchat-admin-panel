@@ -14,10 +14,11 @@ class RoomCustomizationService {
   static Stream<List<CustomRoomIdModel>> getCustomRoomIdsStream() {
     return _firestore
         .collection(_collectionName)
-        .orderBy('assignedAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => CustomRoomIdModel.fromFirestore(doc)).toList();
+      final list = snapshot.docs.map((doc) => CustomRoomIdModel.fromFirestore(doc)).toList();
+      list.sort((a, b) => b.assignedAt.compareTo(a.assignedAt));
+      return list;
     });
   }
 
@@ -35,31 +36,125 @@ class RoomCustomizationService {
   // Search room by original ID or Custom Short ID
   static Future<Map<String, dynamic>?> searchRoomByOriginalId(String searchId) async {
     try {
-      // 1. First, check if it's a Custom Short ID by looking up premium_room_ids
-      final customIdQuery = await _firestore
-          .collection(_collectionName)
-          .where('customId', isEqualTo: searchId)
-          .limit(1)
-          .get();
+      final cleanId = searchId.trim();
+      if (cleanId.isEmpty) return null;
 
-      String targetRoomId = searchId;
-      if (customIdQuery.docs.isNotEmpty) {
-        // If it's a custom ID, the document ID of premium_room_ids IS the original room ID
-        targetRoomId = customIdQuery.docs.first.id;
+      final intId = int.tryParse(cleanId);
+      String targetRoomId = cleanId;
+
+      // 1. Check if searchId is an existing Custom Short ID in premium_room_ids
+      try {
+        QuerySnapshot customIdQuery = await _firestore
+            .collection(_collectionName)
+            .where('customId', isEqualTo: cleanId)
+            .limit(1)
+            .get();
+
+        if (customIdQuery.docs.isEmpty) {
+          customIdQuery = await _firestore
+              .collection(_collectionName)
+              .where('customRoomId', isEqualTo: cleanId)
+              .limit(1)
+              .get();
+        }
+
+        if (customIdQuery.docs.isEmpty && intId != null) {
+          customIdQuery = await _firestore
+              .collection(_collectionName)
+              .where('customId', isEqualTo: intId)
+              .limit(1)
+              .get();
+        }
+
+        if (customIdQuery.docs.isNotEmpty) {
+          final customData = customIdQuery.docs.first.data() as Map<String, dynamic>;
+          targetRoomId = (customData['roomId'] ?? customData['originalRoomId'] ?? customIdQuery.docs.first.id).toString();
+        }
+      } catch (e) {
+        debugPrint('Error searching premium_room_ids: $e');
       }
 
-      // 2. Now search the AudioRoomsV2 collection by the resolved document ID
-      final doc = await _firestore.collection(_roomsCollection).doc(targetRoomId).get();
+      // 2. Search room collections (audio_rooms_v2, audio_rooms, rooms, room)
+      final collectionsToSearch = [_roomsCollection, 'audio_rooms', 'rooms', 'room'];
+      final fieldsToQuery = ['roomId', 'originalRoomId', 'room_id', 'id', 'shortId', 'customId', 'customRoomId'];
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        return {
-          'id': doc.id,
-          'roomId': doc.id,
-          'name': data['roomName'] ?? data['name'] ?? 'Unknown Room',
-          'imageUrl': data['roomImageUrl'] ?? data['imageUrl'] ?? '',
-        };
+      for (final collection in collectionsToSearch) {
+        // A. Direct Document ID Lookup
+        for (final docIdToTry in {targetRoomId, cleanId}) {
+          try {
+            final doc = await _firestore.collection(collection).doc(docIdToTry).get();
+            if (doc.exists && doc.data() != null) {
+              final data = doc.data()!;
+              final origId = data['originalRoomId'] ?? data['roomId'] ?? data['room_id'] ?? data['id'] ?? doc.id;
+              return {
+                'id': doc.id,
+                'roomId': origId.toString(),
+                'name': (data['roomName'] ?? data['name'] ?? data['title'] ?? 'Unknown Room').toString(),
+                'imageUrl': (data['roomImageUrl'] ?? data['imageUrl'] ?? data['roomImage'] ?? data['image'] ?? data['cover'] ?? '').toString(),
+                'collection': collection,
+              };
+            }
+          } catch (_) {}
+        }
+
+        // B. Query by fields (String & Int)
+        for (final field in fieldsToQuery) {
+          try {
+            var query = await _firestore
+                .collection(collection)
+                .where(field, isEqualTo: cleanId)
+                .limit(1)
+                .get();
+
+            if (query.docs.isEmpty && intId != null) {
+              query = await _firestore
+                  .collection(collection)
+                  .where(field, isEqualTo: intId)
+                  .limit(1)
+                  .get();
+            }
+
+            if (query.docs.isNotEmpty) {
+              final doc = query.docs.first;
+              final data = doc.data();
+              final origId = data['originalRoomId'] ?? data['roomId'] ?? data['room_id'] ?? data['id'] ?? doc.id;
+              return {
+                'id': doc.id,
+                'roomId': origId.toString(),
+                'name': (data['roomName'] ?? data['name'] ?? data['title'] ?? 'Unknown Room').toString(),
+                'imageUrl': (data['roomImageUrl'] ?? data['imageUrl'] ?? data['roomImage'] ?? data['image'] ?? data['cover'] ?? '').toString(),
+                'collection': collection,
+              };
+            }
+          } catch (_) {}
+        }
       }
+
+      // 3. Fallback memory scan across collections in case indexes or field name types differ
+      for (final collection in collectionsToSearch) {
+        try {
+          final snapshot = await _firestore.collection(collection).get();
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final dId = doc.id.toLowerCase();
+            final rId = (data['roomId'] ?? data['originalRoomId'] ?? data['room_id'] ?? data['id'] ?? '').toString().toLowerCase();
+            final cId = (data['customId'] ?? data['customRoomId'] ?? '').toString().toLowerCase();
+            final searchLower = cleanId.toLowerCase();
+
+            if (dId == searchLower || rId == searchLower || cId == searchLower || (intId != null && (rId == intId.toString() || cId == intId.toString()))) {
+              final origId = data['originalRoomId'] ?? data['roomId'] ?? data['room_id'] ?? data['id'] ?? doc.id;
+              return {
+                'id': doc.id,
+                'roomId': origId.toString(),
+                'name': (data['roomName'] ?? data['name'] ?? data['title'] ?? 'Unknown Room').toString(),
+                'imageUrl': (data['roomImageUrl'] ?? data['imageUrl'] ?? data['roomImage'] ?? data['image'] ?? data['cover'] ?? '').toString(),
+                'collection': collection,
+              };
+            }
+          }
+        } catch (_) {}
+      }
+
       return null;
     } catch (e) {
       debugPrint('Error searching room: $e');
@@ -92,6 +187,81 @@ class RoomCustomizationService {
     batch.set(historyRef, historyModel.toMap());
   }
 
+  // Helper to find and update room documents across collections by doc ID or field query
+  static Future<void> _updateRoomDocsInCollections(
+    WriteBatch batch, {
+    required List<String> targetIds,
+    required Map<String, dynamic> updateData,
+  }) async {
+    final cleanIds = targetIds
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (cleanIds.isEmpty) return;
+
+    final collections = [_roomsCollection, 'audio_rooms', 'rooms'];
+    final fieldsToQuery = ['roomId', 'originalRoomId', 'room_id', 'id'];
+
+    final docsToUpdate = <DocumentReference>[];
+    final updatedDocPaths = <String>{};
+
+    for (final collection in collections) {
+      final futures = <Future<List<DocumentReference>>>[];
+
+      for (final id in cleanIds) {
+        // Direct Document ID Lookup
+        futures.add(() async {
+          try {
+            final doc = await _firestore.collection(collection).doc(id).get();
+            if (doc.exists && doc.data() != null) {
+              return <DocumentReference>[doc.reference];
+            }
+          } catch (_) {}
+          return <DocumentReference>[];
+        }());
+
+        // Field queries
+        final intId = int.tryParse(id);
+        for (final field in fieldsToQuery) {
+          futures.add(() async {
+            try {
+              final snapshot = await _firestore.collection(collection).where(field, isEqualTo: id).get();
+              return snapshot.docs.map((d) => d.reference).toList();
+            } catch (_) {}
+            return <DocumentReference>[];
+          }());
+
+          if (intId != null) {
+            futures.add(() async {
+              try {
+                final snapshot = await _firestore.collection(collection).where(field, isEqualTo: intId).get();
+                return snapshot.docs.map((d) => d.reference).toList();
+              } catch (_) {}
+              return <DocumentReference>[];
+            }());
+          }
+        }
+      }
+
+      final results = await Future.wait(futures);
+      for (final refList in results) {
+        for (final ref in refList) {
+          if (!updatedDocPaths.contains(ref.path)) {
+            updatedDocPaths.add(ref.path);
+            docsToUpdate.add(ref);
+          }
+        }
+      }
+    }
+
+    // Safely apply updates to batch sequentially
+    for (final docRef in docsToUpdate) {
+      batch.update(docRef, updateData);
+    }
+  }
+
   // Assign custom ID
   static Future<void> assignCustomRoomId(CustomRoomIdModel customRoomId) async {
     try {
@@ -112,12 +282,21 @@ class RoomCustomizationService {
       final newDocRef = _firestore.collection(_collectionName).doc(customRoomId.roomId);
       batch.set(newDocRef, customRoomId.toFirestore());
 
-      // 3. Mark the room to note it has a custom ID (but DO NOT overwrite its core roomId field!)
-      final roomRef = _firestore.collection(_roomsCollection).doc(customRoomId.roomId);
-      batch.update(roomRef, {
-        'hasCustomId': true,
+      // 3. Mark the room across candidate room collections
+      final roomUpdateData = <String, dynamic>{
+        'hasCustomId': customRoomId.isActive,
+        'isCustomIdActive': customRoomId.isActive,
+        'customIdStatus': customRoomId.isActive ? 'active' : 'deactivated',
         'customIdExpiresAt': Timestamp.fromDate(customRoomId.expiresAt),
-      });
+        'customId': customRoomId.customRoomId,
+        'customRoomId': customRoomId.customRoomId,
+      };
+
+      await _updateRoomDocsInCollections(
+        batch,
+        targetIds: [customRoomId.roomId, customRoomId.originalRoomId],
+        updateData: roomUpdateData,
+      );
 
       // 4. Add History Log
       _addHistoryLog(
@@ -144,7 +323,8 @@ class RoomCustomizationService {
       if (!doc.exists) return;
 
       final data = doc.data()!;
-      final roomId = data['roomId'];
+      final roomId = (data['roomId'] ?? '').toString();
+      final origRoomId = (data['originalRoomId'] ?? '').toString();
       final currentOwnerId = data['currentOwnerId'] ?? '';
       final oldCustomId = data['customId'] ?? data['customRoomId'] ?? '';
       
@@ -167,6 +347,7 @@ class RoomCustomizationService {
       final updateData = <String, dynamic>{
         'expiresAt': Timestamp.fromDate(newExpiresAt),
         'isActive': isActive,
+        'status': isActive ? 'active' : 'deactivated',
       };
       
       String targetCustomId = oldCustomId;
@@ -178,22 +359,28 @@ class RoomCustomizationService {
       
       batch.update(docRef, updateData);
 
-      // Update room doc
-      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
-      if (!isActive) {
-        batch.update(roomRef, {
-          'hasCustomId': false,
-        });
-      } else {
-        batch.update(roomRef, {
-          'customIdExpiresAt': Timestamp.fromDate(newExpiresAt),
-        });
-      }
+      // Update room docs in real-time across room collections
+      final roomUpdateData = <String, dynamic>{
+        'hasCustomId': isActive,
+        'isCustomIdActive': isActive,
+        'customIdStatus': isActive ? 'active' : 'deactivated',
+        'customIdExpiresAt': Timestamp.fromDate(newExpiresAt),
+        if (isActive) 'customId': targetCustomId,
+        if (isActive) 'customRoomId': targetCustomId,
+        if (!isActive) 'customId': FieldValue.delete(),
+        if (!isActive) 'customRoomId': FieldValue.delete(),
+      };
+
+      await _updateRoomDocsInCollections(
+        batch,
+        targetIds: [roomId, origRoomId, docId, oldCustomId],
+        updateData: roomUpdateData,
+      );
 
       // Add History Log
       _addHistoryLog(
         batch,
-        roomId: roomId,
+        roomId: roomId.isNotEmpty ? roomId : docId,
         currentOwnerId: currentOwnerId,
         customRoomId: targetCustomId,
         action: RoomIdHistoryAction.update,
@@ -215,25 +402,32 @@ class RoomCustomizationService {
       if (!doc.exists) return;
 
       final data = doc.data()!;
-      final roomId = data['roomId'];
-      final isActive = data['isActive'] ?? false;
+      final roomId = (data['roomId'] ?? '').toString();
+      final origRoomId = (data['originalRoomId'] ?? '').toString();
       final currentOwnerId = data['currentOwnerId'] ?? '';
       final customRoomId = data['customId'] ?? data['customRoomId'] ?? '';
 
       final batch = _firestore.batch();
       batch.delete(docRef);
 
-      if (isActive) {
-        final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
-        batch.update(roomRef, {
-          'hasCustomId': false,
-        });
-      }
+      final roomUpdateData = <String, dynamic>{
+        'hasCustomId': false,
+        'isCustomIdActive': false,
+        'customIdStatus': 'removed',
+        'customId': FieldValue.delete(),
+        'customRoomId': FieldValue.delete(),
+      };
+
+      await _updateRoomDocsInCollections(
+        batch,
+        targetIds: [roomId, origRoomId, docId, customRoomId],
+        updateData: roomUpdateData,
+      );
 
       // Add History Log
       _addHistoryLog(
         batch,
-        roomId: roomId,
+        roomId: roomId.isNotEmpty ? roomId : docId,
         currentOwnerId: currentOwnerId,
         customRoomId: customRoomId,
         action: RoomIdHistoryAction.remove,

@@ -17,6 +17,7 @@ class _PinkGreedyGameScreenState extends State<PinkGreedyGameScreen> {
   final _thumbnailUrlController = TextEditingController();
   
   double _winRatio = 50.0; // 1 to 100
+  bool _isActive = true;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -57,6 +58,7 @@ class _PinkGreedyGameScreenState extends State<PinkGreedyGameScreen> {
            _winRatio = 50.0;
         }
 
+        _isActive = (data['isActive'] ?? true) != false;
         _isCustomScheduled = data['isCustomScheduled'] ?? false;
         _customItem = data['customItem'] ?? 'Pizza';
         _thumbnailUrlController.text = data['thumbnailUrl'] ?? '';
@@ -66,6 +68,7 @@ class _PinkGreedyGameScreenState extends State<PinkGreedyGameScreen> {
       } else {
         // Defaults
         _winRatio = 50.0;
+        _isActive = true;
       }
     } catch (e) {
       if (mounted) {
@@ -105,6 +108,7 @@ class _PinkGreedyGameScreenState extends State<PinkGreedyGameScreen> {
           .collection('config')
           .doc('pink_greedy_game')
           .set({
+        'isActive': _isActive,
         'winRatio': _winRatio.round(),
         'highWeight': highW,
         'mediumWeight': mediumW,
@@ -232,6 +236,33 @@ class _PinkGreedyGameScreenState extends State<PinkGreedyGameScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[900],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SwitchListTile(
+                        title: const Text(
+                          'Game Active Status',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          _isActive ? 'Active (Visible in app)' : 'Inactive (Hidden in app)',
+                          style: TextStyle(
+                            color: _isActive ? Colors.greenAccent : Colors.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+                        value: _isActive,
+                        activeThumbColor: Colors.pink,
+                        onChanged: (val) {
+                          setState(() {
+                            _isActive = val;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [

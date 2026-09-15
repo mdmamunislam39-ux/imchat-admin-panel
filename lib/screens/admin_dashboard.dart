@@ -8,6 +8,7 @@ import 'gift_management.dart';
 import 'emoji_management.dart';
 import 'diamonds_management.dart';
 import 'reports_analytics.dart';
+import 'game_profit_analysis_screen.dart';
 import 'settings_screen.dart';
 import 'agency_management.dart';
 import 'commission_management.dart';
@@ -21,12 +22,15 @@ import 'blocked_users_management.dart';
 import 'user_ban_management_screen.dart';
 import 'room_ban_management_screen.dart';
 import 'level_system_management.dart';
+import 'intimacy_level_management.dart';
+import 'couple_level_management.dart';
 import 'host_agency_management.dart';
 import 'gift_transactions_screen.dart';
 import 'withdrawal_management.dart';
 import 'official_items_screen.dart';
 import 'banner_management_screen.dart';
 import 'official_channels_screen.dart';
+import 'official_notifications_screen.dart';
 import 'event_management_screen.dart';
 import 'room_event_portal_management.dart';
 import 'game_management_screen.dart';
@@ -34,10 +38,14 @@ import 'fruit_wheel_game_screen.dart';
 import 'room_id_customization_screen.dart';
 import 'super_admin_management_screen.dart';
 import 'svip_management_screen.dart';
+import 'vip_management_screen.dart';
 import 'device_management_screen.dart';
 import 'add_store_item_screen.dart';
 import 'feedback_management_screen.dart';
 import 'family_management_screen.dart';
+import 'grab_the_top_management.dart';
+import 'moment_management_screen.dart';
+import 'realtime_server_setup_screen.dart';
 import '../models/admin_permission_model.dart';
 import '../services/admin_permission_service.dart';
 import '../services/admin_auth_service.dart';
@@ -46,6 +54,20 @@ import 'login_screen.dart';
 import 'invitation_reward_screen.dart';
 import 'app_theme_management_screen.dart';
 import 'family_level_management.dart';
+import 'website_landing_management_screen.dart';
+import 'sub_official_admin_screen.dart';
+import 'html5_game_management_screen.dart';
+import 'room_create_decoration_screen.dart';
+import 'room_game_management_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'analytics/audio_video_analytics_screen.dart';
+import 'analytics/user_registration_analytics_screen.dart';
+import 'analytics/recharge_analytics_screen.dart';
+import 'analytics/gift_analytics_screen.dart';
+import 'analytics/seller_recharge_analytics_screen.dart';
+import '../services/dashboard_analytics_service.dart';
+import '../widgets/media_preview_widget.dart';
+import 'recharge_wallet_management_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -55,16 +77,72 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  // Statistics
+  // Statistics & Real-time Analytics
   int _totalUsers = 0;
   int _totalRooms = 0;
   int _totalGifts = 0;
   bool _isLoading = true;
 
+  StreamSubscription<DashboardTodayStats>? _todayStatsSubscription;
+  StreamSubscription<DocumentSnapshot>? _themeSubscription;
+  DashboardTodayStats _todayStats = const DashboardTodayStats();
+  String? _diamondIconUrl;
+  String? _beansIconUrl;
+
   @override
   void initState() {
     super.initState();
     _loadStatistics();
+    DashboardAnalyticsService.syncAndInitializeAgoraMinutesToFirestore();
+    _startRealtimeListeners();
+  }
+
+  void _startRealtimeListeners() {
+    _todayStatsSubscription?.cancel();
+    _todayStatsSubscription = DashboardAnalyticsService.getTodayStatsStream().listen(
+      (stats) {
+        if (!mounted) return;
+        setState(() {
+          _todayStats = stats;
+          _totalUsers = stats.totalUsers > 0 ? stats.totalUsers : _totalUsers;
+          _totalRooms = stats.activeRooms > 0 ? stats.activeRooms : _totalRooms;
+          _totalGifts = stats.totalGifts > 0 ? stats.totalGifts : _totalGifts;
+          _isLoading = false;
+        });
+      },
+      onError: (e) {
+        debugPrint('Error listening to today stats: $e');
+      },
+    );
+
+    _themeSubscription?.cancel();
+    _themeSubscription = FirebaseFirestore.instance
+        .collection('global_settings')
+        .doc('app_theme')
+        .snapshots()
+        .listen((docSnap) {
+      if (docSnap.exists && mounted) {
+        final data = docSnap.data() ?? {};
+        setState(() {
+          _diamondIconUrl = data['diamondIconUrl']?.toString();
+          _beansIconUrl = data['beansIconUrl']?.toString();
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Theme listener error: $e');
+    });
+  }
+
+  Widget _buildDiamondIcon({double size = 22}) {
+    if (_diamondIconUrl != null && _diamondIconUrl!.trim().isNotEmpty) {
+      return MediaPreviewWidget(
+        url: _diamondIconUrl!,
+        width: size,
+        height: size,
+        borderRadius: BorderRadius.circular(4),
+      );
+    }
+    return Icon(Icons.diamond, color: const Color(0xFFF59E0B), size: size);
   }
 
   Future<void> _loadStatistics() async {
@@ -76,7 +154,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // Load real statistics from Firebase
       final stats = await FirebaseDataService.getSystemStatistics();
-      
+
       if (!mounted) return;
       setState(() {
         _totalUsers = stats['totalUsers'] ?? 0;
@@ -95,6 +173,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   void dispose() {
+    _todayStatsSubscription?.cancel();
+    _themeSubscription?.cancel();
     super.dispose();
   }
 
@@ -186,7 +266,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
 
           // User Management Section
-          if (_hasPermission('Users Management') || _hasPermission('User Profiles') || _hasPermission('Hosts & Agencies') || _hasPermission('Blocked Users') || _hasPermission('Family Management'))
+          if (_hasPermission('Users Management') ||
+              _hasPermission('User Profiles') ||
+              _hasPermission('Hosts & Agencies') ||
+              _hasPermission('Blocked Users') ||
+              _hasPermission('Family Management'))
             _buildSectionHeader('👥 USER MANAGEMENT'),
           if (_hasPermission('Users Management'))
             _buildDrawerItem(
@@ -262,8 +346,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
 
           // Content & Store Section
-          if (_hasPermission('Banner Management') || _hasPermission('Event Management') || _hasPermission('Official Channels') || _hasPermission('Market Management') || _hasPermission('Gifts Management') || _hasPermission('Emojis Management'))
+          if (_hasPermission('Banner Management') ||
+              _hasPermission('Event Management') ||
+              _hasPermission('Official Channels') ||
+              _hasPermission('Market Management') ||
+              _hasPermission('Gifts Management') ||
+              _hasPermission('Emojis Management') ||
+              _hasPermission('imChat Moment Management'))
             _buildSectionHeader('🛍️ CONTENT & STORE'),
+          if (_hasPermission('imChat Moment Management'))
+            _buildDrawerItem(
+              icon: Icons.dynamic_feed,
+              title: 'imChat Moment Management',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('imChat Moment Management');
+              },
+            ),
           if (_hasPermission('Banner Management'))
             _buildDrawerItem(
               icon: Icons.view_carousel,
@@ -282,7 +381,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('Event Management');
               },
             ),
-          if (_hasPermission('Event Management')) // Room Event Portal falls under Event Management
+          if (_hasPermission(
+            'Event Management',
+          )) // Room Event Portal falls under Event Management
             _buildDrawerItem(
               icon: Icons.app_shortcut,
               title: 'Room Event Portal',
@@ -298,6 +399,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 _navigateToScreen('Official Channels');
+              },
+            ),
+          if (_hasPermission('Official Channels'))
+            _buildDrawerItem(
+              icon: Icons.notification_important,
+              title: 'Official Notifications',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Official Notifications');
               },
             ),
           if (_hasPermission('Market Management'))
@@ -338,7 +448,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
 
           // Levels & Progression Section
-          if (_hasPermission('Level System') || _hasPermission('User History & Stats') || _hasPermission('SVIP Management'))
+          if (_hasPermission('Level System') ||
+              _hasPermission('Intimacy Levels') ||
+              _hasPermission('Couple Levels') ||
+              _hasPermission('User History & Stats') ||
+              _hasPermission('VIP Management') ||
+              _hasPermission('SVIP Management'))
             _buildSectionHeader('⭐ LEVELS & PROGRESSION'),
           if (_hasPermission('Level System'))
             _buildDrawerItem(
@@ -347,6 +462,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 _navigateToScreen('Level System Management');
+              },
+            ),
+          if (_hasPermission('Intimacy Levels') || _hasPermission('Level System'))
+            _buildDrawerItem(
+              icon: Icons.favorite_border,
+              title: 'Intimacy Level',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Intimacy Level');
+              },
+            ),
+          if (_hasPermission('Couple Levels') || _hasPermission('Level System'))
+            _buildDrawerItem(
+              icon: Icons.favorite,
+              title: 'Couple Level',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Couple Level');
               },
             ),
           if (_hasPermission('User History & Stats'))
@@ -358,9 +491,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('User History Stats');
               },
             ),
+          if (_hasPermission('VIP Management'))
+            _buildDrawerItem(
+              icon: Icons.star_border_outlined,
+              title: 'VIP Management',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('VIP Management');
+              },
+            ),
           if (_hasPermission('SVIP Management'))
             _buildDrawerItem(
-              icon: Icons.star_border,
+              icon: Icons.star,
               title: 'SVIP Management',
               onTap: () {
                 Navigator.pop(context);
@@ -369,7 +511,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
 
           // Business & Analytics Section
-          if (_hasPermission('Agency Management') || _hasPermission('Seller Management') || _hasPermission('Commission Management') || _hasPermission('Official Items') || _hasPermission('Gift Economy') || _hasPermission('Withdrawal Management') || _hasPermission('Diamonds Management') || _hasPermission('Daily Check-in') || _hasPermission('Reports & Analytics'))
+          if (_hasPermission('Agency Management') ||
+              _hasPermission('Seller Management') ||
+              _hasPermission('Commission Management') ||
+              _hasPermission('Official Items') ||
+              _hasPermission('Gift Economy') ||
+              _hasPermission('Withdrawal Management') ||
+              _hasPermission('Diamonds Management') ||
+              _hasPermission('Daily Check-in') ||
+              _hasPermission('Reports & Analytics'))
             _buildSectionHeader('💼 BUSINESS & ANALYTICS'),
           if (_hasPermission('Agency Management'))
             _buildDrawerItem(
@@ -434,6 +584,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('Diamonds Management');
               },
             ),
+          if (_hasPermission('Diamonds Management'))
+            _buildDrawerItem(
+              icon: Icons.account_balance_wallet,
+              title: 'Recharge Wallet Management',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Recharge Wallet Management');
+              },
+            ),
           if (_hasPermission('Daily Check-in'))
             _buildDrawerItem(
               icon: Icons.calendar_month,
@@ -452,10 +611,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('Reports & Analytics');
               },
             ),
+          if (_hasPermission('Reports & Analytics'))
+            _buildDrawerItem(
+              icon: Icons.pie_chart,
+              title: 'Game Profit & Analysis',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Game Profit & Analysis');
+              },
+            ),
 
           // Platform Management Section
-          if (_hasPermission('Game Management') || _hasPermission('Rooms Management') || _hasPermission('Custom Room IDs') || _hasPermission('Settings'))
+          if (_hasPermission('Game Management') ||
+              _hasPermission('Rooms Management') ||
+              _hasPermission('Custom Room IDs') ||
+              _hasPermission('Settings'))
             _buildSectionHeader('🎵 PLATFORM MANAGEMENT'),
+          if (_hasPermission('Game Management'))
+            _buildDrawerItem(
+              icon: Icons.sports_esports,
+              title: '🎮 HTML 5 Game',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('HTML 5 Game');
+              },
+            ),
           if (_hasPermission('Game Management'))
             _buildDrawerItem(
               icon: Icons.games,
@@ -463,6 +643,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 _navigateToScreen('Game Management');
+              },
+            ),
+          if (_hasPermission('Game Management'))
+            _buildDrawerItem(
+              icon: Icons.meeting_room_rounded,
+              title: 'Room Game Management',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Room Game Management');
               },
             ),
           if (_hasPermission('Rooms Management'))
@@ -474,6 +663,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('Rooms Management');
               },
             ),
+          if (_hasPermission('Rooms Management') || _hasPermission('Settings'))
+            _buildDrawerItem(
+              icon: Icons.auto_awesome,
+              title: '🎨 Room Create Decoration',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Room Create Decoration');
+              },
+            ),
           if (_hasPermission('Custom Room IDs'))
             _buildDrawerItem(
               icon: Icons.vpn_key,
@@ -483,6 +681,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _navigateToScreen('Custom Room IDs');
               },
             ),
+          if (_hasPermission('Rooms Management') || _hasPermission('Settings'))
+            _buildDrawerItem(
+              icon: Icons.event_seat_rounded,
+              title: '🪑 Grab the Top Management',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Grab the Top Management');
+              },
+            ),
           if (_hasPermission('Settings'))
             _buildDrawerItem(
               icon: Icons.color_lens,
@@ -490,6 +697,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               onTap: () {
                 Navigator.pop(context);
                 _navigateToScreen('App Theme & Assets');
+              },
+            ),
+          if (_hasPermission('Settings'))
+            _buildDrawerItem(
+              icon: Icons.dns,
+              title: 'রিয়েল টাইম সার্ভার সেটআপ',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Realtime Server Setup');
               },
             ),
           if (_hasPermission('Settings'))
@@ -524,6 +740,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           if (AdminAuthService.isMainAdmin()) ...[
             _buildSectionHeader('🛡️ SYSTEM ADMIN'),
+            _buildDrawerItem(
+              icon: Icons.admin_panel_settings,
+              title: '👑 Sub Official Admin',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Sub Official Admin');
+              },
+            ),
+            _buildDrawerItem(
+              icon: Icons.language,
+              title: '🌐 Website Landing (imchatapp.com)',
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToScreen('Website Landing');
+              },
+            ),
             _buildDrawerItem(
               icon: Icons.security,
               title: 'Super Admins',
@@ -586,7 +818,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+        color: isSelected
+            ? Colors.blue.withValues(alpha: 0.1)
+            : Colors.transparent,
       ),
       child: ListTile(
         leading: Icon(
@@ -621,6 +855,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Rooms Management':
         screen = const RoomsManagement();
         break;
+      case 'Room Create Decoration':
+        screen = const RoomCreateDecorationScreen();
+        break;
       case 'Gifts Management':
         screen = const GiftManagement();
         break;
@@ -630,14 +867,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Diamonds Management':
         screen = const DiamondsManagement();
         break;
+      case 'Recharge Wallet Management':
+      case 'Recharge Management':
+        screen = const RechargeWalletManagementScreen();
+        break;
       case 'Daily Check-in':
         screen = const DailyCheckInManagementScreen();
         break;
       case 'Reports & Analytics':
         screen = const ReportsAnalytics();
         break;
+      case 'Game Profit & Analysis':
+        screen = const GameProfitAnalysisScreen();
+        break;
       case 'Settings':
         screen = const SettingsScreen();
+        break;
+      case 'Website Landing':
+        screen = const WebsiteLandingManagementScreen();
+        break;
+      case 'Realtime Server Setup':
+        screen = const RealtimeServerSetupScreen();
         break;
       case 'Agency Management':
         screen = const AgencyManagement();
@@ -652,12 +902,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         screen = const StoreManagement();
         break;
       case 'Add Store Item':
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const AddStoreItemScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AddStoreItemScreen()),
+        );
         return;
 
       // New User Profile & Features screens
       case 'User Profile Management':
         screen = const UserProfileManagement();
+        break;
+      case 'Grab the Top Management':
+        screen = const GrabTheTopManagementScreen();
         break;
       case 'Market Management':
         screen = const MarketManagement();
@@ -675,6 +931,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Level System Management':
         screen = const LevelSystemManagement();
         break;
+      case 'Intimacy Level':
+        screen = const IntimacyLevelManagementScreen();
+        break;
+      case 'Couple Level':
+        screen = const CoupleLevelManagementScreen();
+        break;
+      case 'Sub Official Admin':
+      case 'Sub Admins':
+        screen = const SubOfficialAdminScreen();
+        break;
       case 'Admin Accounts':
         screen = const AdminAccountsScreen();
         break;
@@ -686,6 +952,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         break;
       case 'Family Levels':
         screen = const FamilyLevelManagementScreen();
+        break;
+      case 'VIP Management':
+        screen = const VipManagementScreen();
         break;
       case 'SVIP Management':
         screen = const SvipManagementScreen();
@@ -699,6 +968,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Banner Management':
         screen = const BannerManagementScreen();
         break;
+      case 'imChat Moment Management':
+        screen = const MomentManagementScreen();
+        break;
       case 'Event Management':
         screen = const EventManagementScreen();
         break;
@@ -708,8 +980,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Official Channels':
         screen = const OfficialChannelsScreen();
         break;
+      case 'Official Notifications':
+        screen = const OfficialNotificationsScreen();
+        break;
+      case 'HTML 5 Game':
+        screen = const Html5GameManagementScreen();
+        break;
       case 'Game Management':
         screen = const GameManagementScreen();
+        break;
+      case 'Room Game Management':
+        screen = const RoomGameManagementScreen();
         break;
       case 'Fruit Wheel Game':
         screen = const FruitWheelGameScreen();
@@ -732,11 +1013,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
       case 'Super Admins':
         screen = const SuperAdminManagementScreen();
         break;
-      case 'Device Sessions':
-        screen = const DeviceManagementScreen();
-        break;
       case 'Feedback Management':
         screen = const FeedbackManagementScreen();
+        break;
+
+      // Analytics Screens
+      case 'Agora Audio & Video Analytics':
+      case 'Audio & Video Minutes Analytics':
+      case 'Audio Video Analytics':
+        screen = const AudioVideoAnalyticsScreen();
+        break;
+
+      case 'User Registration Analytics':
+      case 'Today Registered Users':
+        screen = const UserRegistrationAnalyticsScreen();
+        break;
+
+      case 'Recharge Analytics':
+      case 'Today Recharge Diamond':
+        screen = const RechargeAnalyticsScreen();
+        break;
+
+      case 'Gift Analytics':
+      case 'Today Gift Send':
+        screen = const GiftAnalyticsScreen();
+        break;
+
+      case 'Seller Recharge Analytics':
+      case 'Today Seller Recharge':
+        screen = const SellerRechargeAnalyticsScreen();
         break;
 
       default:
@@ -904,33 +1209,67 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           const SizedBox(height: 24),
 
-          // Statistics Cards
-          const Text(
-            'Platform Statistics',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+          const SizedBox(height: 24),
+
+          // 1. Live Platform Real-time Overview
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Live Platform Statistics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt, color: Colors.greenAccent, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      'Live Real-Time',
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: _buildStatCard(
+                child: _buildInteractiveStatCard(
                   title: 'Total Users',
-                  value: _totalUsers.toString(),
-                  icon: Icons.people,
-                  color: Colors.blue,
+                  value: _todayStats.totalUsers > 0 ? _todayStats.totalUsers.toString() : _totalUsers.toString(),
+                  icon: Icons.people_alt,
+                  color: const Color(0xFF3B82F6),
+                  subtitle: 'Registered Accounts',
+                  onTap: () => _navigateToScreen('Users Management'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildStatCard(
+                child: _buildInteractiveStatCard(
                   title: 'Active Rooms',
-                  value: _totalRooms.toString(),
-                  icon: Icons.room,
-                  color: Colors.green,
+                  value: _todayStats.activeRooms > 0 ? _todayStats.activeRooms.toString() : _totalRooms.toString(),
+                  icon: Icons.meeting_room,
+                  color: const Color(0xFF10B981),
+                  subtitle: 'Live Audio Channels',
+                  onTap: () => _navigateToScreen('Rooms Management'),
                 ),
               ),
             ],
@@ -939,24 +1278,163 @@ class _AdminDashboardState extends State<AdminDashboard> {
           Row(
             children: [
               Expanded(
-                child: _buildStatCard(
+                child: _buildInteractiveStatCard(
                   title: 'Total Gifts',
-                  value: _totalGifts.toString(),
+                  value: _todayStats.totalGifts > 0 ? _todayStats.totalGifts.toString() : _totalGifts.toString(),
                   icon: Icons.card_giftcard,
-                  color: Colors.purple,
+                  color: const Color(0xFFA855F7),
+                  subtitle: 'App Gift Catalog',
+                  onTap: () => _navigateToScreen('Gifts Management'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildStatCard(
+                child: _buildInteractiveStatCard(
                   title: 'Total Diamonds',
-                  value: (_totalUsers * 100).toString(),
-                  icon: Icons.monetization_on,
-                  color: Colors.orange,
+                  value: '${_todayStats.totalDiamonds > 0 ? _todayStats.totalDiamonds.toStringAsFixed(0) : (_totalUsers * 100).toString()} 💎',
+                  icon: Icons.diamond,
+                  customIconWidget: _buildDiamondIcon(size: 28),
+                  color: const Color(0xFFF59E0B),
+                  subtitle: 'App Diamond Circulation',
+                  onTap: () => _navigateToScreen('Recharge Analytics'),
                 ),
               ),
             ],
           ),
+
+          const SizedBox(height: 28),
+
+          // 2. Today's Activity & Revenue Analysis Grid
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Today's Activity & Revenue Analysis",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Click card for Daily/Weekly/Monthly history',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Row 1 of Today's Analysis (Users, Recharge Diamond)
+          Row(
+            children: [
+              Expanded(
+                child: _buildActivityAnalyticsCard(
+                  title: 'Today Registered User',
+                  value: '${_todayStats.todayRegisteredUsers} Users',
+                  subtitle: 'New registrations today',
+                  icon: Icons.person_add_alt_1,
+                  badgeText: 'Daily Growth',
+                  color: const Color(0xFF3B82F6),
+                  bgGradient: const [Color(0xFF1E3A8A), Color(0xFF172554)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const UserRegistrationAnalyticsScreen(initialPeriod: 'daily'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildActivityAnalyticsCard(
+                  title: 'Today Recharge Diamond',
+                  value: '${_todayStats.todayRechargeDiamonds.toStringAsFixed(0)} 💎',
+                  subtitle: 'Purchased by users',
+                  icon: Icons.monetization_on,
+                  badgeText: 'Recharge Inflow',
+                  color: const Color(0xFFF59E0B),
+                  bgGradient: const [Color(0xFF78350F), Color(0xFF451A03)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RechargeAnalyticsScreen(initialPeriod: 'daily'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Row 2 of Today's Analysis (Gift Send, Game Profit, Seller Recharge)
+          Row(
+            children: [
+              Expanded(
+                child: _buildActivityAnalyticsCard(
+                  title: 'Today Gift Send',
+                  value: '${_todayStats.todayGiftCount} Gifts',
+                  subtitle: '${_todayStats.todayGiftDiamonds.toStringAsFixed(0)} 💎 Sent',
+                  icon: Icons.card_giftcard,
+                  badgeText: 'Gift Economy',
+                  color: const Color(0xFFA855F7),
+                  bgGradient: const [Color(0xFF581C87), Color(0xFF3B0764)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GiftAnalyticsScreen(initialPeriod: 'daily'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildActivityAnalyticsCard(
+                  title: 'Today Game Profit',
+                  value: '${_todayStats.todayGameProfit >= 0 ? '+' : ''}${_todayStats.todayGameProfit.toStringAsFixed(0)} 💎',
+                  subtitle: 'Greedy & Fruit Wheel Net',
+                  icon: Icons.sports_esports,
+                  badgeText: 'Game Profit',
+                  color: const Color(0xFFEC4899),
+                  bgGradient: const [Color(0xFF831843), Color(0xFF500724)],
+                  onTap: () => _navigateToScreen('Game Profit & Analysis'),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildActivityAnalyticsCard(
+                  title: 'Today Seller Recharge',
+                  value: '${_todayStats.todaySellerRecharge.toStringAsFixed(0)} 💎',
+                  subtitle: 'Vendor distribution',
+                  icon: Icons.storefront,
+                  badgeText: 'Seller Sales',
+                  color: const Color(0xFF10B981),
+                  bgGradient: const [Color(0xFF064E3B), Color(0xFF022C22)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SellerRechargeAnalyticsScreen(initialPeriod: 'daily'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 28),
+
+          // 3. Today Agora Audio & Video Minutes Feature Showcase Card
+          _buildAgoraUsageShowcaseCard(),
 
           const SizedBox(height: 32),
 
@@ -1025,6 +1503,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: Colors.orange,
                   onTap: () {
                     _navigateToScreen('Emojis Management');
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Recharge Wallet Quick Action
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  title: 'Recharge Wallet Management',
+                  subtitle: 'Packages, payment channels & TrxID verification',
+                  icon: Icons.account_balance_wallet,
+                  color: const Color(0xFF8B5CF6),
+                  onTap: () {
+                    _navigateToScreen('Recharge Wallet Management');
                   },
                 ),
               ),
@@ -1142,8 +1639,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Container(), // Empty space for symmetry
+                child: _buildQuickActionCard(
+                  title: 'Game Profit & Analysis',
+                  subtitle: 'View real-time game logs and stats',
+                  icon: Icons.pie_chart,
+                  color: Colors.deepPurple,
+                  onTap: () {
+                    _navigateToScreen('Game Profit & Analysis');
+                  },
+                ),
               ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Seventh row of actions (imChat Moment Management)
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  title: 'imChat Moment Management',
+                  subtitle: 'Notices, Reports, Moderation & AdSense',
+                  icon: Icons.dynamic_feed,
+                  color: Colors.purpleAccent,
+                  onTap: () {
+                    _navigateToScreen('imChat Moment Management');
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (AdminAuthService.isMainAdmin())
+                Expanded(
+                  child: _buildQuickActionCard(
+                    title: '👑 Sub Official Admin',
+                    subtitle: 'Manage sub-admin credentials & module permissions',
+                    icon: Icons.admin_panel_settings,
+                    color: Colors.blueAccent,
+                    onTap: () {
+                      _navigateToScreen('Sub Official Admin');
+                    },
+                  ),
+                )
+              else
+                const Expanded(child: SizedBox.shrink()),
             ],
           ),
 
@@ -1160,6 +1699,416 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
           const SizedBox(height: 16),
           _buildRecentActivityCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractiveStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    Widget? customIconWidget,
+    required Color color,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        hoverColor: color.withOpacity(0.08),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.35)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  customIconWidget ??
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(icon, color: color, size: 24),
+                      ),
+                  const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityAnalyticsCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required String badgeText,
+    required Color color,
+    required List<Color> bgGradient,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        hoverColor: color.withOpacity(0.15),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: bgGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.4)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.18),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.25),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward, color: Colors.white54, size: 14),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAgoraUsageShowcaseCard() {
+    final totalMins = _todayStats.todayAudioMinutes +
+        _todayStats.todayVideoMinutes +
+        _todayStats.todayAudioRoomMinutes +
+        _todayStats.todayLiveRoomMinutes;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AudioVideoAnalyticsScreen(initialPeriod: 'daily'),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(18),
+        hoverColor: Colors.indigo.withOpacity(0.1),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF312E81)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withOpacity(0.2),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.graphic_eq, color: Colors.cyanAccent, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Today Agora Audio & Video Minutes',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'RTC Voice Calls, Video Calls, Audio Rooms & Live Streams',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Total: $totalMins min',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward, color: Colors.white, size: 14),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 4 Metrics Pills
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth > 700;
+                  final pillWidth = isDesktop
+                      ? (constraints.maxWidth - 36) / 4
+                      : (constraints.maxWidth - 12) / 2;
+
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                        width: pillWidth,
+                        child: _buildAgoraPill(
+                          title: 'Audio Call',
+                          minutes: _todayStats.todayAudioMinutes,
+                          icon: Icons.call,
+                          color: const Color(0xFF3B82F6),
+                        ),
+                      ),
+                      SizedBox(
+                        width: pillWidth,
+                        child: _buildAgoraPill(
+                          title: 'Video Call',
+                          minutes: _todayStats.todayVideoMinutes,
+                          icon: Icons.videocam,
+                          color: const Color(0xFFEC4899),
+                        ),
+                      ),
+                      SizedBox(
+                        width: pillWidth,
+                        child: _buildAgoraPill(
+                          title: 'Audio Room',
+                          minutes: _todayStats.todayAudioRoomMinutes,
+                          icon: Icons.mic,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                      SizedBox(
+                        width: pillWidth,
+                        child: _buildAgoraPill(
+                          title: 'Live Video Room',
+                          minutes: _todayStats.todayLiveRoomMinutes,
+                          icon: Icons.live_tv,
+                          color: const Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    '👆 Tap to view User-Wise breakdown & Daily / Weekly / Monthly stats',
+                    style: TextStyle(
+                      color: Colors.cyanAccent.withOpacity(0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAgoraPill({
+    required String title,
+    required int minutes,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '$minutes min',
+                  style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

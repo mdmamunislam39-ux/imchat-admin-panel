@@ -380,3 +380,41 @@ await FirebaseFirestore.instance
 - **Withdrawal** deducts beans on request, refunds on rejection
 - **One pending withdrawal** per user at a time
 - **Agency commission** (10%) is processed every Sunday at 10PM Bangladesh Time automatically
+
+---
+
+## 8. Ludo Dice / Dynamic Emoji System
+
+Admin can upload Ludo Dice emojis with a main thumbnail PNG and 1 to 10 outcome images into `emoji/{category}` documents.
+
+### Firestore Structure (`emoji/{category}`)
+In the `emojis` array of category documents (`Activity`, `Customize`, `Free`):
+```json
+{
+  "emoji_name": "Ludo Classic Dice",
+  "emoji_url": "https://...dice_thumb.png",
+  "file_type": "png",
+  "type": "dice",
+  "is_dice": true,
+  "outcomes": [
+    "https://...outcome_1.png",
+    "https://...outcome_2.png",
+    "https://...outcome_3.png",
+    "https://...outcome_4.png",
+    "https://...outcome_5.png",
+    "https://...outcome_6.png"
+  ],
+  "outcome_count": 6,
+  "created_at": "2026-09-11T..."
+}
+```
+
+### App Handling:
+1. **Emoji Model (`EmojiItem`)**:
+   Parse `is_dice: json['is_dice'] == true || json['type'] == 'dice'` and `outcomes: List<String>.from(json['outcomes'] ?? [])`.
+2. **On Emoji Click**:
+   If `emoji.isDice && emoji.outcomes.isNotEmpty`, choose a random outcome:
+   `final rolledIndex = Random().nextInt(emoji.outcomes.length);`
+   `final outcomeUrl = emoji.outcomes[rolledIndex];`
+3. **Spinning Animation & Display**:
+   Show `SpinningDiceWidget` rapidly cycling through `emoji.outcomes` for 1.2-1.5s, then reveal `outcomeUrl`.

@@ -22,6 +22,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
   final TextEditingController _diamondPriceController = TextEditingController();
   final TextEditingController _expirationDurationController = TextEditingController();
   final TextEditingController _fileNameController = TextEditingController();
+  final TextEditingController _price3DaysController = TextEditingController();
+  final TextEditingController _price7DaysController = TextEditingController();
+  final TextEditingController _price15DaysController = TextEditingController();
+  final TextEditingController _price30DaysController = TextEditingController();
 
   StoreItemType _selectedType = StoreItemType.avatarFrame;
   StoreCategory _selectedCategory = StoreCategory.store;
@@ -55,7 +59,18 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
     _diamondPriceController.dispose();
     _expirationDurationController.dispose();
     _fileNameController.dispose();
+    _price3DaysController.dispose();
+    _price7DaysController.dispose();
+    _price15DaysController.dispose();
+    _price30DaysController.dispose();
     super.dispose();
+  }
+
+  bool _hasAnyValidityPrice() {
+    return _price3DaysController.text.trim().isNotEmpty ||
+        _price7DaysController.text.trim().isNotEmpty ||
+        _price15DaysController.text.trim().isNotEmpty ||
+        _price30DaysController.text.trim().isNotEmpty;
   }
 
   void _showErrorSnackBar(String message) {
@@ -101,6 +116,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
         return '🎙️';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 
@@ -113,15 +132,19 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
       case StoreItemType.badge:
         return 'Badge';
       case StoreItemType.backgroundTheme:
-        return 'Profile Skin';
+        return 'Room Background Theme';
       case StoreItemType.roomTheme:
-        return 'Room Theme';
+        return 'Profile Skin';
       case StoreItemType.seatDecor:
         return 'Seat Decor';
       case StoreItemType.micRefill:
         return 'Mic Refill';
       case StoreItemType.roomProfileBackground:
         return 'RP Background';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profile Theme';
+      case StoreItemType.roomEntry:
+        return 'Room Entry';
     }
   }
 
@@ -139,18 +162,27 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
   Future<void> _pickNormalImage() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png', 'gif', 'jpg', 'jpeg', 'svg', 'svga'],
+      allowedExtensions: ['png', 'gif', 'jpg', 'jpeg', 'svg', 'svga', 'webp', 'mp4', 'vap'],
       withData: true,
     );
     if (result != null && result.files.single.bytes != null) {
+      final file = result.files.single;
+      final ext = file.extension?.toLowerCase() ?? 'png';
       setState(() {
-        _normalImageBytes = result.files.single.bytes;
-        _normalImageName = result.files.single.name;
+        _normalImageBytes = file.bytes;
+        _normalImageName = file.name;
         _normalUploadedUrl = null; // reset
+
+        // Auto-match file type if supported
+        final dottedExt = '.$ext';
+        final supported = StoreService.getSupportedFileTypes(_selectedType);
+        if (supported.contains(dottedExt)) {
+          _selectedFileType = dottedExt;
+        }
       });
       // Auto-fill file name if empty
       if (_fileNameController.text.isEmpty) {
-        _fileNameController.text = result.files.single.name.split('.').first;
+        _fileNameController.text = file.name.split('.').first;
       }
     }
   }
@@ -158,7 +190,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
   Future<void> _pickLockedImage() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png', 'gif', 'jpg', 'jpeg'],
+      allowedExtensions: ['png', 'gif', 'jpg', 'jpeg', 'webp'],
       withData: true,
     );
     if (result != null && result.files.single.bytes != null) {
@@ -173,7 +205,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
   Future<void> _pickThumbnail() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
       withData: true,
     );
     if (result != null && result.files.single.bytes != null) {
@@ -208,20 +240,20 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
 
     // Validate images
     if (_normalImageBytes == null && _normalUploadedUrl == null) {
-      _showErrorSnackBar('Please pick a Normal PNG image first');
+      _showErrorSnackBar('Please select a Preview / Main file first');
       return;
     }
     if (_selectedType == StoreItemType.seatDecor &&
         _lockedImageBytes == null &&
         _lockedUploadedUrl == null) {
-      _showErrorSnackBar('Please pick a Locked Seat PNG image first');
+      _showErrorSnackBar('Please pick a Locked Seat image first');
       return;
     }
 
     setState(() => _isCreating = true);
 
     try {
-      // Upload normal image
+      // Upload preview / normal image
       if (_normalImageBytes != null && _normalUploadedUrl == null) {
         setState(() => _isUploadingNormal = true);
         _normalUploadedUrl = await _uploadFile(
@@ -231,7 +263,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
         );
         setState(() => _isUploadingNormal = false);
         if (_normalUploadedUrl == null) {
-          _showErrorSnackBar('Failed to upload Normal PNG');
+          _showErrorSnackBar('Failed to upload Preview / Main file');
           setState(() => _isCreating = false);
           return;
         }
@@ -249,7 +281,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           );
           setState(() => _isUploadingLocked = false);
           if (_lockedUploadedUrl == null) {
-            _showErrorSnackBar('Failed to upload Locked Seat PNG');
+            _showErrorSnackBar('Failed to upload Locked Seat image');
             setState(() => _isCreating = false);
             return;
           }
@@ -257,7 +289,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
         lockedUrl = _lockedUploadedUrl;
       }
 
-      // Upload thumbnail (optional)
+      // Upload thumbnail (optional or provided)
       if (_thumbnailBytes != null && _thumbnailUploadedUrl == null) {
         setState(() => _isUploadingThumbnail = true);
         _thumbnailUploadedUrl = await _uploadFile(
@@ -266,6 +298,52 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           'thumbnails',
         );
         setState(() => _isUploadingThumbnail = false);
+      }
+
+      // Effective Thumbnail URL: if explicit thumbnail was uploaded use it;
+      // otherwise, if the main file is an image format, fallback to the main file URL.
+      final normalExt = (_normalImageName ?? '').split('.').last.toLowerCase();
+      final isImageFormat = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].contains(normalExt);
+      final effectiveThumbnailUrl = _thumbnailUploadedUrl ?? (isImageFormat ? _normalUploadedUrl : null);
+
+      // Collect validity prices map
+      final Map<String, dynamic> validityPrices = {};
+      final p3 = int.tryParse(_price3DaysController.text.trim());
+      if (p3 != null && p3 > 0) validityPrices['3'] = p3;
+      final p7 = int.tryParse(_price7DaysController.text.trim());
+      if (p7 != null && p7 > 0) validityPrices['7'] = p7;
+      final p15 = int.tryParse(_price15DaysController.text.trim());
+      if (p15 != null && p15 > 0) validityPrices['15'] = p15;
+      final p30 = int.tryParse(_price30DaysController.text.trim());
+      if (p30 != null && p30 > 0) validityPrices['30'] = p30;
+
+      // Calculate effective diamond price and expiration duration
+      double effectiveDiamondPrice;
+      if (_diamondPriceController.text.trim().isNotEmpty) {
+        effectiveDiamondPrice = double.tryParse(_diamondPriceController.text.trim()) ?? 0.0;
+      } else if (validityPrices.isNotEmpty) {
+        effectiveDiamondPrice = (p7 ?? p3 ?? p15 ?? p30 ?? 0).toDouble();
+      } else {
+        effectiveDiamondPrice = 0.0;
+      }
+
+      int effectiveExpirationDuration;
+      if (_isPermanent) {
+        effectiveExpirationDuration = 0;
+      } else if (_expirationDurationController.text.trim().isNotEmpty) {
+        effectiveExpirationDuration = int.tryParse(_expirationDurationController.text.trim()) ?? 7;
+      } else if (validityPrices.isNotEmpty) {
+        if (p7 != null) {
+          effectiveExpirationDuration = 7;
+        } else if (p3 != null) {
+          effectiveExpirationDuration = 3;
+        } else if (p15 != null) {
+          effectiveExpirationDuration = 15;
+        } else {
+          effectiveExpirationDuration = 30;
+        }
+      } else {
+        effectiveExpirationDuration = 7;
       }
 
       // Create Firestore document
@@ -280,10 +358,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           fileName: _fileNameController.text.trim(),
           fileType: _selectedFileType,
           starRating: _selectedStarRating,
-          thumbnailUrl: _thumbnailUploadedUrl,
+          thumbnailUrl: effectiveThumbnailUrl,
           lockedFileUrl: lockedUrl,
-          diamondPrice: double.parse(_diamondPriceController.text),
-          expirationDuration: _isPermanent ? 0 : int.parse(_expirationDurationController.text),
+          diamondPrice: effectiveDiamondPrice,
+          expirationDuration: effectiveExpirationDuration,
         );
       } else {
         itemId = await StoreService.createStoreItem(
@@ -294,13 +372,13 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           fileUrl: _normalUploadedUrl!,
           fileName: _fileNameController.text.trim(),
           fileType: _selectedFileType,
-          diamondPrice: double.parse(_diamondPriceController.text),
-          expirationDuration:
-              _isPermanent ? 0 : int.parse(_expirationDurationController.text),
+          diamondPrice: effectiveDiamondPrice,
+          expirationDuration: effectiveExpirationDuration,
           starRating: _selectedStarRating,
-          thumbnailUrl: _thumbnailUploadedUrl,
+          thumbnailUrl: effectiveThumbnailUrl,
           lockedFileUrl: lockedUrl,
           adminId: AuthService.currentUser?.uid,
+          validityPrices: validityPrices.isNotEmpty ? validityPrices : null,
         );
       }
 
@@ -317,7 +395,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
       debugPrint('Error creating store item: $e');
       if (mounted) {
         setState(() => _isCreating = false);
-        _showErrorSnackBar('Failed to create store item');
+        _showErrorSnackBar('Failed to create store item: $e');
       }
     }
   }
@@ -331,9 +409,16 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
     required String? imageName,
     required bool isUploading,
     required VoidCallback onPick,
+    String? buttonText,
     bool required = true,
     Color borderColor = Colors.blue,
   }) {
+    final ext = imageName?.split('.').last.toLowerCase() ?? '';
+    final isSvga = ext == 'svga';
+    final isVap = ext == 'vap';
+    final isVideo = ['mp4', 'webm', 'mov', 'avi'].contains(ext);
+    final isNonImage = isSvga || isVap || isVideo;
+
     return GestureDetector(
       onTap: isUploading ? null : onPick,
       child: Container(
@@ -369,16 +454,53 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
                   : imageBytes != null
                       ? ClipRRect(
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                          child: imageName?.toLowerCase().endsWith('.svga') == true
+                          child: isNonImage
                               ? Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.animation, size: 48, color: borderColor),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: (isSvga
+                                                  ? Colors.purple
+                                                  : isVap
+                                                      ? Colors.amber
+                                                      : Colors.cyan)
+                                              .withValues(alpha: 0.2),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          isSvga
+                                              ? Icons.animation
+                                              : isVap
+                                                  ? Icons.movie_filter
+                                                  : Icons.video_collection,
+                                          size: 44,
+                                          color: isSvga
+                                              ? Colors.purpleAccent
+                                              : isVap
+                                                  ? Colors.amberAccent
+                                                  : Colors.cyanAccent,
+                                        ),
+                                      ),
                                       const SizedBox(height: 8),
-                                      const Text(
-                                        'SVGA Animation Selected',
-                                        style: TextStyle(color: Colors.white70),
+                                      Text(
+                                        isSvga
+                                            ? '✨ SVGA Animation Ready'
+                                            : isVap
+                                                ? '🎬 VAP Animation Ready'
+                                                : '📹 Video File Ready',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${(imageBytes.lengthInBytes / 1024).toStringAsFixed(1)} KB • .$ext',
+                                        style: const TextStyle(
+                                            color: Colors.white60, fontSize: 12),
                                       ),
                                     ],
                                   ),
@@ -388,6 +510,21 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
                                   fit: BoxFit.contain,
                                   width: double.infinity,
                                   height: 160,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.insert_drive_file,
+                                              size: 40, color: borderColor),
+                                          const SizedBox(height: 6),
+                                          Text(imageName ?? 'File Selected',
+                                              style: const TextStyle(
+                                                  color: Colors.white70)),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                         )
                       : Column(
@@ -443,7 +580,7 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
                       border: Border.all(color: borderColor),
                     ),
                     child: Text(
-                      imageBytes != null ? 'Change' : 'Pick PNG',
+                      buttonText ?? (imageBytes != null ? 'Change' : 'Pick File'),
                       style: TextStyle(color: borderColor, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -570,53 +707,60 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
 
               const SizedBox(height: 24),
 
-              // ── Image Upload Section ──────────────────────────────────────
-              _sectionTitle(_selectedType == StoreItemType.seatDecor
-                  ? '🪑 Seat Images'
-                  : '🖼️ Item Image'),
+              // ── Media Files (Preview & Thumbnail) Section ─────────────────
+              _sectionTitle('📁 Item Media (Preview & Thumbnail)'),
+              const SizedBox(height: 4),
+              const Text(
+                'Upload both the Preview / Animation file and the Thumbnail image for store & bag displays.',
+                style: TextStyle(color: Colors.white60, fontSize: 12),
+              ),
               const SizedBox(height: 12),
 
-              // Normal PNG picker
+              // 1. Preview / Animation / Main File
               _buildImagePickerCard(
                 label: _selectedType == StoreItemType.seatDecor
-                    ? 'Normal Seat PNG'
-                    : 'Item Image / PNG',
-                hint: _selectedType == StoreItemType.seatDecor
-                    ? 'Tap to pick Normal Seat PNG\n(shown when seat is unlocked)'
-                    : 'Tap to pick item image from gallery',
+                    ? 'Preview / Unlocked Seat (.svga, .vap, .mp4, .gif, .png, .webp)'
+                    : 'Preview / Animation File (.svga, .vap, .mp4, .gif, .png, .webp)',
+                hint: 'Tap to pick Preview / Main animation or image file\n(SVGA, VAP, MP4, GIF, PNG, WEBP)',
                 imageBytes: _normalImageBytes,
                 imageName: _normalImageName,
                 isUploading: _isUploadingNormal,
                 onPick: _pickNormalImage,
-                borderColor: Colors.blue,
+                buttonText: _normalImageBytes != null ? 'Change Preview' : 'Pick Preview File',
+                borderColor: Colors.blueAccent,
+                required: true,
               ),
 
-              // Locked PNG picker (seatDecor only)
+              // 2. Thumbnail Image (Optional / Recommended for store grid)
+              if (_selectedType != StoreItemType.badge) ...[
+                const SizedBox(height: 16),
+                _buildImagePickerCard(
+                  label: 'Thumbnail Image (.png, .jpg, .webp, .gif)',
+                  hint: 'Tap to pick a static Thumbnail image\n(Used for Store list, Bag & User Profile preview)',
+                  imageBytes: _thumbnailBytes,
+                  imageName: _thumbnailName,
+                  isUploading: _isUploadingThumbnail,
+                  onPick: _pickThumbnail,
+                  buttonText: _thumbnailBytes != null ? 'Change Thumbnail' : 'Pick Thumbnail',
+                  required: false,
+                  borderColor: Colors.purpleAccent,
+                ),
+              ],
+
+              // 3. Locked PNG picker (seatDecor only)
               if (_selectedType == StoreItemType.seatDecor) ...[
                 const SizedBox(height: 16),
                 _buildImagePickerCard(
-                  label: 'Locked Seat PNG',
-                  hint: 'Tap to pick Locked Seat PNG\n(shown when seat is locked)',
+                  label: 'Locked Seat Image (.png, .webp)',
+                  hint: 'Tap to pick Locked Seat image\n(Shown when seat is locked)',
                   imageBytes: _lockedImageBytes,
                   imageName: _lockedImageName,
                   isUploading: _isUploadingLocked,
                   onPick: _pickLockedImage,
-                  borderColor: Colors.orange,
+                  buttonText: _lockedImageBytes != null ? 'Change Locked Image' : 'Pick Locked Image',
+                  borderColor: Colors.orangeAccent,
                 ),
               ],
-
-              // Thumbnail (optional) - visible for all items now
-              const SizedBox(height: 16),
-              _buildImagePickerCard(
-                label: 'Thumbnail Image (Optional)',
-                hint: 'Tap to pick a thumbnail for the store list',
-                imageBytes: _thumbnailBytes,
-                imageName: _thumbnailName,
-                isUploading: _isUploadingThumbnail,
-                onPick: _pickThumbnail,
-                required: false,
-                borderColor: Colors.purple,
-              ),
 
               const SizedBox(height: 16),
 
@@ -652,15 +796,72 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
 
               _buildTextField(
                 controller: _diamondPriceController,
-                label: 'Diamond Price',
-                hint: 'Enter price in diamonds',
+                label: 'Default Diamond Price',
+                hint: 'Enter default price in diamonds (Optional if validity prices entered)',
                 keyboardType: TextInputType.number,
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Please enter diamond price';
-                  final price = double.tryParse(v);
-                  if (price == null || price <= 0) return 'Please enter a valid price';
+                  final hasValidity = _hasAnyValidityPrice();
+                  if (!hasValidity) {
+                    if (v == null || v.trim().isEmpty) return 'Please enter diamond price or validity prices';
+                    final price = double.tryParse(v);
+                    if (price == null || price <= 0) return 'Please enter a valid price';
+                  } else if (v != null && v.trim().isNotEmpty) {
+                    final price = double.tryParse(v);
+                    if (price == null || price <= 0) return 'Please enter a valid price';
+                  }
                   return null;
                 },
+              ),
+
+              const SizedBox(height: 16),
+              const Text(
+                'Validity Prices (Optional - separate prices for 3, 7, 15, 30 days):',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _price3DaysController,
+                      label: '3 Days Price',
+                      hint: 'e.g. 500',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _price7DaysController,
+                      label: '7 Days Price',
+                      hint: 'e.g. 1000',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _price15DaysController,
+                      label: '15 Days Price',
+                      hint: 'e.g. 2000',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _price30DaysController,
+                      label: '30 Days Price',
+                      hint: 'e.g. 3500',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 16),
@@ -706,9 +907,15 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
                   keyboardType: TextInputType.number,
                   validator: (v) {
                     if (!_isPermanent) {
-                      if (v == null || v.trim().isEmpty) return 'Please enter expiration duration';
-                      final d = int.tryParse(v);
-                      if (d == null || d <= 0) return 'Please enter a valid duration';
+                      final hasValidity = _hasAnyValidityPrice();
+                      if (!hasValidity) {
+                        if (v == null || v.trim().isEmpty) return 'Please enter expiration duration or validity prices';
+                        final d = int.tryParse(v);
+                        if (d == null || d <= 0) return 'Please enter a valid duration';
+                      } else if (v != null && v.trim().isNotEmpty) {
+                        final d = int.tryParse(v);
+                        if (d == null || d <= 0) return 'Please enter a valid duration';
+                      }
                     }
                     return null;
                   },

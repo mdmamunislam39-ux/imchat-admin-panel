@@ -27,9 +27,11 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
   
   late TextEditingController _nameController;
   late TextEditingController _descController;
+  late TextEditingController _countryCodeController;
   
   bool _isPinned = false;
   DateTime? _pinnedUntil;
+  bool _isOfficial = false;
   
   String? _selectedFrameId;
   DateTime? _frameUntil;
@@ -46,8 +48,12 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.roomData['name'] ?? '');
     _descController = TextEditingController(text: widget.roomData['description'] ?? '');
+    _countryCodeController = TextEditingController(
+      text: widget.roomData['countryCode'] ?? widget.roomData['country'] ?? widget.roomData['creatorCountry'] ?? '',
+    );
     
     _isPinned = widget.roomData['isPinned'] ?? false;
+    _isOfficial = widget.roomData['isOfficial'] ?? false;
     
     if (widget.roomData['pinnedUntil'] != null) {
       if (widget.roomData['pinnedUntil'] is Timestamp) {
@@ -85,6 +91,7 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
+    _countryCodeController.dispose();
     super.dispose();
   }
 
@@ -151,6 +158,8 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
         frameMainUrl = frame['mainUrl'];
       }
 
+      final String finalCountryCode = _countryCodeController.text.trim().toUpperCase();
+
       await _firestore.collection('audio_rooms_v2').doc(widget.roomId).update({
         'name': _nameController.text.trim(),
         'description': _descController.text.trim(),
@@ -159,6 +168,8 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
         'pinnedUntil': _pinnedUntil,
         'roomFrameUrl': frameMainUrl,
         'roomFrameUntil': _frameUntil,
+        'countryCode': finalCountryCode,
+        'isOfficial': _isOfficial,
       });
 
       if (mounted) {
@@ -216,6 +227,43 @@ class _RoomEditDialogState extends State<RoomEditDialog> {
                     const SizedBox(width: 16),
                     ElevatedButton(onPressed: _pickImage, child: const Text('Change Image')),
                   ],
+                ),
+
+                const Divider(height: 48),
+
+                // Country Code & Official Room Settings
+                const Text('Country & Official Settings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _countryCodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Room Country Code (e.g. BD, IN, SA, AE, US)',
+                    hintText: 'Enter 2-letter ISO country code',
+                    prefixIcon: Icon(Icons.flag),
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['BD', 'IN', 'SA', 'AE', 'US', 'PK', 'MY', 'EG', 'QA', 'KW'].map((code) {
+                    return ActionChip(
+                      label: Text(code),
+                      onPressed: () {
+                        setState(() {
+                          _countryCodeController.text = code;
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Assign as Official Room'),
+                  subtitle: const Text('Show verified check icon and "Official" tag on room list'),
+                  secondary: const Icon(Icons.verified, color: Colors.blue),
+                  value: _isOfficial,
+                  onChanged: (val) => setState(() => _isOfficial = val),
                 ),
                 
                 const Divider(height: 48),

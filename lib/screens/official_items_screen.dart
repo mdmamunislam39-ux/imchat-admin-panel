@@ -19,7 +19,6 @@ class OfficialItemsScreen extends StatefulWidget {
 class _OfficialItemsScreenState extends State<OfficialItemsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isLoading = true;
   Map<String, dynamic> _statistics = {};
   Map<OfficialItemCategory, List<OfficialItemModel>> _itemsByCategory = {};
 
@@ -40,8 +39,6 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
 
   Future<void> _loadData() async {
     try {
-      setState(() => _isLoading = true);
-
       // Ensure all items have a displayId assigned
       await OfficialItemsService.ensureAllItemsHaveIds();
 
@@ -61,12 +58,9 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
       setState(() {
         _statistics = results[0] as Map<String, dynamic>;
         _itemsByCategory = grouped;
-        _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error loading official items: $e');
-      if (!mounted) return;
-      setState(() => _isLoading = false);
     }
   }
 
@@ -111,21 +105,31 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
           }).toList(),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : Column(
-              children: [
-                _buildStatBar(),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: _categories
-                        .map((cat) => _buildCategoryTab(cat))
-                        .toList(),
-                  ),
+      body: StreamBuilder<List<OfficialItemModel>>(
+        stream: OfficialItemsService.streamAllOfficialItems(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data != null) {
+            final allItems = snapshot.data!;
+            for (final cat in _categories) {
+              _itemsByCategory[cat] = allItems.where((i) => i.category == cat).toList();
+            }
+          }
+
+          return Column(
+            children: [
+              _buildStatBar(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: _categories
+                      .map((cat) => _buildCategoryTab(cat))
+                      .toList(),
                 ),
-              ],
-            ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -318,9 +322,82 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.amber, width: 0.5),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, color: Colors.amber, size: 11),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${item.starRating} Star${item.starRating > 1 ? 's' : ''}',
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (item.category == OfficialItemCategory.badge) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: item.verificationLevel > 0
+                                ? Colors.blueAccent.withValues(alpha: 0.2)
+                                : Colors.grey[800],
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: item.verificationLevel > 0
+                                    ? Colors.blueAccent
+                                    : Colors.grey[700]!,
+                                width: 0.5),
+                          ),
+                          child: Text(
+                            item.verificationLevel > 0
+                                ? 'Ver. Lv.${item.verificationLevel}'
+                                : 'Not Verified',
+                            style: TextStyle(
+                              color: item.verificationLevel > 0
+                                  ? Colors.blueAccent
+                                  : Colors.grey[400],
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.purple, width: 0.5),
+                          ),
+                          child: Text(
+                            item.badgeSubCategory,
+                            style: const TextStyle(
+                              color: Colors.purpleAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
@@ -332,15 +409,6 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
                           item.fileType,
                           style: const TextStyle(
                               color: Colors.white70, fontSize: 11),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          item.fileName,
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 11),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -364,6 +432,12 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
                   onPressed: item.isActive
                       ? () => _openAssignFlow(preselectedItem: item)
                       : null,
+                ),
+                // Delete button
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete Item',
+                  onPressed: () => _confirmAndDeleteItem(item),
                 ),
               ],
             ),
@@ -405,6 +479,47 @@ class _OfficialItemsScreenState extends State<OfficialItemsScreen>
         ),
       ),
     ).then((_) => _loadData());
+  }
+
+  void _confirmAndDeleteItem(OfficialItemModel item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Delete Official Item',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${item.name}"${item.displayId != null ? ' (ID: ${item.displayId})' : ''}?\n\nThis action cannot be undone and will permanently remove the item from both Official Items and Store Market.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await OfficialItemsService.deleteOfficialItem(item.id);
+              if (!mounted) return;
+              if (success) {
+                _showSnackBar('Official item deleted successfully', Colors.orange);
+                _loadData();
+              } else {
+                _showSnackBar('Failed to delete item', Colors.red);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── Helpers ───
@@ -453,7 +568,9 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
   Uint8List? _thumbnailBytes;
   String? _thumbnailName;
   
-  int _selectedStarRating = 1;
+  int _selectedStarRating = 5;
+  int _selectedVerificationLevel = 0;
+  String _selectedBadgeSubCategory = 'Verification';
 
   bool _isSaving = false;
 
@@ -465,6 +582,8 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
       _nameController.text = widget.itemToEdit!.name;
       _descController.text = widget.itemToEdit!.description;
       _selectedStarRating = widget.itemToEdit!.starRating;
+      _selectedVerificationLevel = widget.itemToEdit!.verificationLevel;
+      _selectedBadgeSubCategory = widget.itemToEdit!.badgeSubCategory;
       _selectedCategory = widget.itemToEdit!.category;
     }
   }
@@ -476,18 +595,62 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
     super.dispose();
   }
 
+  void _confirmAndDeleteItem() {
+    if (widget.itemToEdit == null) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Delete Official Item',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${widget.itemToEdit!.name}"?\n\nThis action cannot be undone and will permanently remove the item from both Official Items and Store Market.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isSaving = true);
+              final success = await OfficialItemsService.deleteOfficialItem(widget.itemToEdit!.id);
+              if (!mounted) return;
+              if (success) {
+                _showSnackBar('Item deleted successfully', Colors.orange);
+                Navigator.pop(context, true);
+              } else {
+                setState(() => _isSaving = false);
+                _showSnackBar('Failed to delete item', Colors.red);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['svga', 'png', 'jpg', 'jpeg', 'gif', 'mp4'],
+        allowedExtensions: ['svga', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'vap', 'webp'],
         withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         final ext = file.extension?.toLowerCase();
-        if (!['svga', 'png', 'jpg', 'jpeg', 'gif', 'mp4'].contains(ext)) {
+        if (!['svga', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'vap', 'webp'].contains(ext)) {
           _showSnackBar('Invalid file format', Colors.red);
           return;
         }
@@ -505,7 +668,7 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg'],
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
         withData: true,
       );
 
@@ -569,12 +732,15 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
       fileType = '.$extension';
     }
 
-    // Upload thumbnail if selected
+    // Upload thumbnail if selected (not needed for Badges)
     String? thumbnailUrl = widget.itemToEdit?.thumbnailUrl;
-    if (_thumbnailBytes != null && _thumbnailName != null) {
+    if (_selectedCategory == OfficialItemCategory.badge) {
+      thumbnailUrl = fileUrl;
+    } else if (_thumbnailBytes != null && _thumbnailName != null) {
       final uploadedThumb = await _uploadToStorage(_thumbnailBytes!, _thumbnailName!);
       if (uploadedThumb != null) thumbnailUrl = uploadedThumb;
     }
+    thumbnailUrl ??= fileUrl;
 
     if (fileUrl == null || fileName == null || fileType == null) {
         if (!mounted) return;
@@ -596,6 +762,8 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
         fileType: fileType,
         thumbnailUrl: thumbnailUrl,
         starRating: _selectedStarRating,
+        verificationLevel: _selectedVerificationLevel,
+        badgeSubCategory: _selectedBadgeSubCategory,
       );
     } else {
       final id = await OfficialItemsService.createOfficialItem(
@@ -607,6 +775,8 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
         fileType: fileType,
         thumbnailUrl: thumbnailUrl,
         starRating: _selectedStarRating,
+        verificationLevel: _selectedVerificationLevel,
+        badgeSubCategory: _selectedBadgeSubCategory,
       );
       success = id != null;
     }
@@ -633,6 +803,14 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          if (widget.itemToEdit != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              tooltip: 'Delete Item',
+              onPressed: _confirmAndDeleteItem,
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -724,26 +902,31 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
 
             const SizedBox(height: 20),
 
-            // Star Rating
-            const Text('Star Rating',
+            // Star Rating (Top to bottom sorting: Higher stars stay at top)
+            const Text('Star Rating (1 - 5 Stars ⭐)',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text(
+              'Top-to-bottom sorting: 5-Star items stay at the very top of Badge Wall',
+              style: TextStyle(color: Colors.amber, fontSize: 11),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               initialValue: _selectedStarRating,
               dropdownColor: Colors.grey[800],
               style: const TextStyle(color: Colors.white),
               decoration: _inputDecor('Select star rating'),
-              items: [1, 2, 3, 4, 5]
+              items: [5, 4, 3, 2, 1]
                   .map((rating) => DropdownMenuItem(
                         value: rating,
                         child: Row(
                           children: [
                             const Icon(Icons.star, color: Colors.amber, size: 16),
                             const SizedBox(width: 8),
-                            Text('$rating Star${rating > 1 ? 's' : ''}'),
+                            Text('$rating Star${rating > 1 ? 's' : ''} ${rating == 5 ? '(Top Priority)' : ''}'),
                           ],
                         ),
                       ))
@@ -757,44 +940,181 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
               },
             ),
 
+            if (_selectedCategory == OfficialItemCategory.badge) ...[
+              const SizedBox(height: 20),
+
+              // Verification Level (None or 1 - 5)
+              const Text('Verification Level (None or 1 - 5 ⭐)',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                initialValue: _selectedVerificationLevel,
+                dropdownColor: Colors.grey[800],
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecor('Select verification level'),
+                items: [0, 1, 2, 3, 4, 5]
+                    .map((level) => DropdownMenuItem(
+                          value: level,
+                          child: Row(
+                            children: [
+                              Icon(
+                                level == 0
+                                    ? Icons.remove_circle_outline
+                                    : Icons.verified,
+                                color: level == 0 ? Colors.grey : Colors.blueAccent,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                level == 0
+                                    ? 'None (Not Verified / সাধারণ ব্যাজ)'
+                                    : 'Verification Level $level',
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedVerificationLevel = val;
+                    });
+                  }
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Badge Section / Sub-Category (Matching Honor Badge Wall)
+              const Text('Badge Category / Section',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text(
+                'Section on Honor Badge Wall (e.g. Verification, Achievement, Honor)',
+                style: TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedBadgeSubCategory,
+                dropdownColor: Colors.grey[800],
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecor('Select badge section'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Verification',
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified_user, color: Colors.blueAccent, size: 16),
+                        SizedBox(width: 8),
+                        Text('Verification (ভেরিফিকেশন)'),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Achievement',
+                    child: Row(
+                      children: [
+                        Icon(Icons.emoji_events, color: Colors.amber, size: 16),
+                        SizedBox(width: 8),
+                        Text('Achievement (অ্যাচিভমেন্ট)'),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Honor',
+                    child: Row(
+                      children: [
+                        Icon(Icons.military_tech, color: Colors.purpleAccent, size: 16),
+                        SizedBox(width: 8),
+                        Text('Honor / VIP (অনার)'),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Activity',
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 16),
+                        SizedBox(width: 8),
+                        Text('Activity (অ্যাক্টিভিটি)'),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Special',
+                    child: Row(
+                      children: [
+                        Icon(Icons.card_giftcard, color: Colors.pinkAccent, size: 16),
+                        SizedBox(width: 8),
+                        Text('Special (স্পেশাল)'),
+                      ],
+                    ),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedBadgeSubCategory = val;
+                    });
+                  }
+                },
+              ),
+            ],
+
             const SizedBox(height: 20),
 
-            // Main File picker
-            const Text('Item File (SVGA, PNG, GIF, MP4)',
+            // Main Preview / Animation File picker
+            const Text('Preview / Animation File (SVGA, VAP, MP4, PNG, GIF)',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             const Text(
-              'Supported formats: .svga, .png, .jpg, .gif, .mp4',
+              'Supported formats: .svga, .png, .jpg, .gif, .mp4, .vap, .webp',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const SizedBox(height: 8),
             _buildFilePickerCard(
               fileName: _fileName,
+              imageBytes: _fileBytes,
               onPick: _pickFile,
-              label: 'Select File',
-              icon: Icons.upload_file,
+              label: 'Select Preview / Animation File',
+              icon: Icons.movie_filter,
               color: Colors.blue,
             ),
 
             const SizedBox(height: 20),
 
-            // Thumbnail picker (optional)
-            const Text('Thumbnail (Optional - PNG / JPEG)',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _buildFilePickerCard(
-              fileName: _thumbnailName,
-              onPick: _pickThumbnail,
-              label: 'Select Thumbnail',
-              icon: Icons.image,
-              color: Colors.purple,
-            ),
+            // Thumbnail picker (optional - NOT required for Badges)
+            if (_selectedCategory != OfficialItemCategory.badge) ...[
+              const SizedBox(height: 20),
+              const Text('Thumbnail Image (PNG / JPEG / WebP)',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text(
+                'Static preview image displayed in lists, bag, and item walls',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              _buildFilePickerCard(
+                fileName: _thumbnailName,
+                imageBytes: _thumbnailBytes,
+                onPick: _pickThumbnail,
+                label: 'Select Thumbnail Image',
+                icon: Icons.image,
+                color: Colors.purple,
+              ),
+            ],
 
             const SizedBox(height: 32),
 
@@ -829,11 +1149,15 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
 
   Widget _buildFilePickerCard({
     required String? fileName,
+    Uint8List? imageBytes,
     required VoidCallback onPick,
     required String label,
     required IconData icon,
     required Color color,
   }) {
+    final ext = fileName?.split('.').last.toLowerCase() ?? '';
+    final isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif'].contains(ext);
+
     return GestureDetector(
       onTap: onPick,
       child: Container(
@@ -848,23 +1172,44 @@ class _AddEditOfficialItemPageState extends State<_AddEditOfficialItemPage> {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
+            if (imageBytes != null && isImage)
+              ClipRRect(
                 borderRadius: BorderRadius.circular(8),
+                child: Image.memory(
+                  imageBytes,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 28),
               ),
-              child: Icon(icon, color: color, size: 28),
-            ),
             const SizedBox(width: 16),
             Expanded(
               child: fileName != null
                   ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('File selected',
-                            style: TextStyle(
-                                color: Colors.green, fontSize: 12)),
+                        Text(
+                          isImage ? 'Image Selected' : 'Animation/Media Selected',
+                          style: const TextStyle(
+                              color: Colors.green, fontSize: 12),
+                        ),
                         Text(
                           fileName,
                           style: const TextStyle(
@@ -1504,6 +1849,10 @@ class _AssignOfficialItemPageState extends State<_AssignOfficialItemPage> {
         return '🎤';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 

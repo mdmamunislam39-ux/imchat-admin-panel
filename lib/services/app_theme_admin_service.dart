@@ -35,15 +35,49 @@ class AppThemeAdminService {
     }
   }
 
-  /// Upload an image to Firebase Storage and return its URL
-  static Future<String> uploadImage(Uint8List fileBytes, String folderPath) async {
+  /// Upload an asset/image to Firebase Storage and return its URL
+  static Future<String> uploadImage(
+    Uint8List fileBytes,
+    String folderPath, {
+    String? originalFileName,
+  }) async {
     try {
-      final String fileName = '${const Uuid().v4()}.png';
+      String ext = 'png';
+      String contentType = 'image/png';
+
+      if (originalFileName != null && originalFileName.contains('.')) {
+        ext = originalFileName.split('.').last.toLowerCase().trim();
+      }
+
+      switch (ext) {
+        case 'svga':
+          contentType = 'application/x-svga';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        case 'svg':
+          contentType = 'image/svg+xml';
+          break;
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          ext = 'jpg';
+          break;
+        default:
+          ext = 'png';
+          contentType = 'image/png';
+      }
+
+      final String fileName = '${const Uuid().v4()}.$ext';
       final Reference ref = _storage.ref().child('app_theme/$folderPath/$fileName');
       
       final UploadTask uploadTask = ref.putData(
         fileBytes,
-        SettableMetadata(contentType: 'image/png'),
+        SettableMetadata(contentType: contentType),
       );
       
       final TaskSnapshot snapshot = await uploadTask;

@@ -10,6 +10,8 @@ enum StoreItemType {
   seatDecor,
   micRefill,
   roomProfileBackground,
+  shortProfileTheme,
+  roomEntry,
 }
 
 enum StoreCategory {
@@ -34,8 +36,10 @@ class StoreItemModel {
   final DateTime updatedAt;
   final String? thumbnailUrl;
   final String? lockedFileUrl; // For seat decor locked state
+  final String? hostSeatDecorUrl; // For host seat (seat 1) decor
   final Map<String, dynamic>? metadata; // Additional data like dimensions, etc.
   final int? displayId;
+  final Map<String, dynamic>? validityPrices; // Prices for validity periods e.g. {"3": 500, "7": 1000, "15": 2000, "30": 3500}
 
   StoreItemModel({
     required this.id,
@@ -54,8 +58,10 @@ class StoreItemModel {
     required this.updatedAt,
     this.thumbnailUrl,
     this.lockedFileUrl,
+    this.hostSeatDecorUrl,
     this.metadata,
     this.displayId,
+    this.validityPrices,
   });
 
   factory StoreItemModel.fromFirestore(DocumentSnapshot doc) {
@@ -90,8 +96,12 @@ class StoreItemModel {
             : DateTime.now(),
         thumbnailUrl: data['thumbnailUrl'],
         lockedFileUrl: data['lockedFileUrl'],
+        hostSeatDecorUrl: data['hostSeatDecorUrl'] ?? data['hostFileUrl'],
         metadata: data['metadata'],
         displayId: data['displayId'],
+        validityPrices: data['validityPrices'] != null
+            ? Map<String, dynamic>.from(data['validityPrices'])
+            : null,
       );
     } catch (e) {
       debugPrint('Error creating StoreItemModel from Firestore: $e');
@@ -117,8 +127,10 @@ class StoreItemModel {
         'updatedAt': Timestamp.fromDate(updatedAt),
         'thumbnailUrl': thumbnailUrl,
         'lockedFileUrl': lockedFileUrl,
+        if (hostSeatDecorUrl != null) 'hostSeatDecorUrl': hostSeatDecorUrl,
         'metadata': metadata,
         if (displayId != null) 'displayId': displayId,
+        if (validityPrices != null) 'validityPrices': validityPrices,
       };
     } catch (e) {
       debugPrint('Error converting StoreItemModel to Firestore: $e');
@@ -143,8 +155,10 @@ class StoreItemModel {
     DateTime? updatedAt,
     String? thumbnailUrl,
     String? lockedFileUrl,
+    String? hostSeatDecorUrl,
     Map<String, dynamic>? metadata,
     int? displayId,
+    Map<String, dynamic>? validityPrices,
   }) {
     return StoreItemModel(
       id: id ?? this.id,
@@ -163,8 +177,10 @@ class StoreItemModel {
       updatedAt: updatedAt ?? this.updatedAt,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       lockedFileUrl: lockedFileUrl ?? this.lockedFileUrl,
+      hostSeatDecorUrl: hostSeatDecorUrl ?? this.hostSeatDecorUrl,
       metadata: metadata ?? this.metadata,
       displayId: displayId ?? this.displayId,
+      validityPrices: validityPrices ?? this.validityPrices,
     );
   }
 
@@ -177,15 +193,19 @@ class StoreItemModel {
       case StoreItemType.badge:
         return 'Badge';
       case StoreItemType.backgroundTheme:
-        return 'Profile skin';
+        return 'Room Background Theme';
       case StoreItemType.roomTheme:
-        return 'Room theme';
+        return 'Profile Skin';
       case StoreItemType.seatDecor:
         return 'Seat Decor';
       case StoreItemType.micRefill:
         return 'Mic Refill';
       case StoreItemType.roomProfileBackground:
         return 'RP Background';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profile Theme';
+      case StoreItemType.roomEntry:
+        return 'Room Entry';
     }
   }
 
@@ -216,6 +236,10 @@ class StoreItemModel {
         return '🎙️';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 

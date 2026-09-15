@@ -26,6 +26,8 @@ class AppRoutes {
   static const String blockedUsersManagement = '/blocked-users-management';
   static const String userBanManagement = '/user-ban-management';
   static const String levelSystemManagement = '/level-system-management';
+  static const String intimacyLevelManagement = '/intimacy-level-management';
+  static const String coupleLevelManagement = '/couple-level-management';
   static const String hostAgencyManagement = '/host-agency-management';
   static const String withdrawalManagement = '/withdrawal-management';
   static const String giftTransactions = '/gift-transactions';
@@ -35,6 +37,18 @@ class AppRoutes {
   static const String gameManagement = '/game-management';
   static const String customRoomIds = '/custom-room-ids';
   static const String superAdmin = '/super-admin';
+  static const String subOfficialAdmin = '/sub-official-admin';
+  static const String gameProfitAnalysis = '/game-profit-analysis';
+  static const String realtimeServerSetup = '/realtime-server-setup';
+  static const String roomGameManagement = '/room-game-management';
+  static const String roomCreateDecoration = '/room-create-decoration';
+
+  static const String audioVideoAnalytics = '/analytics-audio-video';
+  static const String userRegistrationAnalytics = '/analytics-user-registration';
+  static const String rechargeAnalytics = '/analytics-recharge';
+  static const String giftAnalytics = '/analytics-gifts';
+  static const String sellerRechargeAnalytics = '/analytics-seller-recharge';
+  static const String rechargeWalletManagement = '/recharge-wallet-management';
 
   // Route paths
   static const Map<String, String> routes = {
@@ -64,6 +78,8 @@ class AppRoutes {
     'blockedUsersManagement': blockedUsersManagement,
     'userBanManagement': userBanManagement,
     'levelSystemManagement': levelSystemManagement,
+    'intimacyLevelManagement': intimacyLevelManagement,
+    'coupleLevelManagement': coupleLevelManagement,
     'hostAgencyManagement': hostAgencyManagement,
     'withdrawalManagement': withdrawalManagement,
     'giftTransactions': giftTransactions,
@@ -73,12 +89,26 @@ class AppRoutes {
     'gameManagement': gameManagement,
     'customRoomIds': customRoomIds,
     'superAdmin': superAdmin,
+    'subOfficialAdmin': subOfficialAdmin,
+    'gameProfitAnalysis': gameProfitAnalysis,
+    'realtimeServerSetup': realtimeServerSetup,
+    'roomGameManagement': roomGameManagement,
+    'roomCreateDecoration': roomCreateDecoration,
+    'audioVideoAnalytics': audioVideoAnalytics,
+    'userRegistrationAnalytics': userRegistrationAnalytics,
+    'rechargeAnalytics': rechargeAnalytics,
+    'giftAnalytics': giftAnalytics,
+    'sellerRechargeAnalytics': sellerRechargeAnalytics,
+    'rechargeWalletManagement': rechargeWalletManagement,
   };
 
   // Get route name from path
   static String getRouteName(String path) {
     return routes.entries
-        .firstWhere((entry) => entry.value == path, orElse: () => MapEntry('dashboard', dashboard))
+        .firstWhere(
+          (entry) => entry.value == path,
+          orElse: () => MapEntry('dashboard', dashboard),
+        )
         .key;
   }
 

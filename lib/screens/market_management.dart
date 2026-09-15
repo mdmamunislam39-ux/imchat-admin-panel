@@ -8,6 +8,7 @@ import '../services/user_profile_service.dart';
 import '../services/official_items_service.dart';
 import '../models/official_item_model.dart';
 import '../widgets/media_preview_widget.dart';
+import '../services/room_decoration_admin_service.dart';
 
 class MarketManagement extends StatefulWidget {
   const MarketManagement({super.key});
@@ -30,7 +31,7 @@ class _MarketManagementState extends State<MarketManagement>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
 
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -63,6 +64,8 @@ class _MarketManagementState extends State<MarketManagement>
 
       // Ensure all items have a displayId assigned
       await OfficialItemsService.ensureAllItemsHaveIds();
+      // Ensure all free and built-in seat decors are synced in real-time
+      await RoomDecorationAdminService.syncFreeSeatDecorToStore();
 
       _marketItemsSubscription = UserProfileService.streamAllMarketItems().listen(
         (items) {
@@ -154,6 +157,7 @@ class _MarketManagementState extends State<MarketManagement>
                       _buildRoomsTab(),
                       _buildSeatDecorTab(),
                       _buildRoomProfileBackgroundsTab(),
+                      _buildShortProfileThemesTab(),
                     ],
                   ),
                 ),
@@ -174,6 +178,7 @@ class _MarketManagementState extends State<MarketManagement>
           Tab(icon: Icon(Icons.palette), text: 'Rooms'),
           Tab(icon: Icon(Icons.chair), text: 'Seat Decor'),
           Tab(icon: Icon(Icons.wallpaper), text: 'RP Background'),
+          Tab(icon: Icon(Icons.portrait_sharp), text: 'Short Profile'),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -285,15 +290,19 @@ class _MarketManagementState extends State<MarketManagement>
       case StoreItemType.badge:
         return 'Badges';
       case StoreItemType.backgroundTheme:
-        return 'Profile Skins';
+        return 'Room Background Themes';
       case StoreItemType.roomTheme:
-        return 'Room Themes';
+        return 'Profile Skins';
       case StoreItemType.seatDecor:
         return 'Seat Decor';
       case StoreItemType.micRefill:
         return 'Mic Refills';
       case StoreItemType.roomProfileBackground:
         return 'RP Backgrounds';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profiles';
+      case StoreItemType.roomEntry:
+        return 'Room Entries';
     }
   }
 
@@ -387,7 +396,7 @@ class _MarketManagementState extends State<MarketManagement>
               const SizedBox(width: 16),
               Expanded(
                 child: _buildStatCard(
-                  title: 'Profile Skins',
+                  title: 'Room Background Themes',
                   value: _marketItems
                       .where(
                         (item) => item.type == StoreItemType.backgroundTheme,
@@ -407,7 +416,7 @@ class _MarketManagementState extends State<MarketManagement>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  title: 'Room Themes',
+                  title: 'Profile Skins',
                   value: _marketItems
                       .where((item) => item.type == StoreItemType.roomTheme)
                       .length
@@ -484,8 +493,8 @@ class _MarketManagementState extends State<MarketManagement>
               const SizedBox(width: 16),
               Expanded(
                 child: _buildActionCard(
-                  title: 'Add Profile Skin',
-                  subtitle: 'Create new profile skin',
+                  title: 'Add Room Background Theme',
+                  subtitle: 'Create new room background theme',
                   icon: Icons.portrait,
                   color: Colors.purple,
                   onTap: () =>
@@ -501,8 +510,8 @@ class _MarketManagementState extends State<MarketManagement>
             children: [
               Expanded(
                 child: _buildActionCard(
-                  title: 'Add Room Theme',
-                  subtitle: 'Create new room theme',
+                  title: 'Add Profile Skin',
+                  subtitle: 'Create new profile skin',
                   icon: Icons.palette,
                   color: Colors.teal,
                   onTap: () =>
@@ -583,6 +592,13 @@ class _MarketManagementState extends State<MarketManagement>
   Widget _buildRoomProfileBackgroundsTab() {
     final bg = _marketItems
         .where((item) => item.type == StoreItemType.roomProfileBackground)
+        .toList();
+    return _buildItemsList(bg);
+  }
+
+  Widget _buildShortProfileThemesTab() {
+    final bg = _marketItems
+        .where((item) => item.type == StoreItemType.shortProfileTheme)
         .toList();
     return _buildItemsList(bg);
   }
@@ -863,7 +879,101 @@ class _MarketManagementState extends State<MarketManagement>
             const SizedBox(height: 16),
 
             // File Preview
-            if (item.fileUrl.isNotEmpty || (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty))
+            if (item.type == StoreItemType.seatDecor && (item.fileUrl.isNotEmpty || (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty) || (item.hostSeatDecorUrl != null && item.hostSeatDecorUrl!.isNotEmpty)))
+              Container(
+                height: 110,
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[850],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    // 1. Host Seat
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                            ),
+                            child: const Text('HOST SEAT', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(height: 6),
+                          Expanded(
+                            child: MediaPreviewWidget(
+                              url: (item.hostSeatDecorUrl != null && item.hostSeatDecorUrl!.isNotEmpty)
+                                  ? item.hostSeatDecorUrl!
+                                  : (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty ? item.thumbnailUrl! : item.fileUrl),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 75, color: Colors.grey[700]),
+                    // 2. Unlock Seat
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+                            ),
+                            child: const Text('UNLOCK SEAT', style: TextStyle(color: Colors.lightBlueAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(height: 6),
+                          Expanded(
+                            child: MediaPreviewWidget(
+                              url: item.fileUrl.isNotEmpty
+                                  ? item.fileUrl
+                                  : (item.thumbnailUrl ?? ''),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 75, color: Colors.grey[700]),
+                    // 3. Lock Seat
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+                            ),
+                            child: const Text('LOCK SEAT', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(height: 6),
+                          Expanded(
+                            child: (item.lockedFileUrl != null && item.lockedFileUrl!.isNotEmpty)
+                                ? MediaPreviewWidget(
+                                    url: item.lockedFileUrl!,
+                                    fit: BoxFit.contain,
+                                  )
+                                : const Center(
+                                    child: Icon(Icons.lock, color: Colors.white38, size: 28),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (item.fileUrl.isNotEmpty || (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty))
               Container(
                 height: 100,
                 width: double.infinity,
@@ -957,6 +1067,40 @@ class _MarketManagementState extends State<MarketManagement>
                     ],
                   ),
                 ),
+              )
+            else if (item.type == StoreItemType.seatDecor)
+              Container(
+                height: 100,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[850],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Center(child: _buildSeatDecorModePreview(item)),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'BUILT-IN / LIVE',
+                            style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
 
             const SizedBox(height: 16),
@@ -979,9 +1123,11 @@ class _MarketManagementState extends State<MarketManagement>
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                       Text(
-                        '${item.diamondPrice.toStringAsFixed(0)}💎',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        item.diamondPrice <= 0
+                            ? 'Free (0💎)'
+                            : '${item.diamondPrice.toStringAsFixed(0)}💎',
+                        style: TextStyle(
+                          color: item.diamondPrice <= 0 ? Colors.greenAccent : Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1111,6 +1257,177 @@ class _MarketManagementState extends State<MarketManagement>
     }
   }
 
+  Widget _buildSeatDecorModePreview(StoreItemModel item) {
+    final name = item.name.toLowerCase();
+    final id = item.id.toLowerCase();
+    
+    if (id.contains('golden') || name.contains('golden') || name.contains('sofa')) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(
+                  colors: [Color(0xFFFFEA7A), Color(0xFFB8860B), Color(0xFF4A3500)],
+                ),
+                border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.chair_rounded, color: Colors.amber, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Seat 1: HOST (Golden Sofa)',
+                  style: TextStyle(color: Color(0xFFFFD700), fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Seats 2-N: Guest No.2, No.3...',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else if (id.contains('purple') || name.contains('purple')) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(
+                  colors: [Color(0xFFE085FF), Color(0xFF8A00E6), Color(0xFF380062)],
+                ),
+                border: Border.all(color: const Color(0xFFD466FF), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFB026FF).withValues(alpha: 0.4),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.chair_rounded, color: Color(0xFFFFD700), size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Seat 1: HOST (Neon Purple Sofa)',
+                  style: TextStyle(color: Color(0xFFD466FF), fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Seats 2-N: Guest No.2, No.3...',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else if (id.contains('pink') || name.contains('pink')) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.music_note, color: Colors.pinkAccent, size: 36),
+            SizedBox(width: 12),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dashed Pink Musical Seats',
+                  style: TextStyle(color: Colors.pinkAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Music Note Ring Animation',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else if (id.contains('orange') || name.contains('orange')) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.weekend_rounded, color: Colors.orangeAccent, size: 36),
+            SizedBox(width: 12),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dashed Orange Sofa Seats',
+                  style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Orange Sofa Seat Decor',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.mic_rounded, color: Colors.blueAccent, size: 36),
+            SizedBox(width: 12),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Seat 1: OWNER (Classic Mic)',
+                  style: TextStyle(color: Colors.blueAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Seats 2-N: Default Frosted Mic',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   Color _getTypeColor(StoreItemType type) {
     switch (type) {
       case StoreItemType.avatarFrame:
@@ -1129,6 +1446,10 @@ class _MarketManagementState extends State<MarketManagement>
         return Colors.indigo;
       case StoreItemType.roomProfileBackground:
         return Colors.blueGrey;
+      case StoreItemType.shortProfileTheme:
+        return Colors.pinkAccent;
+      case StoreItemType.roomEntry:
+        return Colors.greenAccent;
     }
   }
 
@@ -1265,6 +1586,18 @@ class _MarketManagementState extends State<MarketManagement>
                   );
 
                   await UserProfileService.updateStoreItem(updatedItem);
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('official_items')
+                        .doc(item.id)
+                        .update({
+                      'name': updatedItem.name,
+                      'description': updatedItem.description,
+                      'diamondPrice': updatedItem.diamondPrice,
+                      'isActive': updatedItem.isActive,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+                  } catch (_) {}
 
                   if (!context.mounted) return;
                   Navigator.pop(context);
@@ -1292,6 +1625,15 @@ class _MarketManagementState extends State<MarketManagement>
       );
 
       await UserProfileService.updateStoreItem(updatedItem);
+      try {
+        await FirebaseFirestore.instance
+            .collection('official_items')
+            .doc(item.id)
+            .update({
+          'isActive': updatedItem.isActive,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
       _loadData();
       _showSuccessSnackBar('Item status updated successfully');
     } catch (e) {
@@ -1318,11 +1660,8 @@ class _MarketManagementState extends State<MarketManagement>
             onPressed: () async {
               Navigator.pop(context);
               try {
-                if (item.category == StoreCategory.officialStore) {
-                  await OfficialItemsService.deleteOfficialItem(item.id);
-                } else {
-                  await UserProfileService.deleteStoreItem(item.id);
-                }
+                await OfficialItemsService.deleteOfficialItem(item.id);
+                await UserProfileService.deleteStoreItem(item.id);
                 _loadData();
                 _showSuccessSnackBar('Item deleted successfully');
               } catch (e) {
@@ -1371,6 +1710,14 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
   bool _isPermanent = false;
   bool _isFree = false;
   bool _isUploading = false;
+
+  // Seat Decor: Host Seat, Unlock Seat, Lock Seat
+  Uint8List? _hostSeatBytes;
+  String? _hostSeatName;
+  Uint8List? _unlockSeatBytes;
+  String? _unlockSeatName;
+  Uint8List? _lockedSeatBytes;
+  String? _lockedSeatName;
 
   @override
   void initState() {
@@ -1477,8 +1824,8 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Thumbnail Upload
-                      if (_selectedType != StoreItemType.roomTheme) ...[
+                      // Thumbnail Upload (hidden for roomTheme & badge)
+                      if (_selectedType != StoreItemType.roomTheme && _selectedType != StoreItemType.badge) ...[
                         _buildUploadSection(
                           title: 'Thumbnail (PNG only)',
                           selected: _selectedThumbnailBytes != null,
@@ -1489,17 +1836,63 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
                         const SizedBox(height: 16),
                       ],
 
-                      // Asset Upload
-                      _buildUploadSection(
-                        title: _selectedType == StoreItemType.roomTheme 
-                            ? 'Asset (SVGA, GIF, Image)'
-                            : 'Asset (SVGA only)',
-                        selected: _selectedAssetBytes != null,
-                        fileName: _selectedAssetName,
-                        fileType: _selectedAssetType,
-                        onPickFile: _pickAsset,
-                        icon: Icons.auto_awesome,
-                      ),
+                      if (_selectedType == StoreItemType.seatDecor) ...[
+                        _buildUploadSection(
+                          title: '👑 1. Host Seat Decor (Seat 1 / Host PNG)',
+                          selected: _hostSeatBytes != null,
+                          fileName: _hostSeatName,
+                          onPickFile: _pickHostSeat,
+                          icon: Icons.chair_rounded,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildUploadSection(
+                          title: '🪑 2. Unlock Seat Decor (Guest Unlocked Seats PNG)',
+                          selected: _unlockSeatBytes != null,
+                          fileName: _unlockSeatName,
+                          onPickFile: _pickUnlockSeat,
+                          icon: Icons.event_seat_rounded,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildUploadSection(
+                          title: '🔒 3. Lock Seat Decor (Locked Seats PNG)',
+                          selected: _lockedSeatBytes != null,
+                          fileName: _lockedSeatName,
+                          onPickFile: _pickLockedSeat,
+                          icon: Icons.lock,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildUploadSection(
+                          title: '🖼️ Thumbnail (Optional - auto uses Host/Unlock if empty)',
+                          selected: _selectedThumbnailBytes != null,
+                          fileName: _selectedThumbnailName,
+                          onPickFile: _pickThumbnail,
+                          icon: Icons.image,
+                        ),
+                      ] else ...[
+                        // Thumbnail Upload (hidden for roomTheme & badge)
+                        if (_selectedType != StoreItemType.roomTheme && _selectedType != StoreItemType.badge) ...[
+                          _buildUploadSection(
+                            title: 'Thumbnail (PNG only)',
+                            selected: _selectedThumbnailBytes != null,
+                            fileName: _selectedThumbnailName,
+                            onPickFile: _pickThumbnail,
+                            icon: Icons.image,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Asset Upload
+                        _buildUploadSection(
+                          title: _selectedType == StoreItemType.roomTheme 
+                              ? 'Asset (SVGA, GIF, Image)'
+                              : 'Asset (SVGA only)',
+                          selected: _selectedAssetBytes != null,
+                          fileName: _selectedAssetName,
+                          fileType: _selectedAssetType,
+                          onPickFile: _pickAsset,
+                          icon: Icons.auto_awesome,
+                        ),
+                      ],
 
                       const SizedBox(height: 24),
 
@@ -1723,6 +2116,10 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
         return '🎙️';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 
@@ -1735,15 +2132,19 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
       case StoreItemType.badge:
         return 'Badge';
       case StoreItemType.backgroundTheme:
-        return 'Profile skin';
+        return 'Room Background Theme';
       case StoreItemType.roomTheme:
-        return 'Room theme';
+        return 'Profile Skin';
       case StoreItemType.seatDecor:
         return 'Seat decor';
       case StoreItemType.micRefill:
         return 'Mic Refill';
       case StoreItemType.roomProfileBackground:
         return 'Room Profile Background';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profile Theme';
+      case StoreItemType.roomEntry:
+        return 'Room Entry';
     }
   }
 
@@ -1881,10 +2282,9 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
 
   Future<void> _pickAsset() async {
     try {
-      final isRoomTheme = _selectedType == StoreItemType.roomTheme;
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: isRoomTheme ? ['svga', 'gif', 'png', 'jpg', 'jpeg'] : ['svga'],
+        allowedExtensions: ['svga', 'gif', 'png', 'jpg', 'jpeg', 'webp', 'mp4', 'vap'],
         allowMultiple: false,
         withData: true,
       );
@@ -1905,7 +2305,7 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['png'],
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
         allowMultiple: false,
         withData: true,
       );
@@ -1921,19 +2321,86 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
     }
   }
 
+  Future<void> _pickHostSeat() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          _hostSeatBytes = result.files.single.bytes;
+          _hostSeatName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking host seat decor: $e');
+      _showErrorSnackBar('Failed to pick Host Seat Decor');
+    }
+  }
+
+  Future<void> _pickUnlockSeat() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          _unlockSeatBytes = result.files.single.bytes;
+          _unlockSeatName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking unlock seat decor: $e');
+      _showErrorSnackBar('Failed to pick Unlock Seat Decor');
+    }
+  }
+
+  Future<void> _pickLockedSeat() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          _lockedSeatBytes = result.files.single.bytes;
+          _lockedSeatName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking lock seat decor: $e');
+      _showErrorSnackBar('Failed to pick Lock Seat Decor');
+    }
+  }
+
   Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    if (_selectedAssetBytes == null) {
-      _showErrorSnackBar('Please select an asset file');
-      return;
-    }
+    if (_selectedType == StoreItemType.seatDecor) {
+      if (_unlockSeatBytes == null && _hostSeatBytes == null) {
+        _showErrorSnackBar('Please upload at least Host Seat or Unlock Seat Decor');
+        return;
+      }
+    } else {
+      if (_selectedAssetBytes == null) {
+        _showErrorSnackBar('Please select an asset file');
+        return;
+      }
 
-    if (_selectedThumbnailBytes == null && _selectedType != StoreItemType.roomTheme) {
-      _showErrorSnackBar('Please select a thumbnail');
-      return;
+      if (_selectedThumbnailBytes == null && _selectedType != StoreItemType.roomTheme) {
+        _showErrorSnackBar('Please select a thumbnail');
+        return;
+      }
     }
 
     setState(() {
@@ -1946,42 +2413,92 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
           .doc()
           .id;
 
-      String? thumbnailUrl;
-      if (_selectedThumbnailBytes != null) {
-        thumbnailUrl = await UserProfileService.uploadMarketItemFile(
-          _selectedThumbnailBytes!,
-          'thumbnail_${_selectedThumbnailName!}',
-          itemId,
-        );
-        if (thumbnailUrl == null) throw Exception('Failed to upload thumbnail');
-      }
-
-      // Upload Asset
-      final assetUrl = await UserProfileService.uploadMarketItemFile(
-        _selectedAssetBytes!,
-        _selectedAssetName!,
-        itemId,
-      );
-
-      if (assetUrl == null) throw Exception('Failed to upload asset');
-
       bool success = false;
       
       if (_selectedType == StoreItemType.seatDecor) {
-        // Create as an Official Item
+        // Upload Unlock Seat Decor (primary fileUrl)
+        final Uint8List primaryUnlockBytes = _unlockSeatBytes ?? _hostSeatBytes!;
+        final String primaryUnlockName = _unlockSeatName ?? _hostSeatName!;
+        final unlockUrl = await UserProfileService.uploadMarketItemFile(
+          primaryUnlockBytes,
+          'unlock_$primaryUnlockName',
+          itemId,
+        );
+        if (unlockUrl == null) throw Exception('Failed to upload unlock seat decor');
+
+        // Upload Host Seat Decor
+        String? hostUrl;
+        if (_hostSeatBytes != null) {
+          hostUrl = await UserProfileService.uploadMarketItemFile(
+            _hostSeatBytes!,
+            'host_${_hostSeatName!}',
+            itemId,
+          );
+        } else {
+          hostUrl = unlockUrl;
+        }
+
+        // Upload Lock Seat Decor
+        String? lockedUrl;
+        if (_lockedSeatBytes != null) {
+          lockedUrl = await UserProfileService.uploadMarketItemFile(
+            _lockedSeatBytes!,
+            'locked_${_lockedSeatName!}',
+            itemId,
+          );
+        } else {
+          lockedUrl = unlockUrl;
+        }
+
+        // Upload Thumbnail if provided, otherwise default to Host or Unlock
+        String? thumbnailUrl;
+        if (_selectedThumbnailBytes != null) {
+          thumbnailUrl = await UserProfileService.uploadMarketItemFile(
+            _selectedThumbnailBytes!,
+            'thumbnail_${_selectedThumbnailName!}',
+            itemId,
+          );
+        }
+        thumbnailUrl ??= hostUrl ?? unlockUrl;
+
+        final double price = _isFree ? 0.0 : (double.tryParse(_priceController.text) ?? 0.0);
+        final int duration = _isPermanent ? 0 : (int.tryParse(_durationController.text) ?? 0);
+
         final officialId = await OfficialItemsService.createOfficialItem(
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
           category: OfficialItemCategory.seatDecor,
-          fileUrl: assetUrl,
-          fileName: _selectedAssetName!,
-          fileType: _selectedAssetType ?? 'png',
+          fileUrl: unlockUrl,
+          fileName: primaryUnlockName,
+          fileType: 'png',
           thumbnailUrl: thumbnailUrl,
+          lockedFileUrl: lockedUrl,
+          hostSeatDecorUrl: hostUrl,
           starRating: 1,
+          diamondPrice: price,
+          expirationDuration: duration,
         );
         success = officialId != null;
       } else {
-        // Create as a normal Market Item
+        String? thumbnailUrl;
+        if (_selectedThumbnailBytes != null) {
+          thumbnailUrl = await UserProfileService.uploadMarketItemFile(
+            _selectedThumbnailBytes!,
+            'thumbnail_${_selectedThumbnailName!}',
+            itemId,
+          );
+          if (thumbnailUrl == null) throw Exception('Failed to upload thumbnail');
+        }
+
+        // Upload Asset
+        final assetUrl = await UserProfileService.uploadMarketItemFile(
+          _selectedAssetBytes!,
+          _selectedAssetName!,
+          itemId,
+        );
+
+        if (assetUrl == null) throw Exception('Failed to upload asset');
+
         final item = StoreItemModel(
           id: itemId,
           name: _nameController.text.trim(),

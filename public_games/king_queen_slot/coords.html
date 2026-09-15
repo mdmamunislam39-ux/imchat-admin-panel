@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Asset Slicer & Coordinate Finder</title>
+  <style>
+    body { margin: 0; background: #111; color: #eee; font-family: sans-serif; padding: 10px; }
+    #canvas { border: 2px solid #e5a93b; max-width: 100%; height: auto; border-radius: 8px; }
+    .debug-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+    .symbol-thumb { border: 2px solid #555; background: #000; border-radius: 6px; padding: 4px; text-align: center; }
+    .symbol-thumb canvas { display: block; width: 100px; height: 100px; }
+    .symbol-thumb span { font-size: 12px; color: #ffd700; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2 style="color: #ffd700;">King of the Castle - Symbol Slicer Test</h2>
+  <canvas id="canvas"></canvas>
+  <div class="debug-grid" id="symbolsContainer"></div>
+  <script>
+    const img = new Image();
+    img.src = 'k0ab_b4uq_160921.jpg';
+    img.onload = () => {
+      const W = img.naturalWidth;
+      const H = img.naturalHeight;
+      const canvas = document.getElementById('canvas');
+      canvas.width = 1200;
+      canvas.height = Math.round(1200 * H / W);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      const scale = canvas.width / W;
+      
+      const cellW = 868;
+      const cellH = 780;
+      const startX = 590;
+      const startY = 660;
+      
+      const symbolNames = [
+        ['nine', 'ten', 'k', 'king', 'castle'],
+        ['queen', 'king_alt', 'q', 'k_alt', 'j'],
+        ['knight', 'knight_alt', 'knight_alt2', 'castle_alt', 'queen_alt']
+      ];
+      
+      const container = document.getElementById('symbolsContainer');
+      
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 5; c++) {
+          const sx = startX + c * cellW;
+          const sy = startY + r * cellH;
+          
+          // Draw rect on main canvas
+          ctx.strokeStyle = '#00ff88';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx * scale, sy * scale, cellW * scale, cellH * scale);
+          
+          ctx.fillStyle = '#ffff00';
+          ctx.font = '16px bold sans-serif';
+          ctx.fillText(symbolNames[r][c], (sx + 20) * scale, (sy + 40) * scale);
+          
+          // Extract to mini canvas
+          const thumbDiv = document.createElement('div');
+          thumbDiv.className = 'symbol-thumb';
+          const thumbCanvas = document.createElement('canvas');
+          thumbCanvas.width = 180;
+          thumbCanvas.height = 180;
+          const tCtx = thumbCanvas.getContext('2d');
+          
+          // Crop square around symbol center
+          const cropSize = 720;
+          const cx = sx + cellW / 2;
+          const cy = sy + cellH / 2;
+          tCtx.drawImage(
+            img,
+            cx - cropSize / 2, cy - cropSize / 2, cropSize, cropSize,
+            0, 0, thumbCanvas.width, thumbCanvas.height
+          );
+          
+          const label = document.createElement('span');
+          label.textContent = symbolNames[r][c];
+          thumbDiv.appendChild(thumbCanvas);
+          thumbDiv.appendChild(label);
+          container.appendChild(thumbDiv);
+        }
+      }
+    };
+  </script>
+</body>
+</html>

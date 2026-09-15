@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Function to check if user is admin or superAdmin
+    function isAdmin() {
+      return (exists(/databases/$(database)/documents/Users/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role in ['admin', 'superAdmin'] &&
+              (!('roleActive' in get(/databases/$(database)/documents/Users/$(request.auth.uid)).data) || get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.roleActive == true)) ||
+             (exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role in ['admin', 'superAdmin'] &&
+              (!('roleActive' in get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data) || get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.roleActive == true));
+    }
+    
+    // Function to check if user is BD
+    function isBD() {
+      return (exists(/databases/$(database)/documents/Users/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'bd' &&
+              (!('roleActive' in get(/databases/$(database)/documents/Users/$(request.auth.uid)).data) || get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.roleActive == true)) ||
+             (exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) && 
+              get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == 'bd' &&
+              (!('roleActive' in get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data) || get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.roleActive == true));
+    }
+
+    // user_roles collection
+    match /user_roles/{userId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // games collection (Game Wall, HTML5 games metadata)
+    match /games/{document=**} {
+      allow read, write: if true;
+    }
+
+    // config collection (HTML5 games, greedy_game, game parameters, layout)
+    match /config/{document=**} {
+      allow read, write: if true;
+    }
+
+    // global settings & system configs
+    match /global_settings/{document=**} {
+      allow read, write: if true;
+    }
+
+    match /system_configs/{document=**} {
+      allow read, write: if true;
+    }
+
+    // web admins credentials
+    match /web_admins/{document=**} {
+      allow read, write: if true;
+    }
+
+    // game history logs
+    match /game_history/{document=**} {
+      allow read, write: if true;
+    }
+
+    // premium_room_ids collection
+    match /premium_room_ids/{originalId} {
+      allow read, write: if true;
+    }
+
+    // paymentMethods collection
+    match /paymentMethods/{paymentId} {
+      allow read, write: if true;
+    }
+
+    // rechargePackages collection
+    match /rechargePackages/{packageId} {
+      allow read, write: if true;
+    }
+
+    // Real-time daily game leaderboard for HTML5 games (Greedy Market, Greedy Delicious)
+    match /daily_game_leaderboard/{document=**} {
+      allow read, write: if true;
+    }
+
+    // rechargeOrders collection
+    match /rechargeOrders/{orderId} {
+      allow read: if request.auth != null && (resource == null || request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && request.resource.data.status == 'Pending';
+      allow update, delete: if isAdmin();
+    }
+    
+    // other collections ... (fallback rule, allow read and write)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

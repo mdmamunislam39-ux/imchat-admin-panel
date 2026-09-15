@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 import '../widgets/media_preview_widget.dart';
@@ -1073,6 +1074,14 @@ class _BlockedUsersManagementState extends State<BlockedUsersManagement>
 
   Color _getPunishmentTypeColor(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return Colors.purpleAccent;
+      case PunishmentType.postBan:
+        return Colors.orangeAccent;
+      case PunishmentType.accountBan:
+        return Colors.redAccent;
+      case PunishmentType.deviceBan:
+        return Colors.deepOrange;
       case PunishmentType.warning:
         return Colors.yellow;
       case PunishmentType.temporaryBlock:
@@ -1086,6 +1095,14 @@ class _BlockedUsersManagementState extends State<BlockedUsersManagement>
 
   IconData _getPunishmentTypeIcon(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return Icons.mic_off;
+      case PunishmentType.postBan:
+        return Icons.edit_off;
+      case PunishmentType.accountBan:
+        return Icons.no_accounts;
+      case PunishmentType.deviceBan:
+        return Icons.phonelink_erase;
       case PunishmentType.warning:
         return Icons.warning;
       case PunishmentType.temporaryBlock:
@@ -1099,6 +1116,14 @@ class _BlockedUsersManagementState extends State<BlockedUsersManagement>
 
   String _getPunishmentTypeDisplayName(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return 'Voiceroom Ban';
+      case PunishmentType.postBan:
+        return 'Post Ban';
+      case PunishmentType.accountBan:
+        return 'Account Ban';
+      case PunishmentType.deviceBan:
+        return 'Device Ban';
       case PunishmentType.warning:
         return 'Warning';
       case PunishmentType.temporaryBlock:
@@ -1433,6 +1458,10 @@ class _BlockUserDialogState extends State<BlockUserDialog> {
                       dropdownColor: Colors.grey[800],
                       style: const TextStyle(color: Colors.white),
                       items: [
+                        PunishmentType.voiceRoomBan,
+                        PunishmentType.postBan,
+                        PunishmentType.accountBan,
+                        PunishmentType.deviceBan,
                         PunishmentType.temporaryBlock,
                         PunishmentType.permanentBlock,
                       ].map((type) {
@@ -1452,8 +1481,8 @@ class _BlockUserDialogState extends State<BlockUserDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Expiry Date (for temporary blocks)
-                    if (_selectedType == PunishmentType.temporaryBlock) ...[
+                    // Expiry Date (for timed bans)
+                    if (_selectedType != PunishmentType.permanentBlock) ...[
                       const Text(
                         'Expiry Date',
                         style: TextStyle(
@@ -1595,11 +1624,34 @@ class _BlockUserDialogState extends State<BlockUserDialog> {
           issuedBy: 'Admin',
         );
 
+        final bool shouldBlockAccount = _selectedType == PunishmentType.accountBan ||
+            _selectedType == PunishmentType.deviceBan ||
+            _selectedType == PunishmentType.permanentBlock ||
+            _selectedType == PunishmentType.temporaryBlock;
+
         final updatedProfile = _selectedUser!.copyWith(
-          status: UserStatus.blocked,
+          status: shouldBlockAccount ? UserStatus.blocked : _selectedUser!.status,
           punishments: [..._selectedUser!.punishments, punishment],
           updatedAt: DateTime.now(),
         );
+
+        if (_selectedType == PunishmentType.deviceBan) {
+          try {
+            final docSnap = await FirebaseFirestore.instance.collection('Users').doc(_selectedUser!.id).get();
+            final deviceId = docSnap.data()?['deviceId']?.toString() ?? _selectedUser!.id;
+
+            await FirebaseFirestore.instance.collection('banned_devices').doc(deviceId).set({
+              'deviceId': deviceId,
+              'userId': _selectedUser!.userId,
+              'reason': punishment.reason,
+              'isPermanent': _expiryDate == null,
+              'expiresAt': _expiryDate != null ? Timestamp.fromDate(_expiryDate!) : null,
+              'bannedAt': FieldValue.serverTimestamp(),
+            });
+          } catch (e) {
+            debugPrint('Error saving device ban to banned_devices: $e');
+          }
+        }
 
         await UserProfileService.updateUserProfile(updatedProfile);
         widget.onUserBlocked(_selectedUser!);
@@ -1607,7 +1659,7 @@ class _BlockUserDialogState extends State<BlockUserDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User blocked successfully'),
+            content: Text('Ban applied successfully (Real-time enforced)!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1643,6 +1695,14 @@ class _BlockUserDialogState extends State<BlockUserDialog> {
 
   String _getPunishmentTypeDisplayName(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return 'Voiceroom Ban';
+      case PunishmentType.postBan:
+        return 'Post Ban';
+      case PunishmentType.accountBan:
+        return 'Account Ban';
+      case PunishmentType.deviceBan:
+        return 'Device Ban';
       case PunishmentType.warning:
         return 'Warning';
       case PunishmentType.temporaryBlock:
@@ -1954,6 +2014,14 @@ class _PunishmentDialogState extends State<PunishmentDialog> {
 
   String _getPunishmentTypeDisplayName(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return 'Voiceroom Ban';
+      case PunishmentType.postBan:
+        return 'Post Ban';
+      case PunishmentType.accountBan:
+        return 'Account Ban';
+      case PunishmentType.deviceBan:
+        return 'Device Ban';
       case PunishmentType.warning:
         return 'Warning';
       case PunishmentType.temporaryBlock:
@@ -1967,6 +2035,14 @@ class _PunishmentDialogState extends State<PunishmentDialog> {
 
   Color _getPunishmentTypeColor(PunishmentType type) {
     switch (type) {
+      case PunishmentType.voiceRoomBan:
+        return Colors.purpleAccent;
+      case PunishmentType.postBan:
+        return Colors.orangeAccent;
+      case PunishmentType.accountBan:
+        return Colors.redAccent;
+      case PunishmentType.deviceBan:
+        return Colors.deepOrange;
       case PunishmentType.warning:
         return Colors.yellow;
       case PunishmentType.temporaryBlock:

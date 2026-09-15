@@ -1,4 +1,4 @@
-
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -14,39 +14,62 @@ class SvipManagementScreen extends StatefulWidget {
 class _SvipManagementScreenState extends State<SvipManagementScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  StreamSubscription<QuerySnapshot>? _configsSubscription;
   
   bool _isLoading = true;
   bool _isSaving = false;
   
-  final List<String> _vipLevels = ['vip1', 'vip2', 'vip3', 'vip4', 'vip5', 'vip6'];
+  final List<String> _vipLevels = ['svip1', 'svip2', 'svip3', 'svip4', 'svip5', 'svip6'];
   Map<String, Map<String, dynamic>> _vipConfigs = {};
   
-  // Controllers for recharge targets
+  // Controllers and FocusNodes for recharge targets
   final Map<String, TextEditingController> _targetControllers = {};
+  final Map<String, FocusNode> _targetFocusNodes = {};
+
+  // Controllers and FocusNodes for name colors
+  final Map<String, TextEditingController> _colorControllers = {};
+  final Map<String, FocusNode> _colorFocusNodes = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: _vipLevels.length, vsync: this);
     for (var level in _vipLevels) {
       _targetControllers[level] = TextEditingController();
+      _targetFocusNodes[level] = FocusNode();
+      _colorControllers[level] = TextEditingController();
+      _colorFocusNodes[level] = FocusNode();
     }
-    _loadConfigs();
+    _listenToConfigs();
   }
   
   @override
   void dispose() {
+    _configsSubscription?.cancel();
     _tabController.dispose();
     for (var controller in _targetControllers.values) {
       controller.dispose();
     }
+    for (var node in _targetFocusNodes.values) {
+      node.dispose();
+    }
+    for (var controller in _colorControllers.values) {
+      controller.dispose();
+    }
+    for (var node in _colorFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _loadConfigs() async {
-    setState(() => _isLoading = true);
-    try {
-      final snapshot = await _firestore.collection('config').doc('svip_levels').collection('levels').get();
+  void _listenToConfigs() {
+    _configsSubscription?.cancel();
+    _configsSubscription = _firestore
+        .collection('config')
+        .doc('svip_levels')
+        .collection('levels')
+        .snapshots()
+        .listen((snapshot) {
       Map<String, Map<String, dynamic>> configs = {};
       
       // Initialize defaults
@@ -88,18 +111,33 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
             'nameColors': List<String>.from(data['nameColors'] ?? ['#FFFFFF']),
             'nameAnimation': data['nameAnimation'] ?? 'none',
           };
-          _targetControllers[doc.id]!.text = configs[doc.id]!['rechargeTarget'].toString();
+
+          // Update target controller if not focused
+          final targetVal = configs[doc.id]!['rechargeTarget'].toString();
+          if (!_targetFocusNodes[doc.id]!.hasFocus && _targetControllers[doc.id]!.text != targetVal) {
+            _targetControllers[doc.id]!.text = targetVal;
+          }
+
+          // Update color controller if not focused
+          final colorsVal = (configs[doc.id]!['nameColors'] as List<String>).join(',');
+          if (!_colorFocusNodes[doc.id]!.hasFocus && _colorControllers[doc.id]!.text != colorsVal) {
+            _colorControllers[doc.id]!.text = colorsVal;
+          }
         }
       }
       
-      setState(() {
-        _vipConfigs = configs;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading SVIP configs: $e');
-      setState(() => _isLoading = false);
-    }
+      if (mounted) {
+        setState(() {
+          _vipConfigs = configs;
+          _isLoading = false;
+        });
+      }
+    }, onError: (e) {
+      debugPrint('Error listening to SVIP configs: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   Future<void> _saveConfig(String level) async {
@@ -136,7 +174,7 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
   Future<void> _pickAndUploadFile(String level, String field) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['jpg', 'png', 'gif', 'mp4', 'webp', 'svga', 'json'],
+      allowedExtensions: ['jpg', 'png', 'gif', 'mp4', 'vap', 'webp', 'svga', 'json'],
       withData: true,
     );
 
@@ -192,8 +230,8 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
           isScrollable: true,
           tabs: _vipLevels.map((level) {
             String label = level.toUpperCase();
-            if (label.startsWith('VIP') && label.length > 3) {
-              label = 'VIP ${label.substring(3)}';
+            if (label.startsWith('SVIP') && label.length > 4) {
+              label = 'SVIP ${label.substring(4)}';
             }
             return Tab(text: label);
           }).toList(),
@@ -216,15 +254,13 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
   }
 
   Widget _buildVipTab(String level) {
-    final config = _vipConfigs[level]!;
-    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('General Settings'),
-          _buildTextField('Monthly Recharge Target (Diamonds)', _targetControllers[level]!, isNumber: true),
+          _buildTextField('Monthly Recharge Target (Diamonds)', _targetControllers[level]!, _targetFocusNodes[level]!, isNumber: true),
           
           const SizedBox(height: 24),
           _buildSectionHeader('SVIP Rewards (Thumbnails & Media)'),
@@ -237,7 +273,7 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
           _buildAssetPair(level, 'Badge', 'badgeUrl', 'badgeMediaUrl'),
           _buildAssetPair(level, 'Avatar Frame', 'frameUrl', 'frameMediaUrl'),
           _buildAssetPair(level, 'Entry Effect', 'entryEffectUrl', 'entryEffectMediaUrl'),
-          _buildAssetPair(level, 'Profile Skin / Room Theme', 'profileSkinUrl', 'profileSkinMediaUrl'),
+          _buildAssetPair(level, 'Room Background Theme / Profile Skin', 'profileSkinUrl', 'profileSkinMediaUrl'),
           _buildAssetPair(level, 'Nameplate / Title', 'nameplateUrl', 'nameplateMediaUrl'),
           
           const SizedBox(height: 24),
@@ -249,13 +285,12 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
           const Text('Name Colors (Comma separated hex codes, e.g. #FF0000,#00FF00)', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 8),
           TextFormField(
-            initialValue: (config['nameColors'] as List<String>).join(','),
+            controller: _colorControllers[level],
+            focusNode: _colorFocusNodes[level],
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('Hex Colors'),
             onChanged: (val) {
-              setState(() {
-                _vipConfigs[level]!['nameColors'] = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-              });
+              _vipConfigs[level]!['nameColors'] = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
             },
           ),
           
@@ -311,7 +346,7 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isNumber = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, FocusNode focusNode, {bool isNumber = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -319,6 +354,7 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           style: const TextStyle(color: Colors.white),
           keyboardType: isNumber ? TextInputType.number : TextInputType.text,
           decoration: _inputDecoration(label),
@@ -334,7 +370,7 @@ class _SvipManagementScreenState extends State<SvipManagementScreen> with Single
         Text(label, style: const TextStyle(color: Colors.grey)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: _vipConfigs[level]![field],
+          value: _vipConfigs[level]![field],
           dropdownColor: Colors.grey[900],
           style: const TextStyle(color: Colors.white),
           decoration: _inputDecoration(label),

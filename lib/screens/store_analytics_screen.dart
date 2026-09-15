@@ -503,6 +503,10 @@ class _StoreAnalyticsScreenState extends State<StoreAnalyticsScreen> with Ticker
         return '🎙️';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 

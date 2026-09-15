@@ -1611,6 +1611,161 @@ routes: {
 
 ---
 
+## 🎮 **11. HTML5 GAME LAUNCHER (VOICE ROOM & WALLET SCREEN)**
+
+The admin panel allows creating/editing games with **Game ID / Code** (e.g. `html5_greedy_market`, `greedy_market`) or **Game URL** (e.g. `https://greedy-market-game.web.app`).
+
+### **11.1 Game Launcher Service** (`lib/services/game_launcher_service.dart`)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import '../models/game_model.dart';
+
+class GameLauncherService {
+  // Known predefined URL maps for Game IDs
+  static final Map<String, String> _gameIdUrlMap = {
+    'html5_greedy_market': 'https://greedy-market-game.web.app',
+    'greedy_market': 'https://greedy-market-game.web.app',
+    'fruit_wheel': 'https://greedy-market-game.web.app',
+    'html5_king_queen_slot': 'https://king-queen-slot-game.web.app',
+    'king_queen_slot': 'https://king-queen-slot-game.web.app',
+    'html5_greedy_delicious': 'https://greedy-delicious-game.web.app',
+    'greedy_delicious': 'https://greedy-delicious-game.web.app',
+    'html5_greedy_cat': 'https://greedy-cat-game.web.app',
+    'greedy_cat': 'https://greedy-cat-game.web.app',
+  };
+
+  static String resolveGameUrl({
+    required GameModel game,
+    required String currentUserId,
+    String? roomId,
+  }) {
+    String baseUrl = game.gameUrl.trim();
+    if (baseUrl.isEmpty) {
+      baseUrl = _gameIdUrlMap[game.gameCode] ??
+                _gameIdUrlMap[game.id] ??
+                'https://greedy-market-game.web.app';
+    }
+
+    // Replace placeholders if present
+    baseUrl = baseUrl.replaceAll('{USER_ID}', currentUserId)
+                     .replaceAll('{ROOM_ID}', roomId ?? '');
+
+    // Append userId and roomId query parameters if missing
+    if (!baseUrl.contains('userId=')) {
+      final sep = baseUrl.contains('?') ? '&' : '?';
+      baseUrl += '${sep}userId=$currentUserId';
+      if (roomId != null && roomId.isNotEmpty) {
+        baseUrl += '&roomId=$roomId';
+      }
+    }
+
+    return baseUrl;
+  }
+
+  // 1. Open in Voice Room as Compact Half/Bottom Sheet (65% Screen Height)
+  static void openInVoiceRoom({
+    required BuildContext context,
+    required GameModel game,
+    required String currentUserId,
+    required String roomId,
+  }) {
+    final url = resolveGameUrl(game: game, currentUserId: currentUserId, roomId: roomId);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.68, // Compact height inside voice room
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: Container(
+            color: const Color(0xFF030A1C),
+            child: BorderlessGameWebView(url: url, title: game.name),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 2. Open from Wallet / Main Navigation as 100% Full Screen
+  static void openInFullScreen({
+    required BuildContext context,
+    required GameModel game,
+    required String currentUserId,
+  }) {
+    final url = resolveGameUrl(game: game, currentUserId: currentUserId);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: const Color(0xFF030A1C),
+          body: SafeArea(
+            child: BorderlessGameWebView(url: url, title: game.name, isFullScreen: true),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Borderless, Headless Game WebView Widget (Zero browser bars / Zero URL text)
+class BorderlessGameWebView extends StatefulWidget {
+  final String url;
+  final String title;
+  final bool isFullScreen;
+
+  const BorderlessGameWebView({
+    super.key,
+    required this.url,
+    required this.title,
+    this.isFullScreen = false,
+  });
+
+  @override
+  State<BorderlessGameWebView> createState() => _BorderlessGameWebViewState();
+}
+
+class _BorderlessGameWebViewState extends State<BorderlessGameWebView> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF030A1C))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _isLoading = false);
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        WebViewWidget(controller: _controller),
+        if (_isLoading)
+          const Center(
+            child: CircularProgressIndicator(color: Colors.amber),
+          ),
+      ],
+    );
+  }
+}
+```
+
+---
+
 ## 📞 **10. SUPPORT & MAINTENANCE**
 
 - Monitor user blocking effectiveness
@@ -1620,3 +1775,4 @@ routes: {
 - Update customization options regularly
 
 This implementation guide provides everything needed to integrate the admin panel features into your main Flutter app. Each section includes complete code examples and implementation details.
+

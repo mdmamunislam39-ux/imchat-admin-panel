@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="King of the Castle - 5-Reel HTML5 Medieval Royal Slot Machine with 20 Paylines, Free Spins, and Progressive Jackpot.">
+  <title>King of the Castle - HTML5 Slot Machine</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase App & Firestore SDKs for Real-time Diamond & Wallet Sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Main Slot Machine Cabinet -->
+  <div class="game-wrapper" id="gameCabinet">
+    <!-- Animated Torch Flames over the castle header -->
+    <div class="torch-flame torch-left"></div>
+    <div class="torch-flame torch-right"></div>
+
+    <!-- User Profile Pill (App User Detection) -->
+    <div class="user-pill" id="userPill" style="display: none; position: absolute; top: 12px; left: 58px; height: 32px; background: rgba(0,0,0,0.75); border: 1.5px solid #ffd700; border-radius: 16px; padding: 2px 10px 2px 3px; align-items: center; gap: 6px; z-index: 50; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+      <img id="userAvatarImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #ffd700;">
+      <span id="userNameText" style="color: #fff; font-size: 11px; font-weight: bold; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Player</span>
+    </div>
+
+    <!-- Top Corner Controls -->
+    <!-- Top-Left Back Button (Orange Arrow on Artwork) -->
+    <button class="top-btn info" id="infoBtn" title="Back / Exit Game" aria-label="Back / Exit Game"></button>
+    <!-- Top-Right Menu / Sound Button -->
+    <button class="top-btn sound" id="soundBtn" title="Paytable & Sound Menu" aria-label="Paytable & Sound Menu"></button>
+
+    <!-- Center 5-Reel Slot Window -->
+    <div class="reels-container">
+      <canvas id="reelsCanvas"></canvas>
+      <div class="glass-shine"></div>
+    </div>
+
+    <!-- Free Spins Notification Overlay -->
+    <div class="free-spins-overlay" id="freeSpinsBanner">
+      CASTLE SIEGE: <span id="freeSpinsCount">10</span> SPINS LEFT | WIN: <span id="freeSpinsWin">0</span> (3x)
+    </div>
+
+    <!-- Mini Win Notification -->
+    <div class="win-notification" id="winNotification">WIN: 0</div>
+
+    <!-- Jackpot Digital Display -->
+    <div class="jackpot-display" id="jackpotBox">
+      <span class="pill-led jackpot-led" id="jackpotValue">52,480</span>
+    </div>
+
+    <!-- Bet Controls & Display -->
+    <div class="bet-container" id="betBox">
+      <span class="pill-led bet-led" id="betValue">100</span>
+    </div>
+    <button class="bet-arrow up" id="betUpBtn" title="Increase Bet" aria-label="Increase Bet"></button>
+    <button class="bet-arrow down" id="betDownBtn" title="Decrease Bet" aria-label="Decrease Bet"></button>
+
+    <!-- Coins / Balance Display -->
+    <div class="coins-container" id="coinsBox">
+      <span class="pill-led coins-led" id="coinsValue">10k</span>
+    </div>
+    <!-- Seamless DIAMOND label replacing COINS -->
+    <div class="diamond-label" id="diamondLabel">DIAMOND</div>
+
+    <!-- Multiplier & Feature Deck Buttons -->
+    <button class="deck-btn btn-5x" id="btn5x" title="Bet 5x Multiplier" aria-label="Bet 5x Multiplier">5x</button>
+    <button class="deck-btn btn-10x" id="btn10x" title="Bet 10x Multiplier" aria-label="Bet 10x Multiplier">10x</button>
+    <button class="deck-btn btn-bonus" id="bonusBtn" title="Castle Bonus Feature" aria-label="Castle Bonus Feature">BONUS</button>
+    <button class="deck-btn btn-autoplay" id="autoPlayBtn" title="Auto Play Spins" aria-label="Auto Play Spins">AUTO</button>
+
+    <!-- Big 3D Spin Button -->
+    <button class="spin-button" id="spinBtn" title="Spin the Reels!" aria-label="Spin"></button>
+  </div>
+
+  <!-- Big Win / Mega Win / Jackpot Celebration Modal -->
+  <div class="celebration-overlay" id="celebrationModal">
+    <div class="celeb-title" id="celebTitle">BIG WIN!</div>
+    <div class="celeb-amount" id="celebAmount">0</div>
+  </div>
+
+  <!-- Castle Bonus Feature Trigger Modal -->
+  <div class="celebration-overlay" id="bonusTriggerOverlay">
+    <div class="celeb-title" style="color: #ff3b30;">CASTLE SIEGE!</div>
+    <div class="celeb-amount" id="bonusAwardText" style="font-size: 28px; color: #ffd700; text-align: center; white-space: pre-line; line-height: 1.5;">
+      10 FREE SPINS WITH 3X MULTIPLIER!
+    </div>
+  </div>
+
+  <!-- Paytable & Game Rules Modal -->
+  <div class="game-modal" id="paytableModal">
+    <div class="modal-box">
+      <button class="modal-close" aria-label="Close Modal">&times;</button>
+      <h2>Paytable & Royal Rules</h2>
+      
+      <p style="text-align: center; color: #ffd700; margin-bottom: 14px; font-weight: bold;">
+        20 Fixed Paylines • Wins evaluated Left to Right • Scatters pay anywhere
+      </p>
+
+      <div class="paytable-grid">
+        <div class="paytable-card" style="border-color: #ffd700;">
+          <h4>ROYAL WILD</h4>
+          <p>5x: 2500<br>4x: 500<br>3x: 50<br>Substitutes all except Castle</p>
+        </div>
+        <div class="paytable-card" style="border-color: #ff3b30;">
+          <h4>CASTLE (SCATTER)</h4>
+          <p>5x: 200x Bet<br>4x: 50x Bet<br>3x: 10x Bet<br><strong>Triggers 10 Free Spins (3x)</strong></p>
+        </div>
+        <div class="paytable-card">
+          <h4>THE KING</h4>
+          <p>5x: 1000<br>4x: 300<br>3x: 80<br>2x: 10</p>
+        </div>
+        <div class="paytable-card">
+          <h4>THE QUEEN</h4>
+          <p>5x: 600<br>4x: 200<br>3x: 50<br>2x: 5</p>
+        </div>
+        <div class="paytable-card">
+          <h4>THE KNIGHT</h4>
+          <p>5x: 400<br>4x: 150<br>3x: 40<br>2x: 5</p>
+        </div>
+        <div class="paytable-card">
+          <h4>ROYAL K</h4>
+          <p>5x: 250<br>4x: 100<br>3x: 30</p>
+        </div>
+        <div class="paytable-card">
+          <h4>ROYAL Q</h4>
+          <p>5x: 200<br>4x: 80<br>3x: 25</p>
+        </div>
+        <div class="paytable-card">
+          <h4>ROYAL J</h4>
+          <p>5x: 150<br>4x: 60<br>3x: 20</p>
+        </div>
+        <div class="paytable-card">
+          <h4>ROYAL 10</h4>
+          <p>5x: 100<br>4x: 40<br>3x: 15</p>
+        </div>
+        <div class="paytable-card">
+          <h4>ROYAL 9</h4>
+          <p>5x: 80<br>4x: 30<br>3x: 10</p>
+        </div>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.5); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
+        <h4 style="color: #ffcf26; margin-bottom: 6px;">Progressive Jackpot</h4>
+        <p>5 King symbols or 5 Wilds on Payline 1 (the center line) awards the massive Progressive Jackpot! 1% of every wager continuously feeds the jackpot prize pool.</p>
+      </div>
+
+      <div style="background: rgba(0,0,0,0.5); padding: 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;">
+        <h4 style="color: #ffcf26; margin-bottom: 6px;">Asset & License Attribution</h4>
+        <p>This game uses graphic artwork downloaded from <a href="https://www.vecteezy.com" target="_blank" rel="noopener noreferrer" style="color: #6ef1ff; font-weight: bold;">Vecteezy.com</a> under the Vecteezy Free License agreement. Attribution is provided in accordance with the official license requirements.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto Play Setup Modal -->
+  <div class="game-modal" id="autoPlayModal">
+    <div class="modal-box" style="max-width: 420px; text-align: center;">
+      <button class="modal-close" aria-label="Close Modal">&times;</button>
+      <h2>Auto Play Setup</h2>
+      <p style="color: #ccc; margin-bottom: 15px;">Choose how many consecutive spins to play automatically:</p>
+      <div class="autoplay-options">
+        <button class="autoplay-opt-btn" onclick="window.game.startAutoPlay(10)">10</button>
+        <button class="autoplay-opt-btn" onclick="window.game.startAutoPlay(25)">25</button>
+        <button class="autoplay-opt-btn" onclick="window.game.startAutoPlay(50)">50</button>
+        <button class="autoplay-opt-btn" onclick="window.game.startAutoPlay(100)">100</button>
+      </div>
+      <p style="font-size: 11px; color: #888;">Auto play automatically halts if a Free Spins Bonus or Big Win occurs.</p>
+    </div>
+  </div>
+
+  <!-- Bonus Information & Test Trigger Modal -->
+  <div class="game-modal" id="bonusModal">
+    <div class="modal-box" style="max-width: 480px; text-align: center;">
+      <button class="modal-close" aria-label="Close Modal">&times;</button>
+      <h2>Castle Siege Bonus</h2>
+      <div style="margin: 15px 0; font-size: 14px; line-height: 1.6; color: #eee;">
+        <p>Land <strong style="color: #ffd700;">3 or more Castle Scatters</strong> anywhere on the reels to breach the fortress gates!</p>
+        <div style="background: rgba(139, 0, 0, 0.4); border: 1px solid #ff3b30; border-radius: 8px; padding: 12px; margin: 15px 0;">
+          🏰 <strong>10 Free Spins</strong> with all payouts <strong>TRIPLED (3x)</strong>!<br>
+          Extra Wild symbols active throughout the siege!
+        </div>
+      </div>
+      <button class="autoplay-opt-btn" style="background: #ff5722; color: #fff; width: 80%; padding: 12px;" onclick="document.getElementById('bonusModal').classList.remove('active'); window.game.triggerCastleBonus(3);">
+        ⚔️ Trigger Bonus Now (Demo)
+      </button>
+    </div>
+  </div>
+
+  <!-- Full-Screen Particle FX Canvas for Coin Animations -->
+  <canvas id="fxCanvas"></canvas>
+
+  <!-- Menu / Game Settings Modal (Clean Player View - Secret RTP Hidden) -->
+  <div class="game-modal" id="menuModal">
+    <div class="modal-box" style="max-width: 440px; text-align: center;">
+      <button class="modal-close" aria-label="Close Modal">&times;</button>
+      <h2>Game Settings</h2>
+      
+      <div style="display: flex; flex-direction: column; gap: 14px; margin: 25px 0;">
+        <button class="autoplay-opt-btn" id="modalSoundToggle" style="font-size: 15px; padding: 12px 20px; width: 100%;">🔊 Sound: ON</button>
+        <button class="autoplay-opt-btn" id="modalTurboToggle" style="font-size: 15px; padding: 12px 20px; width: 100%;">⚡ Turbo Mode: OFF</button>
+        <button class="autoplay-opt-btn" id="modalPaytableBtn" style="font-size: 15px; padding: 12px 20px; width: 100%;">📜 Paytable & Rules</button>
+        <button class="autoplay-opt-btn" id="modalAddDiamonds" style="background: linear-gradient(135deg, #11998e, #38ef7d); color: #fff; font-size: 15px; padding: 12px 20px; width: 100%; border: none;">💎 + 50k Free Diamonds</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="audio.js"></script>
+  <script src="assets.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

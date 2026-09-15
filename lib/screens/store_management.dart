@@ -157,15 +157,19 @@ class _StoreManagementState extends State<StoreManagement> with TickerProviderSt
       case StoreItemType.badge:
         return 'Badge';
       case StoreItemType.backgroundTheme:
-        return 'Profile Skin';
+        return 'Room Background Theme';
       case StoreItemType.roomTheme:
-        return 'Room Theme';
+        return 'Profile Skin';
       case StoreItemType.seatDecor:
         return 'Seat Decor';
       case StoreItemType.micRefill:
         return 'Mic Refill';
       case StoreItemType.roomProfileBackground:
         return 'RP Background';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profile Theme';
+      case StoreItemType.roomEntry:
+        return 'Room Entry';
     }
   }
 

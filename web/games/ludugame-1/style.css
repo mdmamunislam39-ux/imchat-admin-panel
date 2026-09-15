@@ -1,0 +1,804 @@
+/* =========================================================
+   Ludo Champion - Reference Authentic Wood & Royal Theme
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Hind+Siliguri:wght@500;600;700&display=swap');
+
+:root {
+    --wood-border: #e69a28;
+    --wood-dark: #a1550c;
+    --wood-shadow: rgba(80, 36, 4, 0.6);
+    
+    /* Authentic Reference Colors */
+    --color-green: #00a859;
+    --color-green-dark: #00773f;
+    --color-yellow: #ffbc00;
+    --color-yellow-dark: #d49b00;
+    --color-blue: #0090ff;
+    --color-blue-dark: #006ec4;
+    --color-red: #ef3f3f;
+    --color-red-dark: #c42727;
+
+    --track-bg: #fff8e8;
+    --track-border: #deb887;
+    --star-brown: #a16207;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+body {
+    font-family: 'Outfit', 'Hind Siliguri', sans-serif;
+    background: radial-gradient(circle at 50% 30%, #e09848 0%, #b86a1f 60%, #854308 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    padding: 10px;
+}
+
+.game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 680px;
+}
+
+/* =========================================================
+   Ludo Board Frame (Rich Wood Border)
+   ========================================================= */
+.ludo-board-frame {
+    position: relative;
+    width: min(96vw, 560px);
+    height: min(96vw, 560px);
+    background: #fdfaf2;
+    border: 12px solid var(--wood-border);
+    border-radius: 32px;
+    box-shadow: 
+        inset 0 0 12px rgba(0, 0, 0, 0.4),
+        0 20px 50px var(--wood-shadow),
+        0 2px 4px rgba(255, 255, 255, 0.6);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =========================================================
+   Top Board Nav Buttons
+   ========================================================= */
+.top-board-nav {
+    position: absolute;
+    top: 10px;
+    z-index: 40;
+    display: flex;
+    gap: 8px;
+}
+
+.left-nav { left: 8px; top: 8px; }
+.right-nav { right: 8px; top: 8px; }
+
+.round-nav-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+    font-size: 13px;
+    color: #ffffff;
+    transition: transform 0.15s ease, filter 0.2s ease;
+    position: relative;
+}
+
+.round-nav-btn:hover {
+    transform: scale(1.08);
+    filter: brightness(1.15);
+}
+
+.round-nav-btn:active {
+    transform: scale(0.96);
+}
+
+.green-btn {
+    background: linear-gradient(135deg, #13a350, #0c7538);
+}
+
+.gold-btn {
+    background: linear-gradient(135deg, #d97706, #a1550c);
+}
+
+.notify-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 9px;
+    height: 9px;
+    background: #ef4444;
+    border: 1.5px solid #ffffff;
+    border-radius: 50%;
+}
+
+/* =========================================================
+   15x15 Ludo Board Grid
+   ========================================================= */
+.ludo-board-grid {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    grid-template-rows: repeat(15, 1fr);
+    background: var(--track-bg);
+    position: relative;
+}
+
+/* 4 Yards */
+.yard {
+    position: relative;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.15);
+}
+
+.yard-green {
+    grid-column: 1 / 7;
+    grid-row: 1 / 7;
+    background: var(--color-green);
+}
+
+.yard-yellow {
+    grid-column: 10 / 16;
+    grid-row: 1 / 7;
+    background: var(--color-yellow);
+}
+
+.yard-red {
+    grid-column: 1 / 7;
+    grid-row: 10 / 16;
+    background: var(--color-red);
+}
+
+.yard-blue {
+    grid-column: 10 / 16;
+    grid-row: 10 / 16;
+    background: var(--color-blue);
+}
+
+/* 4 Slot Indents in a Row Inside Yard */
+.yard-slot-row {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    pointer-events: none;
+}
+
+.yard-green .yard-slot-row, .yard-yellow .yard-slot-row {
+    top: 54%;
+}
+
+.yard-red .yard-slot-row, .yard-blue .yard-slot-row {
+    top: 40%;
+}
+
+.slot-indent {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.32);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+/* =========================================================
+   Player Profiles Inside Yard
+   ========================================================= */
+.yard-profile {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    z-index: 25;
+}
+
+.green-profile { top: 12%; left: 8%; }
+.yellow-profile { top: 12%; right: 8%; }
+.red-profile { bottom: 8%; left: 8%; }
+.blue-profile { bottom: 8%; right: 8%; }
+
+.avatar-ring-wrapper {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+}
+
+.avatar-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    background: #ffffff;
+    z-index: 2;
+}
+
+/* Circular Turn Timer SVG Ring */
+.timer-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.timer-bg {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.25);
+    stroke-width: 4;
+}
+
+.timer-progress {
+    fill: none;
+    stroke: #22c55e;
+    stroke-width: 4.5;
+    stroke-linecap: round;
+    stroke-dasharray: 125.6;
+    stroke-dashoffset: 125.6; /* hidden by default */
+    transition: stroke-dashoffset 0.15s linear;
+}
+
+.yard-profile.turn-active .timer-progress {
+    stroke-dashoffset: 0;
+}
+
+.player-name-pill {
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    max-width: 76px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* =========================================================
+   In-Yard Dice Dock & 3D Interactive Box
+   ========================================================= */
+.in-yard-dice-dock {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 30;
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 0.25;
+    transform: scale(0.9);
+}
+
+.in-yard-dice-dock.active {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+#dice-dock-green { top: 12%; left: 46%; }
+#dice-dock-yellow { top: 12%; right: 46%; }
+#dice-dock-red { bottom: 12%; left: 46%; }
+#dice-dock-blue { bottom: 12%; right: 46%; }
+
+.dice-arrow-indicator {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 900;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+    animation: arrowBounce 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes arrowBounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-4px); }
+}
+
+.in-yard-dice-box {
+    width: 46px;
+    height: 46px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 
+        0 6px 14px rgba(0, 0, 0, 0.35),
+        inset 0 -3px 4px rgba(0, 0, 0, 0.15),
+        inset 0 2px 3px rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    border: 2px solid #cbd5e1;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.in-yard-dice-dock.active .in-yard-dice-box {
+    border-color: #3b82f6;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.7), 0 6px 14px rgba(0,0,0,0.35);
+    animation: dicePulse 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes dicePulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
+}
+
+.in-yard-dice-box.rolling {
+    animation: diceSpin 0.65s linear infinite !important;
+}
+
+@keyframes diceSpin {
+    0% { transform: rotate(0deg) scale(0.9); }
+    50% { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(0.9); }
+}
+
+/* Pips inside the Dice */
+.dice-pip-display {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 2px;
+    place-items: center;
+}
+
+.pip {
+    width: 7px;
+    height: 7px;
+    background: #1e293b;
+    border-radius: 50%;
+}
+
+.pip-red {
+    background: #ef4444;
+    width: 10px;
+    height: 10px;
+}
+
+/* =========================================================
+   Center 3x3 Victory Area
+   ========================================================= */
+.center-home {
+    grid-column: 7 / 10;
+    grid-row: 7 / 10;
+    position: relative;
+    background: #ffffff;
+    overflow: hidden;
+    border: 1px solid var(--track-border);
+}
+
+.center-tri {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+/* Green (Left) */
+.tri-green {
+    top: 0;
+    left: 0;
+    border-width: calc(min(96vw, 560px) * 0.1) 0 calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1);
+    border-color: transparent transparent transparent var(--color-green);
+}
+
+/* Yellow (Top) */
+.tri-yellow {
+    top: 0;
+    left: 0;
+    border-width: calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1) 0 calc(min(96vw, 560px) * 0.1);
+    border-color: var(--color-yellow) transparent transparent transparent;
+}
+
+/* Blue (Right) */
+.tri-blue {
+    top: 0;
+    right: 0;
+    border-width: calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1) 0;
+    border-color: transparent var(--color-blue) transparent transparent;
+}
+
+/* Red (Bottom) */
+.tri-red {
+    bottom: 0;
+    left: 0;
+    border-width: 0 calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1) calc(min(96vw, 560px) * 0.1);
+    border-color: transparent transparent var(--color-red) transparent;
+}
+
+.center-crest {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 26px;
+    height: 26px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    z-index: 5;
+}
+
+/* =========================================================
+   Track Cells (Cream White with Warm Beige Lines)
+   ========================================================= */
+.cell {
+    border: 0.5px solid var(--track-border);
+    background: var(--track-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-size: 13px;
+}
+
+/* Colored Home Runway Paths */
+.cell.green-path { background: var(--color-green); border-color: rgba(255,255,255,0.4); }
+.cell.yellow-path { background: var(--color-yellow); border-color: rgba(255,255,255,0.4); }
+.cell.blue-path { background: var(--color-blue); border-color: rgba(255,255,255,0.4); }
+.cell.red-path { background: var(--color-red); border-color: rgba(255,255,255,0.4); }
+
+/* Start Cells */
+.cell.start-cell {
+    position: relative;
+}
+
+.cell.start-cell::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+}
+
+/* Safe Stars Matching Screenshot */
+.cell.safe-star::before {
+    content: '★';
+    font-size: 18px;
+    color: var(--star-brown);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    z-index: 2;
+}
+
+/* Special Decorative Rocket Icons */
+.cell.rocket-icon::after {
+    content: '🚀';
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+.cell.dice-bonus-icon::after {
+    content: '🎲';
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+/* =========================================================
+   Royal Crown King Tokens Layer
+   ========================================================= */
+.tokens-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 35;
+}
+
+.token {
+    position: absolute;
+    width: calc(100% / 15 * 1.15);
+    height: calc(100% / 15 * 1.4);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: left 0.22s cubic-bezier(0.25, 1, 0.5, 1), top 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+    display: grid;
+    place-items: center;
+    z-index: 20;
+    transform: translate(-50%, -75%);
+    transform-origin: 50% 75%;
+}
+
+.token-svg-pawn {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.35));
+    transition: transform 0.15s ease;
+}
+
+/* Highlight Movable Token */
+.token.movable {
+    cursor: pointer;
+    z-index: 30;
+}
+
+.token.movable .token-svg-pawn {
+    animation: tokenHopPulse 0.65s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+}
+
+@keyframes tokenHopPulse {
+    0% { transform: translateY(0) scale(1.02); }
+    100% { transform: translateY(-10px) scale(1.18); }
+}
+
+/* Single Step Hop Animation */
+.token.hopping .token-svg-pawn {
+    animation: singleHopAnim 0.22s ease-out;
+}
+
+@keyframes singleHopAnim {
+    0% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-16px) scale(1.25); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+/* Multi-Token Overlapping Cluster Offsets */
+.token.cluster-0 { transform: translate(calc(-50% - 7px), calc(-75% - 4px)) scale(0.8); }
+.token.cluster-1 { transform: translate(calc(-50% + 7px), calc(-75% - 4px)) scale(0.8); }
+.token.cluster-2 { transform: translate(calc(-50% - 7px), calc(-75% + 7px)) scale(0.8); }
+.token.cluster-3 { transform: translate(calc(-50% + 7px), calc(-75% + 7px)) scale(0.8); }
+
+/* Capture Knockout Spin */
+.token.knockout .token-svg-pawn {
+    animation: knockoutAnim 0.45s ease-in forwards;
+}
+
+@keyframes knockoutAnim {
+    0% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+    100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+/* =========================================================
+   Status Bar Pill
+   ========================================================= */
+.status-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 50;
+}
+
+.status-turn-pill {
+    background: rgba(22, 27, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+}
+
+.status-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-green);
+    box-shadow: 0 0 8px currentColor;
+}
+
+/* =========================================================
+   Modals
+   ========================================================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 24, 0.85);
+    backdrop-filter: blur(10px);
+    display: grid;
+    place-items: center;
+    z-index: 1000;
+    padding: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-card {
+    background: #172033;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 480px;
+    padding: 24px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transform: scale(0.92);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-overlay.active .modal-card {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.mode-selector-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.mode-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.mode-card.selected {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.mode-card-icon { font-size: 22px; }
+.mode-card-title { font-size: 13px; font-weight: 700; }
+.mode-card-sub { font-size: 11px; color: #94a3b8; text-align: center; }
+
+.player-setup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.player-setup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+
+.player-setup-info {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.type-select {
+    background: #1e293b;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.rule-item {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    display: flex;
+    gap: 10px;
+}
+
+.rule-icon { font-size: 18px; flex-shrink: 0; }
+
+.action-btn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    border: none;
+    padding: 12px;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.winner-banner {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.winner-trophy { font-size: 56px; }
+.winner-title { font-size: 24px; font-weight: 800; color: #facc15; }
+
+#confetti-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+}

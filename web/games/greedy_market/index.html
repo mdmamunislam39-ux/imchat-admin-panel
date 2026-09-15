@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>IMChat - Greedy Market HTML5 Game</title>
+  <link rel="stylesheet" href="style.css?v=20.0">
+
+  <!-- Firebase App & Firestore SDKs for Real-time Admin Sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <div id="game-wrapper">
+    <!-- Starry Background & Skyline -->
+    <div class="starry-bg"></div>
+    <div class="city-skyline"></div>
+
+    <!-- ================= 1. TOP HEADER BAR ================= -->
+    <header class="top-header">
+      <div class="left-coin-group">
+        <div class="coin-pill">
+          <img src="diamond_icon.webp" class="app-diamond-img" alt="Diamond">
+          <span class="balance-val" id="user-coin-balance">0</span>
+          <button class="btn-add-coin" id="btn-add-coin" title="Add Diamonds">+</button>
+        </div>
+      </div>
+
+      <div class="right-action-icons">
+        <button class="header-action-circle" id="btn-history" title="My Bet History">🕒</button>
+        <button class="header-action-circle" id="btn-sound" title="Toggle Sound">🔊</button>
+        <button class="header-action-circle" id="btn-rules" title="Game Rules">❓</button>
+        <button class="header-action-circle" id="btn-close" title="Close Game">✕</button>
+      </div>
+    </header>
+
+    <!-- Floating Top Badges (Clickable -> Opens Daily Top 10 Winners) -->
+    <div class="floating-trophy" id="btn-trophy" title="Daily Top 10 Winners">
+      <img src="https://cdn-icons-png.flaticon.com/512/3112/3112946.png" alt="Trophy">
+      <span class="trophy-pill-count">99+</span>
+    </div>
+
+    <!-- ================= 2. FERRIS WHEEL MAIN ARENA ================= -->
+    <main class="ferris-arena">
+      <div class="wheel-stage">
+        <!-- Stand structure behind spokes -->
+        <div class="ferris-stand"></div>
+
+        <!-- 8 Wooden Spokes -->
+        <svg class="spokes-svg" viewBox="0 0 320 320">
+          <line x1="160" y1="160" x2="160" y2="40" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="250" y2="70" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="280" y2="160" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="250" y2="250" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="160" y2="280" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="70" y2="250" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="40" y2="160" stroke="#8a4128" stroke-width="4.5" />
+          <line x1="160" y1="160" x2="70" y2="70" stroke="#8a4128" stroke-width="4.5" />
+        </svg>
+
+        <!-- Center Bear Hub (Mascot + 24H Round Number + 30s Countdown Timer) -->
+        <div class="center-bear-hub">
+          <!-- Cute White Bear Mascot with Fork & Knife -->
+          <div class="bear-avatar-container">
+            <svg class="bear-avatar" viewBox="0 0 100 100">
+              <!-- Bear Head -->
+              <circle cx="50" cy="52" r="34" fill="#ffffff" stroke="#e6e6e6" stroke-width="2" />
+              <!-- Left Ear -->
+              <circle cx="24" cy="28" r="11" fill="#ffffff" stroke="#e6e6e6" stroke-width="2" />
+              <circle cx="24" cy="28" r="6" fill="#ffb4b4" />
+              <!-- Right Ear -->
+              <circle cx="76" cy="28" r="11" fill="#ffffff" stroke="#e6e6e6" stroke-width="2" />
+              <circle cx="76" cy="28" r="6" fill="#ffb4b4" />
+              <!-- Cute Eyes -->
+              <circle cx="38" cy="46" r="3.5" fill="#222222" />
+              <circle cx="62" cy="46" r="3.5" fill="#222222" />
+              <!-- Pink Cheeks -->
+              <circle cx="30" cy="56" r="4.5" fill="#ff9999" opacity="0.6" />
+              <circle cx="70" cy="56" r="4.5" fill="#ff9999" opacity="0.6" />
+              <!-- Snout & Mouth with Tongue Out -->
+              <ellipse cx="50" cy="56" rx="9" ry="7" fill="#ffffff" />
+              <polygon points="47,52 53,52 50,56" fill="#222222" />
+              <path d="M46,58 Q50,63 54,58" stroke="#222222" stroke-width="2" fill="none" />
+              <path d="M50,60 Q53,67 55,61" fill="#ff4d4d" />
+              <!-- Bib -->
+              <path d="M35,76 Q50,92 65,76 Z" fill="#ffdd55" stroke="#e0a800" stroke-width="1.5" />
+              <!-- Hands Holding Fork and Knife -->
+              <circle cx="16" cy="62" r="7" fill="#ffffff" stroke="#cccccc" stroke-width="1.5" />
+              <path d="M12,46 L12,56 M10,46 L10,50 M14,46 L14,50" stroke="#777777" stroke-width="2" />
+              <circle cx="84" cy="62" r="7" fill="#ffffff" stroke="#cccccc" stroke-width="1.5" />
+              <path d="M88,46 L88,58" stroke="#777777" stroke-width="2.5" />
+            </svg>
+          </div>
+
+          <!-- Timer Box -->
+          <div class="hub-timer-box">
+            <div class="daily-round-timer-badge" id="daily-round-timer">Round: #1</div>
+            <div class="bet-time-label" id="bet-time-label">Bet Time</div>
+            <div class="bet-timer-count" id="bet-timer-count">30s</div>
+          </div>
+        </div>
+
+        <!-- 8 Food/Fruit Item Betting Cards Arranged in Ferris Wheel Circle -->
+        <div id="slots-container">
+          <!-- Injected via JavaScript -->
+        </div>
+
+        <!-- Floating Side Category Badges -->
+        <div class="side-badge-fruit" id="side-badge-fruit">
+          <img id="badge-fruit-img" src="https://cdn-icons-png.flaticon.com/512/3143/3143643.png" alt="Fruit">
+          <span class="side-badge-tag" id="badge-fruit-tag">Fruit</span>
+        </div>
+
+        <div class="side-badge-pizza" id="side-badge-pizza">
+          <img id="badge-pizza-img" src="https://cdn-icons-png.flaticon.com/512/3595/3595455.png" alt="Pizza">
+          <span class="side-badge-tag" id="badge-pizza-tag">Pizza</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ================= 3. BOTTOM CONTROLS PANEL ================= -->
+    <div class="bottom-controls-panel">
+      <!-- Today's Win Bar -->
+      <section class="todays-win-bar">
+        <span class="today-win-label">TODAY'S WIN</span>
+        <span class="today-win-amount" id="today-win-val">0</span>
+      </section>
+
+      <!-- Wager Instructions -->
+      <div class="wager-prompt-pill">
+        Choose the amount wager -&gt; Choose food
+      </div>
+
+      <!-- Casino Chips Tray -->
+      <section class="chip-tray-card">
+        <div class="chips-scroll-row" id="chips-tray">
+          <!-- Injected via JavaScript -->
+        </div>
+      </section>
+
+      <!-- Progression Treasure Chests -->
+      <section class="milestones-card">
+        <div class="milestones-track" id="milestones-track">
+          <!-- Injected via JavaScript -->
+        </div>
+      </section>
+
+      <!-- Bottom Winning Records History -->
+      <footer class="history-bottom-card" id="history-bottom-row">
+        <!-- Injected via JavaScript -->
+      </footer>
+    </div>
+
+    <!-- ================= EXACT RESULT OF ROUND WINNER MODAL (FROM USER SCREENSHOT) ================= -->
+    <div class="modal-overlay" id="win-modal">
+      <div class="round-result-modal-card">
+        <button class="round-result-close-btn" id="win-modal-close-btn" aria-label="Close">&times;</button>
+
+        <!-- Floating Glowing Item Emblem at Top Center -->
+        <div class="round-result-emblem-wrap" id="win-modal-emblem-wrap">
+          <img id="win-modal-item-img" class="emblem-img" src="https://cdn-icons-png.flaticon.com/512/590/590685.png"
+            alt="Winning Item">
+        </div>
+
+        <!-- Result of Round Title -->
+        <h2 class="round-result-title" id="win-modal-round-title">Result of Round 1724</h2>
+
+        <!-- My Spending & My Earnings Stats Cards (Matching Screenshot 1:1) -->
+        <div class="round-user-stats-row">
+          <div class="round-stat-card">
+            <div class="round-stat-label">My Spending</div>
+            <div class="round-stat-val">
+              <img src="diamond_icon.webp" class="app-diamond-img" style="width:15px;height:15px;vertical-align:middle;object-fit:contain;margin-right:3px;" alt="💎">
+              <span id="win-modal-my-spending">0</span>
+            </div>
+          </div>
+
+          <div class="round-stat-card">
+            <div class="round-stat-label">My Earnings</div>
+            <div class="round-stat-val">
+              <img src="diamond_icon.webp" class="app-diamond-img" style="width:15px;height:15px;vertical-align:middle;object-fit:contain;margin-right:3px;" alt="💎">
+              <span id="win-modal-my-earnings">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Divider Header -->
+        <div class="round-result-divider">
+          <span class="divider-line"></span>
+          <span class="divider-text">This round’s biggest winner</span>
+          <span class="divider-line"></span>
+        </div>
+
+        <!-- 3 Biggest Winners Row (Rank 1, 2, 3) -->
+        <div class="biggest-winners-row" id="round-biggest-winners-row">
+          <!-- Injected dynamically via JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 24H AUTO-REFRESHING TOP 10 LEADERBOARD MODAL ================= -->
+    <div class="modal-overlay" id="leaderboard-modal">
+      <div class="modal-card leaderboard-card">
+        <button class="modal-close-btn">&times;</button>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:22px;">🏆</span>
+          <h2 style="color:#ffd700;font-size:18px;margin:0;">Top 10 Daily Winners</h2>
+        </div>
+        <div style="font-size:10.5px;color:#8dbaff;margin-bottom:10px;">⏰ Auto-refreshes daily at 10:00 PM</div>
+
+        <div class="leaderboard-scroll-list" id="leaderboard-list">
+          <!-- Injected via JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MY RECORD (ROUND-BY-ROUND BET & WIN HISTORY MODAL) ================= -->
+    <div class="modal-overlay" id="user-history-modal">
+      <div class="modal-card my-record-modal-card">
+        <!-- Header: Back Button, Title, Date Dropdown -->
+        <div class="my-record-header">
+          <div class="my-record-header-left">
+            <button class="my-record-back-btn modal-close-btn" id="my-record-close-btn" aria-label="Back">
+              <svg viewBox="0 0 24 24" class="back-icon"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/></svg>
+            </button>
+            <h2 class="my-record-title">My Record</h2>
+          </div>
+          <div class="my-record-date-pill" id="my-record-date-pill">
+            <span id="my-record-date-text">Sep,01 2026</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+        </div>
+
+        <!-- Scrollable List of Round Cards matching user screenshot -->
+        <div class="my-record-scroll-list" id="user-history-list">
+          <!-- Injected dynamically via JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= RULES MODAL ================= -->
+    <div class="modal-overlay" id="rules-modal">
+      <div class="modal-card classic-rules-card">
+        <button class="modal-close-btn">&times;</button>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;">
+          <span style="font-size:20px;">📜</span>
+          <h3 style="color:#ffd700;font-size:18px;font-weight:900;letter-spacing:1px;margin:0;">HOW TO PLAY</h3>
+        </div>
+        <div class="rules-body-list">
+          <p style="margin:0;">1. Select your desired chip value from the bottom tray.</p>
+          <p style="margin:0;">2. Tap any of the 8 fruit/food items to place your bet during the 30-second betting phase.</p>
+          <p style="margin:0;">3. When the timer hits zero, betting closes and the roulette wheel will spin.</p>
+          <p style="margin:0;">4. If the highlight stops on an item you bet on, you win your bet multiplied by that item's multiplier (5x, 10x, 15x, 25x, or 45x)!</p>
+          <p style="margin:0;">5. <b>Prize Pool Bonus:</b> The prize pool increases as more players participate. If <b>Fruit/Salad</b> is opened, all players who chose fruit win. If <b>Pizza</b> is opened, all players who chose meat win!</p>
+          <p style="margin:0;">6. The daily round number and Top 10 winners list reset every day at 10:00 PM.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js?v=20.0"></script>
+</body>
+
+</html>

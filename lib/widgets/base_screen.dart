@@ -11,6 +11,11 @@ import '../screens/settings_screen.dart';
 import '../screens/daily_checkin_management.dart';
 import '../screens/room_frame_management.dart';
 import '../screens/user_ban_management_screen.dart';
+import '../screens/game_profit_analysis_screen.dart';
+import '../screens/realtime_server_setup_screen.dart';
+import '../screens/html5_game_management_screen.dart';
+import '../screens/room_game_management_screen.dart';
+import '../screens/recharge_wallet_management_screen.dart';
 
 class BaseScreen extends StatelessWidget {
   final String title;
@@ -20,6 +25,8 @@ class BaseScreen extends StatelessWidget {
   final bool showBackButton;
   final Widget? floatingActionButton;
 
+  final PreferredSizeWidget? bottom;
+
   const BaseScreen({
     super.key,
     required this.title,
@@ -28,6 +35,7 @@ class BaseScreen extends StatelessWidget {
     this.showDrawer = true,
     this.showBackButton = false,
     this.floatingActionButton,
+    this.bottom,
   });
 
   @override
@@ -39,10 +47,7 @@ class BaseScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         elevation: 0,
@@ -53,6 +58,7 @@ class BaseScreen extends StatelessWidget {
               )
             : null,
         actions: actions,
+        bottom: bottom,
       ),
       drawer: showDrawer ? _buildDrawer(context) : null,
       body: body,
@@ -67,17 +73,11 @@ class BaseScreen extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.black,
-            ),
+            decoration: BoxDecoration(color: Colors.black),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.admin_panel_settings,
-                  size: 48,
-                  color: Colors.white,
-                ),
+                Icon(Icons.admin_panel_settings, size: 48, color: Colors.white),
                 SizedBox(height: 16),
                 Text(
                   'Admin Panel',
@@ -89,10 +89,7 @@ class BaseScreen extends StatelessWidget {
                 ),
                 Text(
                   'IMChat Management',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
             ),
@@ -183,6 +180,16 @@ class BaseScreen extends StatelessWidget {
           ),
           _buildDrawerItem(
             context,
+            icon: Icons.account_balance_wallet,
+            title: 'Recharge Wallet Management',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'Recharge Wallet Management');
+            },
+            isSelected: title == 'Recharge Wallet Management',
+          ),
+          _buildDrawerItem(
+            context,
             icon: Icons.calendar_month,
             title: 'Daily Check-in',
             onTap: () {
@@ -204,6 +211,46 @@ class BaseScreen extends StatelessWidget {
           ),
           _buildDrawerItem(
             context,
+            icon: Icons.sports_esports,
+            title: '🎮 HTML 5 Game',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'HTML 5 Game');
+            },
+            isSelected: title == 'HTML 5 Game Management',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.meeting_room_rounded,
+            title: 'Room Game Management',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'Room Game Management');
+            },
+            isSelected: title == 'Room Game Management',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.pie_chart,
+            title: 'Game Profit & Analysis',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'Game Profit & Analysis');
+            },
+            isSelected: title == 'Game Profit & Analysis',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.dns,
+            title: 'রিয়েল টাইম সার্ভার সেটআপ',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'Realtime Server Setup');
+            },
+            isSelected: title == 'Realtime Server Setup',
+          ),
+          _buildDrawerItem(
+            context,
             icon: Icons.settings,
             title: 'Settings',
             onTap: () {
@@ -220,12 +267,12 @@ class BaseScreen extends StatelessWidget {
   }
 
   Widget _buildDrawerItem(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        bool isSelected = false,
-        required VoidCallback onTap,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    bool isSelected = false,
+    required VoidCallback onTap,
+  }) {
     return ListTile(
       leading: Icon(
         icon,
@@ -248,7 +295,7 @@ class BaseScreen extends StatelessWidget {
 
   void _navigateToScreen(BuildContext context, String screenName) {
     Widget screen;
-    
+
     switch (screenName) {
       case 'Users Management':
         screen = const UsersManagement();
@@ -271,11 +318,26 @@ class BaseScreen extends StatelessWidget {
       case 'Diamonds Management':
         screen = const DiamondsManagement();
         break;
+      case 'Recharge Wallet Management':
+        screen = const RechargeWalletManagementScreen();
+        break;
       case 'Daily Check-in':
         screen = const DailyCheckInManagementScreen();
         break;
       case 'Reports & Analytics':
         screen = const ReportsAnalytics();
+        break;
+      case 'Game Profit & Analysis':
+        screen = const GameProfitAnalysisScreen();
+        break;
+      case 'HTML 5 Game':
+        screen = const Html5GameManagementScreen();
+        break;
+      case 'Room Game Management':
+        screen = const RoomGameManagementScreen();
+        break;
+      case 'Realtime Server Setup':
+        screen = const RealtimeServerSetupScreen();
         break;
       case 'Settings':
         screen = const SettingsScreen();
@@ -283,20 +345,13 @@ class BaseScreen extends StatelessWidget {
       default:
         return; // Don't navigate if screen not found
     }
-    
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
+
+    Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
   }
 
   Widget _buildLogoutItem(BuildContext context) {
     return ListTile(
-      leading: const Icon(
-        Icons.logout,
-        color: Colors.red,
-        size: 24,
-      ),
+      leading: const Icon(Icons.logout, color: Colors.red, size: 24),
       title: const Text(
         'Logout',
         style: TextStyle(
@@ -317,10 +372,7 @@ class BaseScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text(
-          'Logout',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Logout', style: TextStyle(color: Colors.white)),
         content: const Text(
           'Are you sure you want to logout?',
           style: TextStyle(color: Colors.grey),
@@ -328,19 +380,14 @@ class BaseScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey),
-            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await AuthService.signOut();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Logout'),
           ),
         ],

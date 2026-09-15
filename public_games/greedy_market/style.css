@@ -1,0 +1,1420 @@
+:root {
+  --bg-gradient: radial-gradient(circle at 50% 35%, #184594 0%, #0d2766 50%, #061338 100%);
+  --navy-panel: #0d2252;
+  --navy-panel-border: #235cb5;
+  --gold-text: #ffd53d;
+  --blue-text: #8dbaff;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #030a1c;
+  font-family: var(--font-family);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile Screen Container - Perfectly Centered and Compact */
+#game-wrapper {
+  width: 100vw;
+  max-width: 430px;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-gradient);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 48px 10px 24px 10px;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+/* Starry Background */
+.starry-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  background-image:
+    radial-gradient(1.5px 1.5px at 30px 40px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 120px 70px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1.5px 1.5px at 200px 30px, #ffe680, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 310px 80px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 380px 40px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1.5px 1.5px at 70px 180px, #ffffff, rgba(0, 0, 0, 0)),
+    radial-gradient(1px 1px at 360px 190px, #ffe680, rgba(0, 0, 0, 0)),
+    radial-gradient(2px 2px at 180px 240px, #ffffff, rgba(0, 0, 0, 0));
+  background-size: 400px 300px;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Distant City Skyline Silhouette */
+.city-skyline {
+  position: absolute;
+  top: 360px;
+  left: 0;
+  width: 100%;
+  height: 110px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath fill='%23061436' fill-opacity='0.65' d='M0,200 L0,120 L30,120 L30,85 L70,85 L70,135 L100,135 L100,60 L150,60 L150,110 L190,110 L190,45 L230,45 L230,130 L270,130 L270,80 L320,80 L320,140 L370,140 L370,55 L420,55 L420,105 L460,105 L460,35 L500,35 L500,125 L550,125 L550,70 L600,70 L600,130 L650,130 L650,50 L700,50 L700,115 L750,115 L750,40 L800,40 L800,135 L850,135 L850,75 L900,75 L900,120 L950,120 L950,60 L1000,60 L1000,200 Z'/%3E%3C/svg%3E") no-repeat bottom center;
+  background-size: 100% 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ================= 1. TOP HEADER ================= */
+.top-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 42px;
+  margin-top: 6px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.left-coin-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 44px;
+  /* Space for the Top 10 Trophy */
+}
+
+.coin-pill {
+  display: flex;
+  align-items: center;
+  background: rgba(4, 15, 45, 0.95);
+  border: 1.5px solid rgba(255, 215, 0, 0.55);
+  border-radius: 18px;
+  padding: 3px 8px 3px 5px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.app-diamond-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.balance-val {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 6px 0 5px;
+  letter-spacing: 0.3px;
+}
+
+.btn-add-coin {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff785 0%, #ffbb00 60%, #cc8000 100%);
+  border: 1.5px solid #ffffff;
+  color: #4a2400;
+  font-size: 14px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.right-action-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-action-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(8, 25, 66, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s;
+}
+
+.header-action-circle:active {
+  transform: scale(0.9);
+}
+
+/* Floating Corner Trophy */
+.floating-trophy {
+  position: absolute;
+  top: 48px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.side-badge-fruit img {
+  width: 38px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.side-badge-tag {
+  background: linear-gradient(180deg, #7ee6ff 0%, #0096e6 100%);
+  color: #032b47;
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 1px 9px;
+  border-radius: 10px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.side-badge-pizza {
+  position: absolute;
+  top: 246px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.side-badge-pizza img {
+  width: 38px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+/* Center Bear Hub with 24H Daily Round Countdown & 30s Bet Timer */
+.center-bear-hub {
+  position: absolute;
+  top: 106px;
+  left: 106px;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background: #ff6823;
+  border: 3.5px solid #ffba42;
+  box-shadow: 0 0 16px rgba(255, 120, 0, 0.75), inset 0 2px 6px rgba(255, 255, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 8;
+  overflow: visible;
+}
+
+.bear-avatar-container {
+  position: absolute;
+  top: -24px;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9;
+}
+
+.bear-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35));
+  animation: bearBob 2.5s infinite ease-in-out;
+}
+
+.hub-timer-box {
+  width: 100%;
+  padding-bottom: 4px;
+  text-align: center;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 24-Hour Daily Round Refresh Timer (10:00 PM Daily Reset) */
+.daily-round-timer-badge {
+  font-size: 9px;
+  font-weight: 900;
+  color: #fff9c4;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 1px 6px;
+  border-radius: 6px;
+  line-height: 1.1;
+  margin-bottom: 1px;
+  border: 0.5px solid rgba(255, 215, 0, 0.6);
+}
+
+.bet-time-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  line-height: 1;
+}
+
+.bet-timer-count {
+  font-size: 22px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+  font-family: 'Arial Black', Impact, sans-serif;
+}
+
+/* --- 8 FOOD CARDS (Symmetric Octagon in 320x340 stage) --- */
+.item-card {
+  position: absolute;
+  width: 68px;
+  height: 74px;
+  background: linear-gradient(180deg, #fff7c2 0%, #ffde59 65%, #fca800 100%);
+  border: 2px solid #ff9d00;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 2px #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 2px 2px 2px;
+  cursor: pointer;
+  z-index: 6;
+  transition: transform 0.15s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.item-card:active {
+  transform: scale(0.94);
+}
+
+.item-card.highlighted {
+  border-color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #ffe875 100%);
+  box-shadow: 0 0 22px #ffe600, inset 0 0 8px #ffe600;
+  transform: scale(1.12);
+  z-index: 12;
+}
+
+.item-card.winner-card {
+  border-color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #ffc800 100%);
+  box-shadow: 0 0 30px #ff5100, inset 0 0 12px #ffea00;
+  transform: scale(1.18);
+  z-index: 15;
+  animation: winnerCardPulse 0.5s infinite alternate;
+}
+
+.item-img-wrap {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.item-img-wrap img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+
+.item-mult-tag {
+  font-size: 13px;
+  font-weight: 900;
+  color: #3b1900;
+  text-shadow: 0 1px 0 #fff;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+
+/* Placed Chips Cloud on Item */
+.placed-chips-cloud {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  pointer-events: none;
+  display: none;
+  z-index: 7;
+}
+
+.placed-chips-cloud.active {
+  display: block;
+}
+
+.chip-mini-badge {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 900;
+  color: #fff;
+  background: #ff3b30;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  padding: 1px 4px;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+/* 100% Perfect Symmetric Coordinates inside 320x340 stage */
+.slot-pos-0 {
+  top: 0px;
+  left: 126px;
+}
+
+/* Top Center 12:00 (Apple x5) */
+.slot-pos-1 {
+  top: 32px;
+  left: 216px;
+}
+
+/* Top Right 1:30 (Lemon x5) */
+.slot-pos-2 {
+  top: 122px;
+  left: 250px;
+}
+
+/* Right 3:00 (Strawberry x5) */
+.slot-pos-3 {
+  top: 212px;
+  left: 216px;
+}
+
+/* Bottom Right 4:30 (Mango x5) */
+.slot-pos-4 {
+  top: 244px;
+  left: 126px;
+}
+
+/* Bottom Center 6:00 (Fish/Item x10) */
+.slot-pos-5 {
+  top: 212px;
+  left: 36px;
+}
+
+/* Bottom Left 7:30 (Burger x15) */
+.slot-pos-6 {
+  top: 122px;
+  left: 2px;
+}
+
+/* Left 9:00 (Pizza Slice x25) */
+.slot-pos-7 {
+  top: 32px;
+  left: 36px;
+}
+
+/* Top Left 10:30 (Roast Chicken x45) */
+
+/* ================= 3. BOTTOM CONTROLS PANEL (ALIGNED TO USER'S MARKED YELLOW LINE) ================= */
+.bottom-controls-panel {
+  width: 100%;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4.5px;
+  z-index: 10;
+}
+
+.todays-win-bar {
+  width: auto;
+  max-width: 200px;
+  min-width: 155px;
+  margin: 0 auto;
+  background: radial-gradient(ellipse at center, rgba(16, 45, 112, 0.95) 0%, rgba(6, 20, 56, 0.98) 100%);
+  border: 1.5px solid rgba(255, 215, 0, 0.55);
+  border-radius: 20px;
+  padding: 3px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.today-win-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--blue-text);
+  letter-spacing: 0.5px;
+}
+
+.today-win-amount {
+  font-size: 16.5px;
+  font-weight: 900;
+  color: var(--gold-text);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+.wager-prompt-pill {
+  width: 90%;
+  margin: 0 auto;
+  background: #11347a;
+  border: 1px solid #1f58c7;
+  border-radius: 10px;
+  padding: 3px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c9e0ff;
+}
+
+/* ================= 4. CASINO CHIPS TRAY ================= */
+.chip-tray-card {
+  width: 98%;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #17387a 0%, #0d2354 100%);
+  border: 1.5px solid var(--navy-panel-border);
+  border-radius: 16px;
+  padding: 5px 8px;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.chips-scroll-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.casino-chip {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.casino-chip:hover {
+  transform: translateY(-2px);
+}
+
+.casino-chip.selected {
+  transform: translateY(-4px) scale(1.08);
+  filter: drop-shadow(0 0 6px #7aff7a);
+}
+
+.casino-chip.selected::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border: 2px solid #63ff63;
+  border-radius: 50%;
+  animation: chipPulseRing 1.2s infinite ease-in-out;
+}
+
+.chip-inner-disc {
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  background: #0d214a;
+  border: 1.5px dashed rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Exact Chip Color Schemes from Screenshot */
+.chip-cyan {
+  background: radial-gradient(circle, #2ce8f5 0%, #089bb3 100%);
+  border: 2px dashed #ffffff;
+}
+
+.chip-green {
+  background: radial-gradient(circle, #4df076 0%, #159c3a 100%);
+  border: 2px dashed #ffffff;
+}
+
+.chip-blue {
+  background: radial-gradient(circle, #3895ff 0%, #1352bd 100%);
+  border: 2px dashed #ffffff;
+}
+
+.chip-orange {
+  background: radial-gradient(circle, #ff9b38 0%, #cc5500 100%);
+  border: 2px dashed #ffffff;
+}
+
+.chip-red {
+  background: radial-gradient(circle, #ff4747 0%, #bd1515 100%);
+  border: 2px dashed #ffffff;
+}
+
+.chip-purple {
+  background: radial-gradient(circle, #d047ff 0%, #8713bd 100%);
+  border: 2px dashed #ffffff;
+}
+
+/* ================= 5. PROGRESSION CHESTS ================= */
+.milestones-card {
+  width: 98%;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #17387a 0%, #0d2354 100%);
+  border: 1.5px solid var(--navy-panel-border);
+  border-radius: 14px;
+  padding: 4px 10px;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.milestones-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.track-line {
+  position: absolute;
+  top: 14px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  background: #091738;
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.track-line-progress {
+  position: absolute;
+  top: 14px;
+  left: 8px;
+  width: 32%;
+  height: 3px;
+  background: linear-gradient(90deg, #ffc800 0%, #ff8800 100%);
+  border-radius: 2px;
+  z-index: 2;
+}
+
+.chest-step-item {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+
+.chest-step-img {
+  width: 28px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.chest-step-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #c9e0ff;
+  margin-top: 1px;
+}
+
+/* ================= 6. BOTTOM HISTORY ROW ================= */
+.history-bottom-card {
+  width: 98%;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #17387a 0%, #0d2354 100%);
+  border: 1.5px solid var(--navy-panel-border);
+  border-radius: 12px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.history-bottom-card::-webkit-scrollbar {
+  display: none;
+}
+
+.history-badge-item {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #6fd0ff 0%, #208bcc 100%);
+  border: 1.5px solid #ffffff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.history-badge-item img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.new-tag {
+  position: absolute;
+  top: -5px;
+  left: -3px;
+  background: #ffe600;
+  color: #4a2d00;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid #ffffff;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Flying Chip Particle */
+.flying-chip {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  z-index: 100;
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-overlay.active .modal-card {
+  transform: scale(1);
+}
+
+/* ================= EXACT RESULT OF ROUND WINNER MODAL (FROM SCREENSHOT) ================= */
+.round-result-modal-card {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 430px;
+  background: #b50727;
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+  padding: 16px 16px 26px 16px;
+  text-align: center;
+  z-index: 1000;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-overlay.active .round-result-modal-card {
+  transform: translateX(-50%) translateY(0);
+}
+
+.round-result-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Floating Item Emblem at Top Center */
+.round-result-emblem-wrap {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.emblem-img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.round-result-title {
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.2px;
+  margin-top: 36px;
+  margin-bottom: 14px;
+  line-height: 1.1;
+}
+
+.round-user-stats-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.round-stat-card {
+  flex: 1;
+  background: #610414;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.round-stat-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffccd3;
+  margin-bottom: 4px;
+}
+
+.round-stat-val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 17px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.gold-coin-mini-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.round-result-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0 14px 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.divider-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+/* 3 Biggest Winners Row */
+.biggest-winners-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  gap: 6px;
+  padding: 0 6px 6px 6px;
+}
+
+.round-winner-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.round-winner-avatar-wrap {
+  position: relative;
+  width: 50px;
+  height: 50px;
+}
+
+.round-winner-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.25);
+  object-fit: cover;
+}
+
+.round-winner-placeholder {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-winner-placeholder svg {
+  width: 24px;
+  height: 24px;
+  fill: rgba(255, 255, 255, 0.3);
+}
+
+.rank-circle-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.rank-1-badge {
+  background: #ffb800;
+  color: #000000;
+}
+
+.rank-2-badge {
+  background: #38bdf8;
+  color: #000000;
+}
+
+.rank-3-badge {
+  background: #fb7185;
+  color: #ffffff;
+}
+
+.round-winner-name {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 5px;
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.round-winner-dash {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 6px;
+}
+
+.round-winner-coins {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.gold-coin-mini {
+  font-size: 12px;
+}
+
+.coin-amount-val {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.podium-medal {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.podium-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #ffd700;
+  object-fit: cover;
+  margin-bottom: 3px;
+}
+
+.podium-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  max-width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.podium-diamond {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #ffe600;
+}
+
+/* ================= 24H AUTO-REFRESHING TOP 10 LEADERBOARD ================= */
+.leaderboard-card {
+  max-width: 360px;
+  max-height: 85vh;
+  padding: 16px 12px;
+}
+
+.leaderboard-scroll-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+
+.leaderboard-row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(8, 25, 68, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.leaderboard-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rank-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  background: #1f3b73;
+}
+
+.rank-badge-1 {
+  background: radial-gradient(circle, #ffd700, #b8860b);
+  color: #4a2d00;
+  border: 1px solid #fff;
+}
+
+.rank-badge-2 {
+  background: radial-gradient(circle, #e0e0e0, #808080);
+  color: #000;
+  border: 1px solid #fff;
+}
+
+.rank-badge-3 {
+  background: radial-gradient(circle, #cd7f32, #8b4513);
+  color: #fff;
+  border: 1px solid #fff;
+}
+
+.leaderboard-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 215, 0, 0.6);
+  object-fit: cover;
+}
+
+.leaderboard-name {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.leaderboard-diamond-text {
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* ================= MY RECORD (USER ROUND HISTORY MODAL - FROM SCREENSHOT) ================= */
+.my-record-modal-card {
+  width: 92%;
+  max-width: 410px;
+  max-height: 84vh;
+  background: linear-gradient(180deg, #3d1472 0%, #250a4d 60%, #170333 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 45px rgba(0, 0, 0, 0.7);
+  padding: 18px 16px 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.my-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+}
+
+.my-record-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.my-record-back-btn {
+  position: static !important;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  padding: 0;
+}
+
+.my-record-back-btn:active {
+  transform: scale(0.92);
+}
+
+.back-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.my-record-title {
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: 0.3px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.my-record-date-pill {
+  background: #250a48;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d8b4fe;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #c4b5fd;
+}
+
+.my-record-scroll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Single Round Card in My Record */
+.my-record-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 14px 16px;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.my-record-card-row:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.record-left {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.record-round-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.record-play-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.record-coin-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.record-timestamp {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c4b5fd;
+}
+
+.record-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Silver Missed Emblem */
+.record-missed-emblem {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e2e8f0 0%, #94a3b8 45%, #64748b 85%, #475569 100%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.record-missed-bg-diamond {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  opacity: 0.35;
+}
+
+.record-missed-text {
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 3px #000000;
+  letter-spacing: 0.3px;
+  z-index: 2;
+}
+
+/* Gold Win Emblem */
+.record-win-emblem {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fef08a 0%, #eab308 45%, #ca8a04 85%, #854d0e 100%);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.record-win-amount {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 3px #000000;
+  letter-spacing: 0.2px;
+  z-index: 2;
+  text-align: center;
+}
+
+.record-chevron {
+  font-size: 20px;
+  font-weight: 900;
+  color: #ffffff;
+  opacity: 0.75;
+}
+
+.record-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: #c4b5fd;
+  text-align: center;
+}
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.history-badge {
+  font-size: 11.5px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.2px;
+}
+
+.history-badge.badge-win {
+  background: rgba(52, 199, 89, 0.2);
+  border: 1px solid #34c759;
+  color: #4cd964;
+  text-shadow: 0 0 8px rgba(76, 217, 100, 0.6);
+}
+
+.history-badge.badge-loss {
+  background: rgba(255, 59, 48, 0.2);
+  border: 1px solid #ff3b30;
+  color: #ff6b6b;
+}
+
+.history-bet-amount {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.history-empty-state {
+  padding: 30px 10px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+
+/* ================= CLASSIC CLEAN HOW TO PLAY RULES MODAL ================= */
+.classic-rules-card {
+  width: 88%;
+  max-width: 350px;
+  background: linear-gradient(180deg, #16243b 0%, #0c1524 100%);
+  border: 2px solid #ffd700;
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 215, 0, 0.25);
+  padding: 24px 20px 22px 20px;
+  position: relative;
+  text-align: center;
+  color: #ffffff;
+}
+
+.classic-rules-card .modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.classic-rules-card .rules-body-list {
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #d0d8e8;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+}
+
+.classic-rules-card .rules-body-list::-webkit-scrollbar {
+  display: none;
+}

@@ -38,7 +38,7 @@ class CustomRoomIdModel {
       expiresAt: data['expiresAt'] != null
           ? (data['expiresAt'] as Timestamp).toDate()
           : DateTime.now().add(const Duration(days: 30)),
-      isActive: data['isActive'] ?? true,
+      isActive: (data['isActive'] == true || data['status'] == 'active') && (data['isActive'] != false && data['status'] != 'deactivated' && data['status'] != 'inactive'),
     );
   }
 
@@ -47,7 +47,8 @@ class CustomRoomIdModel {
       'roomId': roomId,
       'originalRoomId': originalRoomId,
       'customId': customRoomId, // Matches PremiumRoomIdModel
-      'customRoomId': customRoomId, // Fallback for any legacy admin panel queries
+      'customRoomId':
+          customRoomId, // Fallback for any legacy admin panel queries
       'roomName': roomName,
       'roomImageUrl': roomImageUrl,
       'assignedAt': Timestamp.fromDate(assignedAt),

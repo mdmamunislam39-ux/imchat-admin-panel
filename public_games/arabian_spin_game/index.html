@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Arabian Nights - Gem Spin Slot</title>
+  <meta name="description" content="Play the thrilling Arabian Nights Gem Spin Slot with 20 paylines, floating bubbles, and Hold & Spin Jackpots!">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Firebase App & Firestore SDKs for Real-time Diamond & Wallet Sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Fullscreen Particle Effects Canvas -->
+  <canvas id="fx-canvas"></canvas>
+
+  <div id="game-wrapper">
+    <!-- Ambient Background Decorations -->
+    <div class="ambient-bg">
+      <div class="starry-sky"></div>
+      <!-- Crescent Moon & Star SVG -->
+      <svg class="crescent-moon" viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id="moonAtmosphere" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="50%" stop-color="#e2e8f0"/>
+            <stop offset="100%" stop-color="#94a3b8" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="40" fill="url(#moonAtmosphere)" opacity="0.3"/>
+        <path d="M50,15 C70,15 86,31 86,51 C86,71 70,87 50,87 C40,87 31,83 24,76 C37,79 55,72 61,56 C67,41 57,25 41,20 C44,17 47,15 50,15 Z" fill="#f8fafc"/>
+      </svg>
+      <div class="desert-dunes-bottom"></div>
+    </div>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <button id="btn-back" class="circle-btn" aria-label="Back">
+          <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+        </button>
+        <!-- Real-time User Profile Pill -->
+        <div id="player-profile-pill" class="player-profile-pill" style="display: none; align-items: center; gap: 6px; background: rgba(0,0,0,0.65); border: 1.2px solid #a855f7; border-radius: 16px; padding: 2px 8px 2px 3px; margin-left: 6px;">
+          <img id="player-avatar-img" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid #38bdf8;" alt="User">
+          <span id="player-name-text" style="color: #fff; font-size: 11px; font-weight: 700; max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Player</span>
+        </div>
+      </div>
+      <div class="nav-center">
+        <button id="btn-sound" class="circle-btn active-green" aria-label="Toggle Sound">
+          <svg id="sound-icon-on" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          <svg id="sound-icon-off" style="display:none;" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        </button>
+        <button id="btn-rules-dropdown" class="circle-btn" aria-label="Game Rules">
+          <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+      </div>
+      <div class="nav-right">
+        <div id="diamond-badge" class="diamond-badge" title="Diamond Balance">
+          <img id="top-diamond-icon" class="diamond-icon" src="diamond_icon.webp" alt="💎" style="width: 22px; height: 22px; object-fit: contain; vertical-align: middle;">
+          <span id="diamond-balance" class="diamond-amount">0</span>
+          <span class="arrow-right-small">❯</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- LIVE WINNER TICKER -->
+    <div class="live-ticker-bar">
+      <div class="ticker-content">
+        <span>🏆 خالد won 656,000 today</span>
+        <span>💎 سلطان won 250,000 GRAND JACKPOT</span>
+        <span>✨ PASARLY won 159,570 in one go</span>
+        <span>👑 بومختار won 96,042 today</span>
+      </div>
+    </div>
+
+    <!-- GRAND JACKPOT & SUB-JACKPOTS -->
+    <section class="jackpot-container">
+      <div class="grand-jackpot-frame">
+        <div class="gold-arch-deco"></div>
+        <div class="jewel-left"></div>
+        <div class="jewel-right"></div>
+        <div class="grand-title">GRAND JACKPOT</div>
+        <div id="grand-jackpot-value" class="grand-value">5,000</div>
+      </div>
+
+      <div class="sub-jackpots-row">
+        <div class="jackpot-pill">
+          <span class="pill-title">MAJOR</span>
+          <span id="major-jackpot-value" class="pill-value">3,000</span>
+        </div>
+        <div class="jackpot-pill">
+          <span class="pill-title">MINOR</span>
+          <span id="minor-jackpot-value" class="pill-value">2,000</span>
+        </div>
+        <div class="jackpot-pill">
+          <span class="pill-title">MINI</span>
+          <span id="mini-jackpot-value" class="pill-value">1,000</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5x4 SLOT REEL MATRIX -->
+    <main class="slot-stage">
+      <div class="grid-outer-frame">
+        <div id="slot-grid-box" class="grid-inner-box">
+          <!-- 5 Columns x 4 Rows generated by JS -->
+          <div class="reel-col" data-col="0"><div class="reel-cells-wrapper"></div></div>
+          <div class="reel-col" data-col="1"><div class="reel-cells-wrapper"></div></div>
+          <div class="reel-col" data-col="2"><div class="reel-cells-wrapper"></div></div>
+          <div class="reel-col" data-col="3"><div class="reel-cells-wrapper"></div></div>
+          <div class="reel-col" data-col="4"><div class="reel-cells-wrapper"></div></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- HOLD & SPIN RESPIN COUNTER BAR (Visible during bonus mode) -->
+    <div id="hold-spin-bar" class="hold-spin-bar">
+      <span class="hold-title">FREE SPINS</span>
+      <div class="respin-orbs">
+        <div id="orb-1" class="respin-orb">1</div>
+        <div id="orb-2" class="respin-orb">2</div>
+        <div id="orb-3" class="respin-orb lit">3</div>
+      </div>
+    </div>
+
+    <!-- GOLDEN WIN BOX -->
+    <section class="win-display-wrap">
+      <div id="win-box" class="gold-win-box">
+        <div class="win-diamonds">
+          <img src="diamond_icon.webp" class="win-diamond-img" style="width: 20px; height: 20px; object-fit: contain;" alt="💎">
+          <img src="diamond_icon.webp" class="win-diamond-img" style="width: 20px; height: 20px; object-fit: contain;" alt="💎">
+        </div>
+        <div id="win-amount-text" class="win-number">0</div>
+        <div class="win-label">WIN</div>
+      </div>
+    </section>
+
+    <!-- TOOLTIP BUBBLE -->
+    <div id="auto-spin-tip" class="tooltip-bubble">
+      Hold for auto-spin
+    </div>
+
+    <!-- BOTTOM BET & SPIN CONTROLS -->
+    <footer class="bottom-controls">
+      <div class="bet-control-group">
+        <button id="btn-minus" class="ctrl-btn minus-btn" aria-label="Decrease Bet">−</button>
+        <div id="bet-display" class="bet-display-box">100</div>
+        <button id="btn-plus" class="ctrl-btn plus-btn" aria-label="Increase Bet">+</button>
+      </div>
+
+      <!-- Turbo Spin Toggle -->
+      <button id="btn-turbo" class="turbo-btn" aria-label="Turbo Spin" title="Turbo Spin">
+        <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+      </button>
+
+      <!-- Main Spin Button -->
+      <button id="btn-spin" class="spin-btn">
+        <span id="spin-btn-text">SPIN!</span>
+        <span id="auto-spin-badge" class="auto-spin-count" style="display:none;">10</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- HOW TO PLAY / PAYOUT MODAL -->
+  <div id="modal-rules" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">How to Play</div>
+        <button id="modal-rules-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-tabs">
+        <div class="modal-tab active" data-tab="payouts">Payout Table</div>
+        <div class="modal-tab" data-tab="holdspin">Hold & Spin</div>
+        <div class="modal-tab" data-tab="paylines">Paylines</div>
+      </div>
+      <div class="modal-body">
+        <!-- Payouts Tab -->
+        <div id="tab-payouts" class="tab-pane">
+          <div class="paytable-grid" id="paytable-container"></div>
+        </div>
+
+        <!-- Hold & Spin Tab -->
+        <div id="tab-holdspin" class="tab-pane" style="display: none;">
+          <div style="font-size: 13px; line-height: 1.5; color: #e2e8f0;">
+            <p style="margin-bottom: 8px;">🔵 <strong>Floating Bubbles:</strong> Up to 20 bubbles can appear on reels. With each spin, all bubbles float UP 1 space until they disappear.</p>
+            <p style="margin-bottom: 8px;">💎 <strong>Capture Gems:</strong> When 3 or more Ruby or Emerald symbols land on reels, the <strong>Hold & Spin</strong> mode begins!</p>
+            <p style="margin-bottom: 8px;">🔄 <strong>Free Respins:</strong> Starts with <strong>3 free spins</strong>. Landing 1 or more new gems resets your spins back to 3!</p>
+            <p style="margin-bottom: 8px;">🎁 <strong>Bonus Prizes:</strong> Ruby gems award cash prizes from 1x to 10x your play amount.</p>
+            <p style="margin-bottom: 8px;">🏆 <strong>Jackpots:</strong> Emerald gems award <strong>MINI (10x)</strong>, <strong>MINOR (20x)</strong>, <strong>MAJOR (30x)</strong>, or <strong>GRAND (50-100x)</strong>!</p>
+          </div>
+        </div>
+
+        <!-- Paylines Tab -->
+        <div id="tab-paylines" class="tab-pane" style="display: none;">
+          <div style="font-size: 13px; font-weight: 700; color: #fef08a; margin-bottom: 6px;">20 Fixed Paylines</div>
+          <div class="paylines-gallery" id="paylines-diagram-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO-SPIN MODAL -->
+  <div id="modal-autospin" class="modal-overlay">
+    <div class="modal-card" style="max-width: 320px;">
+      <div class="modal-header">
+        <div class="modal-title">Select Auto-Spins</div>
+        <button id="modal-autospin-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="megawin-close-btn autospin-opt" data-count="10">10 Spins</button>
+        <button class="megawin-close-btn autospin-opt" data-count="25">25 Spins</button>
+        <button class="megawin-close-btn autospin-opt" data-count="50">50 Spins</button>
+        <button class="megawin-close-btn autospin-opt" data-count="100">100 Spins</button>
+        <button class="megawin-close-btn autospin-opt" data-count="999">Infinite (Until Bonus)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEGA WIN CELEBRATION OVERLAY -->
+  <div id="megawin-modal" class="megawin-overlay">
+    <div class="megawin-title">MEGA WIN!</div>
+    <div id="megawin-amount" class="megawin-amount">0</div>
+    <button id="megawin-collect-btn" class="megawin-close-btn">COLLECT</button>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/config.js"></script>
+  <script src="js/symbols.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/slotEngine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

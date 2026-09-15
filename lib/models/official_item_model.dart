@@ -11,6 +11,8 @@ enum OfficialItemCategory {
   micRefill,
   seatDecor,
   roomProfileBackground,
+  shortProfileTheme,
+  roomEntry,
 }
 
 extension OfficialItemCategoryExt on OfficialItemCategory {
@@ -23,7 +25,7 @@ extension OfficialItemCategoryExt on OfficialItemCategory {
       case OfficialItemCategory.entryEffect:
         return 'Entry Effect';
       case OfficialItemCategory.backgroundTheme:
-        return 'Room theme';
+        return 'Room Background Theme';
       case OfficialItemCategory.profileSkin:
         return 'Profile Skin';
       case OfficialItemCategory.nameplate:
@@ -34,6 +36,10 @@ extension OfficialItemCategoryExt on OfficialItemCategory {
         return 'Seat Decor';
       case OfficialItemCategory.roomProfileBackground:
         return 'Room Profile Background';
+      case OfficialItemCategory.shortProfileTheme:
+        return 'Short Profile Theme';
+      case OfficialItemCategory.roomEntry:
+        return 'Room Entry';
     }
   }
 
@@ -57,6 +63,10 @@ extension OfficialItemCategoryExt on OfficialItemCategory {
         return '🪑';
       case OfficialItemCategory.roomProfileBackground:
         return '🖼️';
+      case OfficialItemCategory.shortProfileTheme:
+        return '🖼️';
+      case OfficialItemCategory.roomEntry:
+        return '🚪';
     }
   }
 
@@ -80,6 +90,10 @@ extension OfficialItemCategoryExt on OfficialItemCategory {
         return Colors.orange;
       case OfficialItemCategory.roomProfileBackground:
         return Colors.indigo;
+      case OfficialItemCategory.shortProfileTheme:
+        return Colors.pinkAccent;
+      case OfficialItemCategory.roomEntry:
+        return Colors.tealAccent;
     }
   }
 }
@@ -95,6 +109,8 @@ class OfficialItemModel {
   final String? thumbnailUrl;
   final String? lockedFileUrl; // Added for seat decor locked state
   final int starRating;
+  final int verificationLevel; // 1 - 5
+  final String badgeSubCategory; // 'Verification', 'Achievement', 'Honor', 'Activity', 'Special'
   final bool isActive;
   final DateTime createdAt;
   final int? displayId;
@@ -110,6 +126,8 @@ class OfficialItemModel {
     this.thumbnailUrl,
     this.lockedFileUrl,
     this.starRating = 1,
+    this.verificationLevel = 1,
+    this.badgeSubCategory = 'Verification',
     this.isActive = true,
     required this.createdAt,
     this.displayId,
@@ -131,6 +149,8 @@ class OfficialItemModel {
       thumbnailUrl: data['thumbnailUrl'],
       lockedFileUrl: data['lockedFileUrl'],
       starRating: data['starRating'] ?? 1,
+      verificationLevel: data['verificationLevel'] ?? 1,
+      badgeSubCategory: data['badgeSubCategory'] ?? 'Verification',
       isActive: data['isActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       displayId: data['displayId'],
@@ -148,6 +168,8 @@ class OfficialItemModel {
       'thumbnailUrl': thumbnailUrl,
       if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
       'starRating': starRating,
+      'verificationLevel': verificationLevel,
+      'badgeSubCategory': badgeSubCategory,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       if (displayId != null) 'displayId': displayId,
@@ -165,6 +187,8 @@ class OfficialItemModel {
     String? thumbnailUrl,
     String? lockedFileUrl,
     int? starRating,
+    int? verificationLevel,
+    String? badgeSubCategory,
     bool? isActive,
     DateTime? createdAt,
     int? displayId,
@@ -180,6 +204,8 @@ class OfficialItemModel {
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       lockedFileUrl: lockedFileUrl ?? this.lockedFileUrl,
       starRating: starRating ?? this.starRating,
+      verificationLevel: verificationLevel ?? this.verificationLevel,
+      badgeSubCategory: badgeSubCategory ?? this.badgeSubCategory,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       displayId: displayId ?? this.displayId,

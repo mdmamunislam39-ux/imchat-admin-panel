@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script>
+    (function() {
+      var host = window.location.hostname.toLowerCase();
+      var isAdminDomain = host.includes('admin') || host === 'localhost' || host === '127.0.0.1';
+      if (!isAdminDomain && !window.location.pathname.endsWith('landing.html')) {
+        window.location.replace('/landing.html' + window.location.search + window.location.hash);
+      }
+    })();
+  </script>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.

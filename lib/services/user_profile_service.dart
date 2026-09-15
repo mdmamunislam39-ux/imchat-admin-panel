@@ -588,9 +588,28 @@ class UserProfileService {
             );
           }
           break;
+        case StoreItemType.roomProfileBackground:
+          if (!profile.customization.ownedRoomProfileBackgrounds.contains(itemId)) {
+            newCustomization = newCustomization.copyWith(
+              ownedRoomProfileBackgrounds: [
+                ...profile.customization.ownedRoomProfileBackgrounds,
+                itemId,
+              ],
+            );
+          }
+          break;
+        case StoreItemType.shortProfileTheme:
+          if (!profile.customization.ownedShortProfileThemes.contains(itemId)) {
+            newCustomization = newCustomization.copyWith(
+              ownedShortProfileThemes: [
+                ...profile.customization.ownedShortProfileThemes,
+                itemId,
+              ],
+            );
+          }
+          break;
         case StoreItemType.roomTheme:
         case StoreItemType.seatDecor:
-        case StoreItemType.roomProfileBackground:
           // Currently not explicitly stored in UserCustomization, or handled differently
           break;
         case StoreItemType.micRefill:
@@ -598,6 +617,16 @@ class UserProfileService {
             newCustomization = newCustomization.copyWith(
               ownedMicRefills: [
                 ...profile.customization.ownedMicRefills,
+                itemId,
+              ],
+            );
+          }
+          break;
+        case StoreItemType.roomEntry:
+          if (!profile.customization.ownedRoomEntries.contains(itemId)) {
+            newCustomization = newCustomization.copyWith(
+              ownedRoomEntries: [
+                ...profile.customization.ownedRoomEntries,
                 itemId,
               ],
             );
@@ -842,18 +871,24 @@ class UserProfileService {
   }
 
   static Stream<List<StoreItemModel>> streamAllMarketItems({StoreItemType? type}) {
-    Query query = _firestore
-        .collection(_marketItemsCollection)
-        .orderBy('createdAt', descending: true);
+    Query query = _firestore.collection(_marketItemsCollection);
         
     if (type != null) {
       query = query.where('type', isEqualTo: type.toString().split('.').last);
     }
     
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => StoreItemModel.fromFirestore(doc))
-          .toList();
+      final items = snapshot.docs.map((doc) {
+        try {
+          return StoreItemModel.fromFirestore(doc);
+        } catch (e) {
+          debugPrint('Error parsing store item \${doc.id}: \$e');
+          return null;
+        }
+      }).whereType<StoreItemModel>().toList();
+
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
     });
   }
 

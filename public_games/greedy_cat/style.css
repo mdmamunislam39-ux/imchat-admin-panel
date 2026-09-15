@@ -1,0 +1,1277 @@
+/* Reset & Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+:root {
+  --sky-blue: #2ca5f6;
+  --sky-blue-dark: #1b8dd8;
+  --wood-rim: #8d4915;
+  --wood-light: #d68f44;
+  --wood-dark: #6e350a;
+  --wood-shelf: #e4aa6b;
+  --pedestal-red: #e52d2d;
+  --pedestal-dark: #bd1818;
+  --pill-bg: #ffffff;
+  --font-main: 'Fredoka', 'Nunito', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: #111827;
+  font-family: var(--font-main);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+/* Mobile Frame Wrapper */
+.game-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 920px;
+  max-height: 100vh;
+  background-color: #28a9f8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 38 38'%3E%3Cpath d='M10 12 C14 6, 22 10, 24 18 C18 24, 12 20, 10 12 Z' fill='%231b95e8' opacity='0.6' transform='rotate(-25 17 15)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.game-wrapper::before {
+  display: none;
+}
+
+/* ====================================================
+   Top Header Bar
+==================================================== */
+.top-bar {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px 4px 14px;
+}
+
+.top-left-group, .top-right-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pink-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff7ea8, #ff3d7f);
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #ba1b54, 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.pink-circle-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #ba1b54;
+}
+
+.cyan-square-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #10b3d6 0%, #038fae 100%);
+  border: 2px solid #6ee7f7;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #02596d, 0 4px 8px rgba(0, 0, 0, 0.2);
+  margin-left: 2px;
+}
+
+.cyan-square-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #02596d;
+}
+
+/* Ferris Wheel Stage Area */
+.wheel-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Wooden A-Frame Stand (2 Thick Legs meeting behind center hub) */
+.wooden-stand {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.stand-leg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34px;
+  height: 330px;
+  background: linear-gradient(90deg, #994f11 0%, #d89347 40%, #7d3908 100%);
+  border: 3px solid #542403;
+  border-radius: 4px;
+  transform-origin: top center;
+  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+.stand-left {
+  transform: translateX(-50%) rotate(22deg);
+}
+
+.stand-right {
+  transform: translateX(-50%) rotate(-22deg);
+}
+
+/* Concentric Wooden Wheel Rim (Behind Food Pods) */
+.wheel-outer-rim {
+  display: none;
+}
+
+/* The Assembly (Wheel + Pods) */
+.ferris-wheel-assembly {
+  position: relative;
+  width: 324px;
+  height: 324px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Spokes Container */
+.spokes-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.spoke {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 146px;
+  background: linear-gradient(90deg, #9e5a1b 0%, #e19d4e 45%, #75380a 100%);
+  border: 2px solid #532504;
+  border-radius: 6px;
+  transform-origin: top center;
+  transform: translateX(-50%) rotate(var(--rot));
+}
+
+/* Pods Container (In Front of Legs and Outer Rim) */
+.food-pods-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+/* Individual Food Pod */
+.food-pod {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 86px;
+  height: 86px;
+  margin-top: -43px;
+  margin-left: -43px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid #7d3f0e;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.28), inset 0 0 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 2px 2px;
+  overflow: visible;
+  z-index: 11;
+  /* Placed at 134px radius circle */
+  transform: rotate(var(--angle)) translateY(-134px) rotate(calc(-1 * var(--angle)));
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.food-pod:hover {
+  filter: brightness(1.08);
+}
+
+/* Highlighted winning/chaser pod */
+.food-pod.highlighted {
+  box-shadow: 0 0 24px 8px #ffeb3b, 0 0 10px 4px #ff9800;
+  border-color: #ff9800;
+  transform: rotate(var(--angle)) translateY(-134px) rotate(calc(-1 * var(--angle))) scale(1.15);
+  z-index: 30;
+  animation: podPulse 0.45s infinite alternate ease-in-out;
+}
+
+@keyframes podPulse {
+  0% { transform: rotate(var(--angle)) translateY(-134px) rotate(calc(-1 * var(--angle))) scale(1.12); }
+  100% { transform: rotate(var(--angle)) translateY(-134px) rotate(calc(-1 * var(--angle))) scale(1.20); }
+}
+
+/* Inner pod styling with warm yellow wave */
+.pod-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pod-inner::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48%;
+  background: #fff4ba;
+  border-radius: 50% 50% 0 0 / 25% 25% 0 0;
+  z-index: 1;
+}
+
+/* Food image wrapper */
+.food-img-wrap {
+  position: relative;
+  z-index: 2;
+  width: 60px;
+  height: 50px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-top: 1px;
+}
+
+/* Multiplier badge at bottom of pod */
+.pod-badge {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.pod-badge .drink-cat-icon {
+  display: none !important;
+}
+
+.mult-text {
+  font-size: 14px;
+  font-weight: 800;
+  color: #834710;
+  line-height: 1;
+}
+
+/* Floating Bet Bubble on Pod */
+.pod-bet-bubble {
+  position: absolute;
+  top: -16px;
+  background: #ffffff;
+  border: 1.5px solid #e53935;
+  color: #d32f2f;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+  display: none;
+  z-index: 35;
+  animation: bubblePop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pod-bet-bubble.active {
+  display: block;
+}
+
+@keyframes bubblePop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Fiery Hot Tag with dynamic animation */
+.hot-tag {
+  position: absolute;
+  top: -12px;
+  left: -8px;
+  background: linear-gradient(135deg, #ff1a1a 0%, #ff7e00 100%);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.35), 0 0 10px rgba(255, 110, 0, 0.6);
+  z-index: 40;
+  transform: rotate(-10deg);
+  font-style: italic;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  animation: hotPulseGlow 1.4s infinite ease-in-out;
+  white-space: nowrap;
+}
+
+.hot-tag.popping {
+  animation: hotPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), hotPulseGlow 1.4s infinite ease-in-out;
+}
+
+@keyframes hotPop {
+  0% { transform: scale(0.3) rotate(-25deg); opacity: 0; }
+  65% { transform: scale(1.3) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-10deg); opacity: 1; }
+}
+
+@keyframes hotPulseGlow {
+  0% { box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 6px #ff3d00; transform: rotate(-10deg) scale(1); }
+  50% { box-shadow: 0 2px 10px rgba(0,0,0,0.35), 0 0 16px #ff9800, 0 0 22px #ff3d00; transform: rotate(-10deg) scale(1.08); }
+  100% { box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 6px #ff3d00; transform: rotate(-10deg) scale(1); }
+}
+
+/* ====================================================
+   Center Hub & Mascot
+==================================================== */
+.wheel-center-hub {
+  position: absolute;
+  width: 122px;
+  height: 122px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.hub-circle-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fbe8c9 0%, #ebb476 50%, #c97c2a 100%);
+  border: 5px solid #6b350c;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35), inset 0 0 10px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Brass Rivets around Hub Rim */
+.hub-wooden-rim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hub-rivet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fff7b2, #f59e0b 60%, #92400e 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  margin-top: -2.5px;
+  margin-left: -2.5px;
+  transform: rotate(var(--ra)) translateY(-55px);
+}
+
+/* Center Mascot (White Cat Drinking Juice - Ears poke out outside the circle) */
+.cat-mascot-wrapper {
+  position: absolute;
+  top: -24px;
+  width: 126px;
+  height: 98px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.cat-illustration {
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.22));
+}
+
+/* Timer and Status Box on Lower Center Hub */
+.hub-timer-box {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: linear-gradient(180deg, rgba(160, 82, 20, 0.9) 0%, rgba(107, 53, 12, 0.98) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-top: 2px solid #5a2806;
+  z-index: 5;
+}
+
+.hub-phase-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff9e6;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  line-height: 1.1;
+}
+
+.hub-countdown {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 3px rgba(0,0,0,0.7);
+  line-height: 1.1;
+}
+
+/* ====================================================
+   Counter Section (Salad, Chips, Pizza)
+==================================================== */
+.counter-section {
+  position: relative;
+  z-index: 45;
+  background: linear-gradient(180deg, #f5ca8c 0%, #e2a865 15%, #c88941 100%);
+  border-top: 3px solid #85430e;
+  border-bottom: 2px solid #733709;
+  padding: 6px 8px 8px 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
+
+.combo-bet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+  width: 72px;
+}
+
+.combo-bet-card:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.combo-bet-card:active {
+  transform: scale(0.95);
+}
+
+.dish-plate-wrap {
+  width: 62px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+}
+
+.salad-illustration, .pizza-illustration {
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.dish-pill-btn {
+  background: linear-gradient(180deg, #fffdf0 0%, #fef3c7 100%);
+  border: 1.5px solid #b45309;
+  border-radius: 12px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #78350f;
+  margin-top: 2px;
+  box-shadow: 0 2px 0 #78350f, 0 1px 3px rgba(0,0,0,0.2);
+  transition: background 0.1s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.combo-bet-card:hover .dish-pill-btn {
+  background: #fef08a;
+  color: #713f12;
+}
+
+/* Center Wager Chips Board */
+.wager-board {
+  flex: 1;
+  background: linear-gradient(180deg, #e9b472 0%, #c48234 100%);
+  border: 2.5px solid #8a4812;
+  border-radius: 12px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), 0 3px 6px rgba(0,0,0,0.2);
+}
+
+.wager-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #552703;
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.chips-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 3px;
+}
+
+.gummy-chip-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 3px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+  width: 46px;
+}
+
+.gummy-chip-wrap:hover {
+  transform: translateY(-2px);
+}
+
+.gummy-chip-wrap.active {
+  border-color: #4a2202;
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 0 8px rgba(255, 235, 59, 0.5);
+}
+
+/* 3D Gummy Cat Figures */
+.gummy-cat {
+  position: relative;
+  width: 38px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 3px 4px rgba(0,0,0,0.25));
+}
+
+.gummy-ears, .gummy-glasses, .gummy-face {
+  display: none;
+}
+
+.chip-val-pill {
+  background: #ffffff;
+  border: 1.5px solid #6b350c;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #431f04;
+  padding: 1px 4px;
+  margin-top: 4px;
+  text-align: center;
+  width: 100%;
+}
+
+/* ====================================================
+   Red Pedestal Stage & Bottom Stats
+==================================================== */
+.red-pedestal {
+  position: relative;
+  z-index: 40;
+  background: linear-gradient(180deg, #e33030 0%, #cc1e1e 40%, #a41010 100%);
+  border-top: 3px solid #ff6666;
+  padding: 8px 10px 4px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 3px 6px rgba(255,255,255,0.25);
+}
+
+.pedestal-pills-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.white-metric-pill {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 #8b1212, 0 4px 6px rgba(0,0,0,0.2);
+  min-height: 44px;
+}
+
+.pill-interactive {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  border: none;
+  font-family: inherit;
+}
+.pill-interactive:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #8b1212;
+}
+
+.pill-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #374151;
+  line-height: 1.1;
+}
+
+.pill-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+.pill-center-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1f2937;
+  text-align: center;
+  line-height: 1.15;
+}
+
+/* Result Bar */
+.result-track-bar {
+  background: rgba(135, 12, 12, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  overflow: hidden;
+}
+
+.result-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  padding-left: 2px;
+}
+
+.result-tokens-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.result-tokens-list::-webkit-scrollbar {
+  display: none;
+}
+
+.res-token-circle {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.res-token-img {
+  width: 24px;
+  height: 24px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.badge-new {
+  position: absolute;
+  bottom: -4px;
+  left: -2px;
+  background: #ffeb3b;
+  color: #5d4037;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 0 3px;
+  border-radius: 4px;
+  border: 1px solid #795548;
+  line-height: 1.2;
+}
+
+/* Today Ranking Strip (Bottom bar) */
+.today-ranking-strip {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: filter 0.1s ease;
+  margin-bottom: 4px;
+}
+
+.today-ranking-strip:hover {
+  filter: brightness(1.1);
+}
+
+.strip-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.strip-divider {
+  width: 1.5px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.6);
+  margin: 0 2px;
+}
+
+.strip-rank-num {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.strip-avatar-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  overflow: hidden;
+  background: linear-gradient(135deg, #bef264, #84cc16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+}
+
+.user-avatar-mini {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #14532d;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.strip-username {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.strip-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.strip-score {
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+/* ====================================================
+   Icons (Gold Coin, Drink Cup)
+==================================================== */
+.gold-coin-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.gold-coin-icon.sm { width: 13px; height: 13px; }
+.gold-coin-icon.md { width: 18px; height: 18px; }
+
+.diamond-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.diamond-icon.sm { width: 14px; height: 14px; }
+
+.drink-cat-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+}
+
+.drink-cat-icon.sm { width: 14px; height: 14px; }
+.drink-cat-icon.xs { width: 12px; height: 12px; }
+
+/* ====================================================
+   Modals & Overlays
+==================================================== */
+.game-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.game-modal-overlay.open {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 350px;
+  background: linear-gradient(180deg, #1cc7ee 0%, #0893b8 100%);
+  border: 3.5px solid #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  padding: 20px 16px;
+  color: #ffffff;
+  animation: scaleUp 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1.5px solid #ffffff;
+  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.modal-title {
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 14px;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+.modal-body-text {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #f0fdf4;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+/* Result Modal Specifics */
+.result-modal-card {
+  padding: 18px 16px;
+}
+
+.result-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.result-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.result-confetti-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.winning-food-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 15px #ffeb3b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.winning-food-circle .food-img-wrap {
+  width: 44px;
+  height: 44px;
+}
+
+.fork-icon, .knife-icon {
+  font-size: 22px;
+}
+
+.result-player-box {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+}
+
+.player-cat-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #ffffff;
+  background-size: cover;
+  background-position: center;
+}
+
+.player-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-row {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* Top 3 Podium */
+.top3-container {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+.top3-header {
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.podium-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 4px;
+}
+
+.podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+
+.crown-icon {
+  font-size: 18px;
+  position: relative;
+  margin-bottom: -4px;
+}
+
+.crown-badge {
+  position: absolute;
+  bottom: 0;
+  right: -6px;
+  background: #ffeb3b;
+  color: #3e2723;
+  font-size: 9px;
+  font-weight: 900;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.podium-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #b2ebf2;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+}
+
+.rank-1 .podium-avatar {
+  width: 52px;
+  height: 52px;
+  border-color: #ffeb3b;
+}
+
+.podium-avatar.avatar-empty {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.podium-avatar.avatar-empty::after {
+  content: "👤";
+  font-size: 18px;
+  opacity: 0.45;
+}
+
+.podium-name {
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 4px;
+  max-width: 75px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.podium-score {
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+/* Setting Toggle Switches */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.setting-label {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 30px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #94a3b8;
+  transition: .3s;
+  border-radius: 30px;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+input:checked + .toggle-slider {
+  background-color: #38bdf8;
+}
+
+input:checked + .toggle-slider::before {
+  transform: translateX(30px);
+}
+
+.toggle-text {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-left: auto;
+}
+
+input:checked + .toggle-slider .toggle-text {
+  margin-left: 4px;
+  margin-right: auto;
+}
+
+/* Records & Ranking Tables */
+.records-table-container, .ranking-table-container {
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 10px;
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.records-table th {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 6px;
+  color: #e0f2fe;
+}
+
+.records-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Game Toast Popup */
+.game-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: linear-gradient(180deg, #1ec8ee 0%, #0689ac 100%);
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  border-radius: 16px;
+  padding: 16px 24px;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 150;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.game-toast.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}

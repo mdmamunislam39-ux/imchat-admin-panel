@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import '../models/channel_model.dart';
 import '../models/channel_post_model.dart';
 
@@ -148,7 +151,7 @@ class ChannelService {
     });
   }
 
-  static Future<void> createPost(ChannelPostModel post) async {
+  static Future<void> createPost(ChannelPostModel post, {List<Map<String, dynamic>>? targetUsers}) async {
     try {
       final docRef = _firestore.collection(_postsCollection).doc();
       final newPost = post.copyWith(id: docRef.id);
@@ -158,8 +161,13 @@ class ChannelService {
         'createdAt': FieldValue.serverTimestamp(),
       });
       
-      // Asynchronously broadcast post to all users' chat lists
-      _broadcastPostToAllUsers(newPost);
+      if (targetUsers == null) {
+        // Asynchronously broadcast post to all users' chat lists
+        _broadcastPostToAllUsers(newPost);
+      } else {
+        // Asynchronously broadcast post to target users' chat lists
+        _broadcastPostToTargetUsers(newPost, targetUsers);
+      }
     } catch (e) {
       debugPrint('Error creating post: $e');
       rethrow;
@@ -287,7 +295,15 @@ class ChannelService {
         final end = (i + batchSize < users.length) ? i + batchSize : users.length;
         final chunk = users.sublist(i, end);
 
+        final List<String> tokensToSend = [];
+
         for (var user in chunk) {
+          final data = user.data();
+          final deviceToken = data['deviceToken']?.toString() ?? '';
+          if (deviceToken.isNotEmpty) {
+            tokensToSend.add(deviceToken);
+          }
+
           final chatRef = _firestore
               .collection('Users')
               .doc(user.id)
@@ -334,10 +350,160 @@ class ChannelService {
           });
         }
         await batch.commit();
+
+        // Send push notifications asynchronously to this batch
+        _sendFCMNotifications(
+          tokens: tokensToSend,
+          title: channel.name,
+          body: message,
+          senderId: channel.id,
+          senderAvatar: channel.imageUrl,
+        );
       }
       debugPrint('Successfully broadcasted post to ${users.length} users.');
     } catch (e) {
       debugPrint('Error broadcasting post to users: $e');
+    }
+  }
+
+  static Future<void> _sendFCMNotifications({
+    required List<String> tokens,
+    required String title,
+    required String body,
+    required String senderId,
+    required String senderAvatar,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final idToken = await user?.getIdToken();
+      final url = 'https://us-central1-imchat-84519.cloudfunctions.net/sendPushNotification';
+
+      for (final token in tokens) {
+        http.post(
+          Uri.parse(url),
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
+          body: jsonEncode({
+            'data': {
+              'type': 'message',
+              'title': title,
+              'body': body,
+              'deviceToken': token,
+              'senderId': senderId,
+              'senderAvatar': senderAvatar,
+              'call': {},
+            }
+          }),
+        ).catchError((e) {
+          debugPrint('Error sending channel post FCM notification: $e');
+          return http.Response('', 500);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error in _sendFCMNotifications: $e');
+    }
+  }
+
+  static Future<void> _broadcastPostToTargetUsers(ChannelPostModel post, List<Map<String, dynamic>> targetUsers) async {
+    try {
+      final channelDoc = await _firestore.collection(_channelsCollection).doc(post.channelId).get();
+      if (!channelDoc.exists) return;
+      final channel = ChannelModel.fromFirestore(channelDoc);
+
+      String message = post.textContent ?? '';
+      if (message.isEmpty) {
+        if (post.imageUrl != null && post.imageUrl!.isNotEmpty) {
+          message = '📷 Image Post';
+        } else if (post.audioUrl != null && post.audioUrl!.isNotEmpty) {
+          message = '🎵 Voice Message';
+        } else if (post.voiceRoomId != null && post.voiceRoomId!.isNotEmpty) {
+          message = '🎤 Voice Room Shared';
+        } else if (post.linkUrl != null && post.linkUrl!.isNotEmpty) {
+          message = '🔗 Link Shared';
+        }
+      }
+
+      final int batchSize = 500;
+      for (int i = 0; i < targetUsers.length; i += batchSize) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        
+        final batch = _firestore.batch();
+        final end = (i + batchSize < targetUsers.length) ? i + batchSize : targetUsers.length;
+        final chunk = targetUsers.sublist(i, end);
+
+        final List<String> tokensToSend = [];
+
+        for (var user in chunk) {
+          final userId = user['userId'] ?? user['id'] ?? '';
+          if (userId.isEmpty) continue;
+
+          final deviceToken = user['deviceToken']?.toString() ?? '';
+          if (deviceToken.isNotEmpty) {
+            tokensToSend.add(deviceToken);
+          }
+
+          final chatRef = _firestore
+              .collection('Users')
+              .doc(userId)
+              .collection('Chats')
+              .doc(channel.id);
+          
+          batch.set(chatRef, {
+            'id': channel.id,
+            'channelId': channel.id,
+            'name': channel.name,
+            'username': channel.name,
+            'channelName': channel.name,
+            'image': channel.imageUrl,
+            'imageUrl': channel.imageUrl,
+            'profileImageUrl': channel.imageUrl,
+            'profileImage': channel.imageUrl,
+            'lastMessage': message,
+            'message': message,
+            'latestMessage': message,
+            'text': message,
+            'timestamp': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+            'type': 'official_channel',
+            'unreadCount': FieldValue.increment(1),
+          }, SetOptions(merge: true));
+
+          final msgRef = chatRef.collection('Messages').doc(post.id);
+          final bool isAudio = post.audioUrl != null && post.audioUrl!.isNotEmpty;
+          batch.set(msgRef, {
+            'msgId': post.id,
+            'senderId': channel.id,
+            'type': isAudio ? 'audio' : 'text',
+            'textMsg': message,
+            'fileUrl': post.imageUrl ?? (isAudio ? post.audioUrl : ''),
+            'gifUrl': '',
+            'location': null,
+            'roomShare': post.voiceRoomId,
+            'videoThumbnail': '',
+            'isRead': false,
+            'isRecAudio': isAudio,
+            'isForwarded': false,
+            'sentAt': FieldValue.serverTimestamp(),
+            'replyMessage': null,
+            'groupUpdate': null,
+          });
+        }
+        await batch.commit();
+
+        // Send push notifications asynchronously to this batch
+        _sendFCMNotifications(
+          tokens: tokensToSend,
+          title: channel.name,
+          body: message,
+          senderId: channel.id,
+          senderAvatar: channel.imageUrl,
+        );
+      }
+      debugPrint('Successfully broadcasted post to ${targetUsers.length} target users.');
+    } catch (e) {
+      debugPrint('Error broadcasting post to target users: $e');
     }
   }
 }

@@ -16,6 +16,7 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
   final _thumbnailUrlController = TextEditingController();
   
   double _winRatio = 50.0; // 1 to 100
+  bool _isActive = true;
 
   final _watermelonWeightController = TextEditingController();
   final _sevensWeightController = TextEditingController();
@@ -57,6 +58,7 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
            _winRatio = 50.0;
         }
 
+        _isActive = (data['isActive'] ?? true) != false;
         _thumbnailUrlController.text = data['thumbnailUrl'] ?? '';
         _watermelonWeightController.text = (data['watermelonWeight'] ?? 1).toString();
         _sevensWeightController.text = (data['sevensWeight'] ?? 1).toString();
@@ -64,6 +66,7 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
       } else {
         // Defaults
         _winRatio = 50.0;
+        _isActive = true;
         _watermelonWeightController.text = '1';
         _sevensWeightController.text = '1';
         _grapeWeightController.text = '1';
@@ -92,8 +95,6 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
 
     try {
       // Calculate weights from winRatio (1 to 100)
-      // winRatio 100 -> highWeight 100 (User wins max)
-      // winRatio 1 -> lowWeight 99 (House wins max)
       int highW = _winRatio.round();
       int lowW = 100 - _winRatio.round();
       int mediumW = 50; 
@@ -102,6 +103,7 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
           .collection('config')
           .doc('fruit_wheel')
           .set({
+        'isActive': _isActive,
         'winRatio': _winRatio.round(),
         'highWeight': highW,
         'mediumWeight': mediumW,
@@ -229,6 +231,33 @@ class _FruitWheelGameScreenState extends State<FruitWheelGameScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[900],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SwitchListTile(
+                        title: const Text(
+                          'Game Active Status',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          _isActive ? 'Active (Visible in app)' : 'Inactive (Hidden in app)',
+                          style: TextStyle(
+                            color: _isActive ? Colors.greenAccent : Colors.redAccent,
+                            fontSize: 12,
+                          ),
+                        ),
+                        value: _isActive,
+                        activeThumbColor: Colors.blue,
+                        onChanged: (val) {
+                          setState(() {
+                            _isActive = val;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [

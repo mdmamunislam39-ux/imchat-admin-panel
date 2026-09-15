@@ -600,7 +600,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
                         'Item',
                         'Badge',
                         'Frame',
-                        'Profile Skin',
+                        'Room Background Theme',
                       ].map((cat) {
                         return ChoiceChip(
                           label: Text(cat),

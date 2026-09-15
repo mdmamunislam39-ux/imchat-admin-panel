@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -18,6 +20,9 @@ class _GiftData {
   final String category;
 
   _GiftData({required this.id, required this.data, required this.category});
+
+  bool get isActive => data['isActive'] ?? true;
+  String get giftId => data['id']?.toString() ?? '2001';
 }
 
 class GiftManagement extends StatefulWidget {
@@ -34,17 +39,22 @@ class _GiftManagementState extends State<GiftManagement> {
   List<_GiftData> _gifts = [];
   bool _isLoading = true;
   bool _isUploading = false;
-  String _selectedCategory = 'Customized';
+  String _selectedCategory = 'Hot';
   final List<String> _categories = [
-    'Customized',
-    'Event',
     'Hot',
+    'Event',
+    'Lucky',
+    'Local',
     'Privilege',
     'Trick',
+    'Customized',
   ];
 
   final TextEditingController _DiamondsController = TextEditingController();
   final TextEditingController _giftNameController = TextEditingController();
+  final TextEditingController _diamondCountPercentController = TextEditingController(text: '80');
+  final TextEditingController _minMultiplierController = TextEditingController(text: '2');
+  final TextEditingController _maxMultiplierController = TextEditingController(text: '500');
 
   // Thumbnail (PNG)
   Uint8List? _selectedThumbnailBytes;
@@ -58,64 +68,269 @@ class _GiftManagementState extends State<GiftManagement> {
   @override
   void initState() {
     super.initState();
+    _syncCategoryMetadata();
+    _ensureAllGiftsHaveIds();
     _loadGifts();
   }
 
-  @override
-  void dispose() {
-    _DiamondsController.dispose();
-    _giftNameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadGifts() async {
+  Future<void> _ensureAllGiftsHaveIds() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Load gifts from the selected category document
-      final categoryDoc = await _firestore
-          .collection('gift')
-          .doc(_selectedCategory)
-          .get();
-
-      if (categoryDoc.exists) {
-        final data = categoryDoc.data();
-        if (data != null && data.containsKey('gifts')) {
-          final giftsList = data['gifts'] as List<dynamic>?;
-          if (giftsList != null) {
-            // Convert the gifts list to a format we can work with
-            final List<_GiftData> giftsData = giftsList.asMap().entries.map((
-              entry,
-            ) {
-              final giftMap = entry.value as Map<String, dynamic>;
-              return _GiftData(
-                id: '${_selectedCategory}_${entry.key}',
-                data: giftMap,
-                category: _selectedCategory,
-              );
-            }).toList();
-
-            setState(() {
-              _gifts = giftsData;
-              _isLoading = false;
-            });
-            return;
+      final categoriesSnap = await _firestore.collection('gift').get();
+      int maxExisting = 2000;
+      for (final doc in categoriesSnap.docs) {
+        final data = doc.data();
+        final giftsList = data['gifts'] as List<dynamic>?;
+        if (giftsList != null) {
+          for (final giftMap in giftsList) {
+            if (giftMap is Map<String, dynamic>) {
+              final rawId = giftMap['id'] ?? giftMap['displayId'] ?? giftMap['giftId'];
+              if (rawId != null) {
+                final parsed = int.tryParse(rawId.toString());
+                if (parsed != null && parsed >= 2001 && parsed < 100000) {
+                  if (parsed > maxExisting) maxExisting = parsed;
+                }
+              }
+            }
           }
         }
       }
 
-      setState(() {
-        _gifts = [];
-        _isLoading = false;
-      });
+      int currentId = maxExisting + 1;
+      bool updatedAny = false;
+
+      for (final doc in categoriesSnap.docs) {
+        if (doc.id == 'categories_config') continue;
+        final data = doc.data();
+        final giftsList = data['gifts'] as List<dynamic>?;
+        if (giftsList != null && giftsList.isNotEmpty) {
+          List<Map<String, dynamic>> updatedGifts = [];
+          bool docNeedsUpdate = false;
+
+          for (final giftItem in giftsList) {
+            if (giftItem is Map<String, dynamic>) {
+              final map = Map<String, dynamic>.from(giftItem);
+              bool itemModified = false;
+
+              final rawId = map['id'] ?? map['displayId'] ?? map['giftId'];
+              final parsed = rawId != null ? int.tryParse(rawId.toString()) : null;
+
+              if (rawId == null || parsed == null || parsed >= 100000) {
+                map['id'] = currentId.toString();
+                currentId++;
+                itemModified = true;
+              }
+
+              if (!map.containsKey('isActive') || map['isActive'] == null) {
+                map['isActive'] = true;
+                itemModified = true;
+              }
+
+              if (itemModified) docNeedsUpdate = true;
+              updatedGifts.add(map);
+            }
+          }
+
+          if (docNeedsUpdate) {
+            await _firestore.collection('gift').doc(doc.id).update({'gifts': updatedGifts});
+            updatedAny = true;
+          }
+        }
+      }
+      if (updatedAny && mounted) {
+        _loadGifts();
+      }
     } catch (e) {
-      debugPrint('Error loading gifts: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      debugPrint('Error ensuring gift IDs: $e');
     }
+  }
+
+  Future<String> _generateNextGiftId() async {
+    try {
+      int maxId = 2000;
+      final categoriesSnap = await _firestore.collection('gift').get();
+      for (final doc in categoriesSnap.docs) {
+        final data = doc.data();
+        if (data.containsKey('gifts')) {
+          final giftsList = data['gifts'] as List<dynamic>?;
+          if (giftsList != null) {
+            for (final giftMap in giftsList) {
+              if (giftMap is Map<String, dynamic>) {
+                final rawId = giftMap['id'] ?? giftMap['displayId'] ?? giftMap['giftId'];
+                if (rawId != null) {
+                  final parsed = int.tryParse(rawId.toString());
+                  if (parsed != null && parsed >= 2001 && parsed < 100000) {
+                    if (parsed > maxId) {
+                      maxId = parsed;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      return (maxId + 1).toString();
+    } catch (e) {
+      debugPrint('Error generating next gift ID: $e');
+      return '2001';
+    }
+  }
+
+  Future<void> _toggleGiftStatus(_GiftData gift, bool newStatus) async {
+    try {
+      final oldDocRef = _firestore.collection('gift').doc(gift.category);
+      final snapshot = await oldDocRef.get();
+      if (!snapshot.exists) return;
+
+      List<dynamic> gifts = List.from(snapshot.data()?['gifts'] ?? []);
+      final index = gifts.indexWhere((g) =>
+        (g is Map && g['id']?.toString() == gift.giftId) ||
+        (g is Map && g['name'] == gift.data['name'] && g['imageUrl'] == gift.data['imageUrl'])
+      );
+
+      if (index != -1) {
+        final Map<String, dynamic> updatedMap = Map<String, dynamic>.from(gifts[index]);
+        updatedMap['isActive'] = newStatus;
+        gifts[index] = updatedMap;
+
+        await oldDocRef.update({'gifts': gifts});
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus
+                ? 'Gift activated (${gift.data['name']})'
+                : 'Gift deactivated (${gift.data['name']})'),
+              backgroundColor: newStatus ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        _loadGifts();
+      }
+    } catch (e) {
+      debugPrint('Error toggling gift status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _syncCategoryMetadata() async {
+    try {
+      final batch = _firestore.batch();
+
+      // Sync Category Order Metadata in gift/categories_config & system_settings/gift_categories
+      final categoryOrderData = {
+        'categories': _categories,
+        'order': _categories,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      batch.set(
+        _firestore.collection('gift').doc('categories_config'),
+        categoryOrderData,
+        SetOptions(merge: true),
+      );
+
+      batch.set(
+        _firestore.collection('system_settings').doc('gift_categories'),
+        categoryOrderData,
+        SetOptions(merge: true),
+      );
+
+      // Ensure every category document exists and has metadata (order, category, title, type)
+      for (int i = 0; i < _categories.length; i++) {
+        final catName = _categories[i];
+        final catDocRef = _firestore.collection('gift').doc(catName);
+        batch.set(
+          catDocRef,
+          {
+            'category': catName,
+            'categoryName': catName,
+            'title': catName,
+            'order': i,
+            'type': i.toString(),
+            'categoryIndex': i,
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Error syncing category metadata: $e');
+    }
+  }
+
+  StreamSubscription<DocumentSnapshot>? _giftSubscription;
+
+  @override
+  void dispose() {
+    _giftSubscription?.cancel();
+    _DiamondsController.dispose();
+    _giftNameController.dispose();
+    _diamondCountPercentController.dispose();
+    _minMultiplierController.dispose();
+    _maxMultiplierController.dispose();
+    super.dispose();
+  }
+
+  void _loadGifts() {
+    _giftSubscription?.cancel();
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Listen to real-time changes in selected category document
+    _giftSubscription = _firestore
+        .collection('gift')
+        .doc(_selectedCategory)
+        .snapshots()
+        .listen(
+      (categoryDoc) {
+        if (!mounted) return;
+        if (categoryDoc.exists) {
+          final data = categoryDoc.data() as Map<String, dynamic>?;
+          if (data != null && data.containsKey('gifts')) {
+            final giftsList = data['gifts'] as List<dynamic>?;
+            if (giftsList != null) {
+              final List<_GiftData> giftsData = giftsList.asMap().entries.map((
+                entry,
+              ) {
+                final giftMap = entry.value as Map<String, dynamic>;
+                return _GiftData(
+                  id: '${_selectedCategory}_${entry.key}',
+                  data: giftMap,
+                  category: _selectedCategory,
+                );
+              }).toList();
+
+              setState(() {
+                _gifts = giftsData;
+                _isLoading = false;
+              });
+              return;
+            }
+          }
+        }
+
+        setState(() {
+          _gifts = [];
+          _isLoading = false;
+        });
+      },
+      onError: (e) {
+        debugPrint('Error listening to gifts stream: $e');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _pickThumbnail() async {
@@ -153,14 +368,14 @@ class _GiftManagementState extends State<GiftManagement> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['svga', 'png', 'gif', 'mp4', 'webm', 'mov', 'avi'],
+        allowedExtensions: ['svga', 'png', 'gif', 'webp', 'mp4', 'vap', 'webm', 'mov', 'avi'],
         withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         final ext = file.extension?.toLowerCase();
-        if (ext != 'svga' && ext != 'png' && ext != 'gif' && ext != 'mp4' && ext != 'webm' && ext != 'mov' && ext != 'avi') {
+        if (ext != 'svga' && ext != 'png' && ext != 'gif' && ext != 'webp' && ext != 'mp4' && ext != 'vap' && ext != 'webm' && ext != 'mov' && ext != 'avi') {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -245,22 +460,46 @@ class _GiftManagementState extends State<GiftManagement> {
       );
       if (svgaUrl == null) throw Exception('Failed to upload animation');
 
-      final String giftId = (100000 + Random().nextInt(900000)).toString();
+      final String giftId = await _generateNextGiftId();
+
+      final diamondCountVal = double.tryParse(_diamondCountPercentController.text) ?? 80.0;
+      final minMultVal = int.tryParse(_minMultiplierController.text) ?? 2;
+      final maxMultVal = int.tryParse(_maxMultiplierController.text) ?? 500;
 
       final giftData = {
         'id': giftId,
         'Diamond': Diamonds.toString(),
+        'diamond': Diamonds.toString(),
         'credits': Diamonds,
         'imageUrl': imageUrl,
         'svgaUrl': svgaUrl,
         'type': _categories.indexOf(_selectedCategory).toString(),
+        'category': _selectedCategory,
+        'categoryName': _selectedCategory,
+        'categoryIndex': _categories.indexOf(_selectedCategory),
         'name': _giftNameController.text,
+        'isActive': true,
+        if (_selectedCategory == 'Lucky') ...{
+          'isLuckyGift': true,
+          'diamondCountPercent': diamondCountVal,
+          'minMultiplier': minMultVal,
+          'maxMultiplier': maxMultVal,
+          'luckyMultipliers': [
+            minMultVal,
+            10,
+            50,
+            100,
+            maxMultVal,
+          ],
+          'winRate': diamondCountVal,
+          'jackpotMaxMultiplier': maxMultVal,
+        },
       };
 
-      // Add to the existing gifts array in the category document
-      await _firestore.collection('gift').doc(_selectedCategory).update({
+      // Set with merge: true so it creates document and array if doc doesn't exist yet!
+      await _firestore.collection('gift').doc(_selectedCategory).set({
         'gifts': FieldValue.arrayUnion([giftData]),
-      });
+      }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -296,6 +535,9 @@ class _GiftManagementState extends State<GiftManagement> {
   void _clearForm() {
     _DiamondsController.clear();
     _giftNameController.clear();
+    _diamondCountPercentController.text = '80';
+    _minMultiplierController.text = '2';
+    _maxMultiplierController.text = '500';
     setState(() {
       _selectedThumbnailBytes = null;
       _selectedThumbnailName = null;
@@ -427,6 +669,26 @@ class _GiftManagementState extends State<GiftManagement> {
               },
             ),
           ),
+          if (_selectedCategory == 'Lucky') ...[
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _showLuckyGiftSettingsDialog(),
+              icon: const Icon(Icons.settings_suggest, size: 16, color: Colors.white),
+              label: const Text(
+                'Lucky Gift Settings ⚙️',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple[800],
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -543,15 +805,16 @@ class _GiftManagementState extends State<GiftManagement> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
+        border: Border.all(
+          color: gift.isActive ? const Color(0xFF2A2A2A) : Colors.red.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // Optional: Add tap functionality
-          },
+          onTap: () {},
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -593,16 +856,90 @@ class _GiftManagementState extends State<GiftManagement> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Color(0xFFE0E0E0),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                color: gift.isActive ? const Color(0xFFE0E0E0) : Colors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // ID Badge
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: gift.giftId));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Copied Gift ID ${gift.giftId} to clipboard'),
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.4), width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'ID: ${gift.giftId}',
+                                    style: const TextStyle(
+                                      color: Colors.blueAccent,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.copy, color: Colors.blueAccent, size: 10),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Status Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (gift.isActive ? Colors.green : Colors.red).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: (gift.isActive ? Colors.green : Colors.red).withValues(alpha: 0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  color: gift.isActive ? Colors.greenAccent : Colors.redAccent,
+                                  size: 7,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  gift.isActive ? 'Active' : 'Deactive',
+                                  style: TextStyle(
+                                    color: gift.isActive ? Colors.greenAccent : Colors.redAccent,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -650,15 +987,60 @@ class _GiftManagementState extends State<GiftManagement> {
                               letterSpacing: 0.3,
                             ),
                           ),
+                          if (_selectedCategory == 'Lucky' || gift.data['isLuckyGift'] == true) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Colors.amber, Colors.purpleAccent],
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.casino, color: Colors.white, size: 11),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Lucky (${gift.data['minMultiplier'] ?? 2}x - ${gift.data['maxMultiplier'] ?? 500}x | ${gift.data['diamondCountPercent'] ?? gift.data['winRate'] ?? 80}%)',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // Edit and Delete Buttons
+                const SizedBox(width: 8),
+
+                // Edit and Delete Buttons + Status Switch
                 Row(
                   children: [
+                    Tooltip(
+                      message: gift.isActive ? 'Deactivate Gift' : 'Activate Gift',
+                      child: Transform.scale(
+                        scale: 0.8,
+                        child: Switch(
+                          value: gift.isActive,
+                          activeColor: Colors.greenAccent,
+                          inactiveThumbColor: Colors.redAccent,
+                          inactiveTrackColor: Colors.red.withValues(alpha: 0.3),
+                          onChanged: (bool val) {
+                            _toggleGiftStatus(gift, val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF1A2438),
@@ -720,6 +1102,259 @@ class _GiftManagementState extends State<GiftManagement> {
     );
   }
 
+  Future<void> _showLuckyGiftSettingsDialog() async {
+    final docSnap = await _firestore.collection('gift').doc('Lucky').get();
+    final data = docSnap.data() as Map<String, dynamic>? ?? {};
+    final configMap = data['luckyGiftConfig'] as Map<String, dynamic>? ?? {};
+
+    final returnRateController = TextEditingController(text: (configMap['returnRate'] ?? 80).toString());
+    final mult5xController = TextEditingController(text: (configMap['prob5x'] ?? 25).toString());
+    final mult10xController = TextEditingController(text: (configMap['prob10x'] ?? 10).toString());
+    final mult50xController = TextEditingController(text: (configMap['prob50x'] ?? 3).toString());
+    final mult100xController = TextEditingController(text: (configMap['prob100x'] ?? 1).toString());
+    final mult500xController = TextEditingController(text: (configMap['prob500x'] ?? 0.1).toString());
+    final jackpotSeedController = TextEditingController(text: (configMap['jackpotSeedPool'] ?? 100000).toString());
+    String announceThreshold = (configMap['announceThreshold'] ?? '50x').toString();
+
+    bool isSaving = false;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.grey[900],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.casino, color: Colors.amber, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Lucky Gift Settings ⚙️',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Configure Win Probabilities, Multipliers & Return Rates for Lucky Gifts in Real-Time',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Overall Return Rate (RTP %)
+                      TextField(
+                        controller: returnRateController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Overall Return Rate (RTP %)',
+                          hintText: 'e.g. 80',
+                          prefixIcon: const Icon(Icons.percent, color: Colors.amber),
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Multiplier Win Probabilities (%)',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: mult5xController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: '5x Win Rate (%)',
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: mult10xController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: '10x Win Rate (%)',
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: mult50xController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: '50x Win Rate (%)',
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: mult100xController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: '100x Win Rate (%)',
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      TextField(
+                        controller: mult500xController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: '👑 500x Jackpot Win Rate (%)',
+                          hintText: 'e.g. 0.1',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Jackpot Pool Seed
+                      TextField(
+                        controller: jackpotSeedController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Jackpot Initial Pool (Diamonds)',
+                          prefixIcon: const Icon(Icons.monetization_on, color: Colors.amber),
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Room Announcement Threshold
+                      DropdownButtonFormField<String>(
+                        value: announceThreshold,
+                        dropdownColor: Colors.grey[800],
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Global Banner Announcement Threshold',
+                          filled: true,
+                          fillColor: Colors.grey[800],
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: '10x', child: Text('Win >= 10x')),
+                          DropdownMenuItem(value: '50x', child: Text('Win >= 50x (Recommended)')),
+                          DropdownMenuItem(value: '100x', child: Text('Win >= 100x')),
+                          DropdownMenuItem(value: '500x', child: Text('Win >= 500x Jackpot Only')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => announceThreshold = val);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setDialogState(() => isSaving = true);
+                          try {
+                            final luckyConfig = {
+                              'returnRate': double.tryParse(returnRateController.text) ?? 80,
+                              'prob5x': double.tryParse(mult5xController.text) ?? 25,
+                              'prob10x': double.tryParse(mult10xController.text) ?? 10,
+                              'prob50x': double.tryParse(mult50xController.text) ?? 3,
+                              'prob100x': double.tryParse(mult100xController.text) ?? 1,
+                              'prob500x': double.tryParse(mult500xController.text) ?? 0.1,
+                              'jackpotSeedPool': int.tryParse(jackpotSeedController.text) ?? 100000,
+                              'announceThreshold': announceThreshold,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            };
+
+                            // Save to both gift/Lucky doc and system_settings/lucky_gift_config doc
+                            await _firestore.collection('gift').doc('Lucky').set(
+                              {'luckyGiftConfig': luckyConfig},
+                              SetOptions(merge: true),
+                            );
+
+                            await _firestore.collection('system_settings').doc('lucky_gift_config').set(
+                              luckyConfig,
+                              SetOptions(merge: true),
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Lucky Gift Settings saved successfully!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('Error saving lucky gift settings: $e');
+                            setDialogState(() => isSaving = false);
+                          }
+                        },
+                  icon: const Icon(Icons.save, color: Colors.white),
+                  label: Text(isSaving ? 'Saving...' : 'Save Lucky Settings'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[800]),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAddGiftDialog() {
     showDialog(
       context: context,
@@ -736,6 +1371,40 @@ class _GiftManagementState extends State<GiftManagement> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    FutureBuilder<String>(
+                      future: _generateNextGiftId(),
+                      builder: (context, snapshot) {
+                        final nextId = snapshot.data ?? '2001...';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.tag_rounded, color: Colors.blueAccent, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Auto Gift ID: $nextId',
+                                style: const TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const Spacer(),
+                              const Text(
+                                '(Starts from 2001)',
+                                style: TextStyle(color: Colors.grey, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     TextField(
                       controller: _giftNameController,
                       style: const TextStyle(color: Colors.white),
@@ -819,7 +1488,83 @@ class _GiftManagementState extends State<GiftManagement> {
                         }
                       },
                     ),
-                    const SizedBox(height: 16),
+                    if (_selectedCategory == 'Lucky') ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.purple, width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.casino, color: Colors.amber, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Lucky Gift Custom Settings 🎰',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _diamondCountPercentController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Diamond Count Rate (%)',
+                                hintText: 'e.g. 80 (কত পারসেন্ট ডায়মন্ড কাউন্ট হবে)',
+                                labelStyle: const TextStyle(color: Colors.grey),
+                                prefixIcon: const Icon(Icons.percent, color: Colors.amber, size: 16),
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _minMultiplierController,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      labelText: 'Min Multipliers (সর্বনিম্ন)',
+                                      hintText: 'e.g. 2',
+                                      labelStyle: const TextStyle(color: Colors.grey),
+                                      filled: true,
+                                      fillColor: Colors.grey[800],
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _maxMultiplierController,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      labelText: 'Max Multipliers (সর্বোচ্চ)',
+                                      hintText: 'e.g. 500',
+                                      labelStyle: const TextStyle(color: Colors.grey),
+                                      filled: true,
+                                      fillColor: Colors.grey[800],
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     // Thumbnail Upload
                     _buildUploadSection(
@@ -835,7 +1580,7 @@ class _GiftManagementState extends State<GiftManagement> {
                     const SizedBox(height: 16),
                     // Main File Upload
                     _buildUploadSection(
-                      title: 'Main File (SVGA, PNG, GIF, MP4)',
+                      title: 'Main File (SVGA, PNG, GIF, WEBP, MP4)',
                       selected: _selectedAnimationBytes != null,
                       fileName: _selectedAnimationName,
                       fileType: _selectedAnimationType,
@@ -996,9 +1741,14 @@ class _GiftManagementState extends State<GiftManagement> {
   }
 
   void _showEditGiftDialog(_GiftData gift) {
+    final TextEditingController editIdController = TextEditingController(text: gift.giftId);
     final TextEditingController editNameController = TextEditingController(text: gift.data['name']?.toString() ?? '');
     final TextEditingController editDiamondController = TextEditingController(text: (gift.data['Diamond'] ?? gift.data['diamond'] ?? gift.data['credits'] ?? gift.data['coin'] ?? gift.data['coins'] ?? gift.data['price'] ?? gift.data['amount'] ?? '0').toString());
+    final TextEditingController editDiamondCountController = TextEditingController(text: (gift.data['diamondCountPercent'] ?? gift.data['winRate'] ?? 80).toString());
+    final TextEditingController editMinMultController = TextEditingController(text: (gift.data['minMultiplier'] ?? 2).toString());
+    final TextEditingController editMaxMultController = TextEditingController(text: (gift.data['maxMultiplier'] ?? 500).toString());
     String editCategory = _categories.contains(gift.category) ? gift.category : _categories.first;
+    bool editIsActive = gift.isActive;
     bool isSaving = false;
 
     Uint8List? editThumbnailBytes;
@@ -1020,6 +1770,65 @@ class _GiftManagementState extends State<GiftManagement> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Gift ID Field
+                    TextField(
+                      controller: editIdController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Gift ID (Starts from 2001)',
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        prefixIcon: const Icon(Icons.tag, color: Colors.blueAccent),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Active / Deactive Switch
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: editIsActive ? Colors.green.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.power_settings_new,
+                                color: editIsActive ? Colors.greenAccent : Colors.redAccent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Status: ${editIsActive ? "Active (সক্রিয়)" : "Deactive (নিষ্ক্রিয়)"}',
+                                style: TextStyle(
+                                  color: editIsActive ? Colors.greenAccent : Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: editIsActive,
+                            activeColor: Colors.greenAccent,
+                            inactiveThumbColor: Colors.redAccent,
+                            onChanged: (val) {
+                              setDialogState(() {
+                                editIsActive = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: editNameController,
                       style: const TextStyle(color: Colors.white),
@@ -1070,6 +1879,83 @@ class _GiftManagementState extends State<GiftManagement> {
                         }
                       },
                     ),
+                    if (editCategory == 'Lucky') ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.purple, width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.casino, color: Colors.amber, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Lucky Gift Custom Settings 🎰',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: editDiamondCountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Diamond Count Rate (%)',
+                                hintText: 'e.g. 80 (কত পারসেন্ট ডায়মন্ড কাউন্ট হবে)',
+                                labelStyle: const TextStyle(color: Colors.grey),
+                                prefixIcon: const Icon(Icons.percent, color: Colors.amber, size: 16),
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: editMinMultController,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      labelText: 'Min Multiplier (সর্বনিম্ন)',
+                                      hintText: 'e.g. 2',
+                                      labelStyle: const TextStyle(color: Colors.grey),
+                                      filled: true,
+                                      fillColor: Colors.grey[800],
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: editMaxMultController,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      labelText: 'Max Multiplier (সর্বোচ্চ)',
+                                      hintText: 'e.g. 500',
+                                      labelStyle: const TextStyle(color: Colors.grey),
+                                      filled: true,
+                                      fillColor: Colors.grey[800],
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     _buildUploadSection(
                       title: 'Thumbnail (PNG only) - Optional',
@@ -1103,7 +1989,7 @@ class _GiftManagementState extends State<GiftManagement> {
                     ),
                     const SizedBox(height: 16),
                     _buildUploadSection(
-                      title: 'Main File (SVGA, PNG, GIF, MP4) - Optional',
+                      title: 'Main File (SVGA, PNG, GIF, WEBP, MP4) - Optional',
                       selected: editAnimationBytes != null,
                       fileName: editAnimationName,
                       fileType: editAnimationType,
@@ -1111,7 +1997,7 @@ class _GiftManagementState extends State<GiftManagement> {
                         try {
                           FilePickerResult? result = await FilePicker.platform.pickFiles(
                             type: FileType.custom,
-                            allowedExtensions: ['svga', 'png', 'gif', 'mp4', 'webm', 'mov', 'avi'],
+                            allowedExtensions: ['svga', 'png', 'gif', 'webp', 'mp4', 'vap', 'webm', 'mov', 'avi'],
                             withData: true,
                           );
                           if (result != null && result.files.isNotEmpty) {
@@ -1153,9 +2039,28 @@ class _GiftManagementState extends State<GiftManagement> {
 
                     try {
                       final updatedData = Map<String, dynamic>.from(gift.data);
+                      final newId = editIdController.text.trim();
+                      updatedData['id'] = newId.isNotEmpty ? newId : gift.giftId;
+                      updatedData['isActive'] = editIsActive;
                       updatedData['name'] = newName;
                       updatedData['Diamond'] = newDiamond; // String to match _addGift
                       updatedData['credits'] = int.tryParse(newDiamond) ?? 0; // Int to match mobile app models
+
+                      if (editCategory == 'Lucky') {
+                        updatedData['isLuckyGift'] = true;
+                        updatedData['diamondCountPercent'] = double.tryParse(editDiamondCountController.text) ?? 80.0;
+                        updatedData['minMultiplier'] = int.tryParse(editMinMultController.text) ?? 2;
+                        updatedData['maxMultiplier'] = int.tryParse(editMaxMultController.text) ?? 500;
+                        updatedData['luckyMultipliers'] = [
+                          int.tryParse(editMinMultController.text) ?? 2,
+                          10,
+                          50,
+                          100,
+                          int.tryParse(editMaxMultController.text) ?? 500,
+                        ];
+                        updatedData['winRate'] = double.tryParse(editDiamondCountController.text) ?? 80.0;
+                        updatedData['jackpotMaxMultiplier'] = int.tryParse(editMaxMultController.text) ?? 500;
+                      }
 
                       if (editThumbnailBytes != null && editThumbnailName != null) {
                         final imageUrl = await _uploadFile(editThumbnailBytes!, editThumbnailName!);

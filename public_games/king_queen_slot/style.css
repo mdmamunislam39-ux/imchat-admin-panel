@@ -1,0 +1,573 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Montserrat:wght@600;700;800&family=Orbitron:wght@700;900&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Full-Screen Coin & Diamond Animation Canvas */
+#fxCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 99;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #0d0c0b;
+  background-image: radial-gradient(circle at 50% 30%, rgba(31, 24, 18, 0.82) 0%, rgba(7, 6, 5, 0.94) 100%), url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1920&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-family: 'Montserrat', sans-serif;
+  color: #fff;
+  transition: background-image 0.5s ease;
+}
+
+/* Master Game Container: fits 100% within viewport height without scrolling */
+.game-wrapper {
+  position: relative;
+  width: 98%;
+  max-width: min(98vw, calc(98vh * 5505 / 3997), 540px);
+  max-height: min(98vh, calc(98vw * 3997 / 5505));
+  aspect-ratio: 5505 / 3997;
+  container-type: inline-size;
+  background-image: url('k0ab_b4uq_160921.jpg');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.85), 0 0 30px rgba(229, 169, 59, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: auto;
+}
+
+/* Animated Torch Flames */
+.torch-flame {
+  position: absolute;
+  width: 3.5%;
+  height: 6%;
+  pointer-events: none;
+  border-radius: 50% 50% 35% 35%;
+  background: radial-gradient(ellipse at bottom, #ffffff 0%, #ffea00 30%, #ff5722 75%, transparent 100%);
+  filter: blur(1px);
+  animation: flicker 0.18s infinite alternate ease-in-out;
+  box-shadow: 0 -10px 25px rgba(255, 100, 0, 0.8), 0 0 35px rgba(255, 180, 0, 0.6);
+  z-index: 10;
+}
+.torch-left {
+  left: 14.2%;
+  top: 4.5%;
+}
+.torch-right {
+  right: 14.2%;
+  top: 4.5%;
+}
+
+@keyframes flicker {
+  0% { transform: scale(1) translateY(0) rotate(-1deg); opacity: 0.92; }
+  50% { transform: scale(1.08, 1.15) translateY(-3px) rotate(2deg); opacity: 1; }
+  100% { transform: scale(0.96, 0.94) translateY(2px) rotate(-2deg); opacity: 0.88; }
+}
+
+/* Slot Reels Canvas Viewport */
+.reels-container {
+  position: absolute;
+  left: 10.72%;
+  top: 16.51%;
+  width: 78.84%;
+  height: 58.54%;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
+  background: #111;
+}
+
+#reelsCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Glass Reflection Layer */
+.glass-shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 35%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Top Buttons */
+.top-btn {
+  position: absolute;
+  top: 2.75%;
+  width: 6.2%;
+  height: 6.25%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.15s, filter 0.2s;
+  outline: none;
+  z-index: 15;
+}
+.top-btn:hover {
+  filter: brightness(1.2) drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+.top-btn:active {
+  transform: scale(0.92);
+}
+.top-btn.info {
+  left: 2.8%;
+}
+.top-btn.sound {
+  right: 2.8%;
+}
+.top-btn.sound.muted {
+  filter: grayscale(0.8) opacity(0.6);
+}
+
+/* Jackpot Digital Display - naturally seated inside the silver groove */
+.jackpot-display {
+  position: absolute;
+  left: 27.6%;
+  top: 78.4%;
+  width: 32.8%;
+  height: 4.1%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.pill-led {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.jackpot-led {
+  font-size: clamp(10px, 2.8cqw, 26px);
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #7b1fa2;
+  background: linear-gradient(180deg, #ffd700 0%, #c0392b 25%, #8e24aa 65%, #4a0072 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+}
+
+/* Bet Display - naturally seated inside the silver groove above BET */
+.bet-container {
+  position: absolute;
+  left: 11.5%;
+  top: 86.8%;
+  width: 14.8%;
+  height: 4.7%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.bet-led {
+  font-size: clamp(9px, 2.6cqw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #b87a04;
+  background: linear-gradient(180deg, #ffe77a 0%, #d49813 45%, #8a5800 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.bet-arrow {
+  position: absolute;
+  left: 25.8%;
+  width: 5.0%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 25;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+.bet-arrow:hover {
+  filter: drop-shadow(0 0 8px rgba(255, 170, 0, 0.95)) brightness(1.35);
+}
+
+.bet-arrow:active, .bet-arrow.btn-pressed {
+  transform: scale(0.9);
+  filter: drop-shadow(0 0 12px rgba(255, 220, 0, 1)) brightness(1.6);
+}
+
+/* Top Orange Triangle: Increases Bet */
+.bet-arrow.up {
+  top: 85.5%;
+  height: 5.0%;
+}
+
+/* Bottom Orange Triangle: Decreases Bet */
+.bet-arrow.down {
+  top: 90.6%;
+  height: 5.2%;
+}
+
+/* Coins Display - naturally seated inside the silver groove above COINS */
+.coins-container {
+  position: absolute;
+  left: 32.8%;
+  top: 86.8%;
+  width: 14.8%;
+  height: 4.7%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.coins-led {
+  font-size: clamp(9px, 2.6cqw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #b87a04;
+  background: linear-gradient(180deg, #ffe77a 0%, #d49813 45%, #8a5800 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+/* Seamless DIAMOND Label covering original COINS text */
+.diamond-label {
+  position: absolute;
+  left: 33.2%;
+  top: 92.2%;
+  width: 14.1%;
+  height: 4.1%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #bfbfbf 0%, #a4a4a4 48%, #8a8a8a 100%);
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  font-size: clamp(7px, 1.8cqw, 14px);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #383c42;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 -1px 0 rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 18;
+  border-radius: 1px;
+}
+
+/* Multiplier & Feature Buttons */
+.deck-btn {
+  position: absolute;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 20;
+  border-radius: 6px;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: clamp(10px, 1.2vw, 15px);
+  color: transparent; /* Hit areas align over artwork text */
+  transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+}
+.deck-btn:hover {
+  background: rgba(255, 215, 0, 0.18);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+.deck-btn:active {
+  transform: scale(0.95);
+  background: rgba(255, 215, 0, 0.35);
+}
+
+.deck-btn.btn-5x {
+  left: 54.0%;
+  top: 87.1%;
+  width: 10.4%;
+  height: 4.2%;
+}
+
+.deck-btn.btn-10x {
+  left: 54.0%;
+  top: 92.1%;
+  width: 10.4%;
+  height: 4.2%;
+}
+
+.deck-btn.btn-bonus {
+  left: 65.4%;
+  top: 87.1%;
+  width: 11.0%;
+  height: 4.2%;
+}
+
+.deck-btn.btn-autoplay {
+  left: 65.4%;
+  top: 92.1%;
+  width: 11.0%;
+  height: 4.2%;
+  color: transparent;
+}
+.deck-btn.btn-autoplay.active {
+  background: rgba(255, 59, 48, 0.35);
+  box-shadow: 0 0 12px rgba(255, 59, 48, 0.8);
+  color: #fff;
+  text-shadow: 0 0 4px #000;
+}
+
+/* Big 3D Spin Button */
+.spin-button {
+  position: absolute;
+  left: 77.8%;
+  top: 77.8%;
+  width: 15.2%;
+  height: 15.2%;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 25;
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s;
+  outline: none;
+}
+.spin-button:hover {
+  filter: brightness(1.15) drop-shadow(0 0 15px rgba(255, 215, 0, 0.7));
+}
+.spin-button:active {
+  transform: scale(0.93);
+}
+.spin-button.spinning {
+  filter: brightness(1.25) drop-shadow(0 0 25px rgba(255, 75, 43, 0.8));
+  animation: pulseSpin 0.8s infinite alternate;
+}
+
+@keyframes pulseSpin {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.04); }
+}
+
+/* Free Spins Banner */
+.free-spins-overlay {
+  position: absolute;
+  top: 17%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.95), rgba(184, 134, 11, 0.95));
+  border: 2px solid #ffd700;
+  border-radius: 30px;
+  padding: 6px 24px;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  color: #fff;
+  font-size: clamp(12px, 1.4vw, 18px);
+  text-shadow: 0 2px 4px #000;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+  z-index: 30;
+  display: none;
+  animation: bounceBanner 1s infinite alternate ease-in-out;
+}
+@keyframes bounceBanner {
+  0% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(-4px); }
+}
+
+/* Mini Win Notification */
+.win-notification {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: rgba(0, 0, 0, 0.85);
+  border: 2px solid #ffcc00;
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(14px, 1.8vw, 22px);
+  color: #ffe066;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 35;
+}
+.win-notification.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Modals */
+.game-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.game-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-box {
+  background: linear-gradient(135deg, #241b14 0%, #16110d 100%);
+  border: 3px solid #d4af37;
+  border-radius: 14px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(212, 175, 55, 0.3);
+  padding: 24px;
+  position: relative;
+  color: #eee;
+}
+.modal-box h2 {
+  font-family: 'Cinzel', serif;
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 18px;
+  font-size: 24px;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+  padding-bottom: 8px;
+}
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: #b22222;
+  border: 2px solid #ffd700;
+  color: #fff;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: bold;
+}
+.modal-close:hover {
+  filter: brightness(1.2);
+}
+
+/* Paytable styling */
+.paytable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.paytable-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #705828;
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+}
+.paytable-card h4 {
+  color: #ffd700;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.paytable-card p {
+  font-size: 11px;
+  color: #ccc;
+  line-height: 1.4;
+}
+
+/* Big Win / Celebration Overlay */
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.celebration-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.celeb-title {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(32px, 6vw, 68px);
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 25px #ff8c00, 0 4px 8px #000;
+  animation: celebPulse 0.6s infinite alternate;
+  text-align: center;
+}
+.celeb-amount {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(36px, 8vw, 82px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 20px #00e5ff, 0 4px 8px #000;
+  margin-top: 15px;
+}
+@keyframes celebPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+
+/* Auto Play Options */
+.autoplay-options {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 20px 0;
+}
+.autoplay-opt-btn {
+  background: linear-gradient(180deg, #d4af37 0%, #aa8010 100%);
+  border: 1px solid #fff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #000;
+  transition: transform 0.1s;
+}
+.autoplay-opt-btn:hover {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+}

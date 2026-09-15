@@ -15,9 +15,10 @@ class SvipService {
     required List<Map<String, dynamic>> svipLevels,
   }) async {
     try {
-      int currentActiveLevel = userData['activeSvipLevel'] ?? 0;
-      int highestEligibleLevel = currentActiveLevel;
-      Map<String, dynamic>? highestLevelData;
+      // Check SVIP auto-upgrade
+      int currentActiveSvip = userData['activeSvipLevel'] ?? 0;
+      int highestEligibleSvip = currentActiveSvip;
+      Map<String, dynamic>? highestSvipData;
 
       for (var level in svipLevels) {
         final levelId = level['id'] as String;
@@ -25,43 +26,45 @@ class SvipService {
         final rawTarget = level['rechargeTarget'];
         final target = rawTarget is int ? rawTarget : (rawTarget is double ? rawTarget.toInt() : (int.tryParse(rawTarget?.toString() ?? '0') ?? 0));
         
-        if (newRechargeAmount >= target && levelNum > highestEligibleLevel) {
-          highestEligibleLevel = levelNum;
-          highestLevelData = level;
+        if (newRechargeAmount >= target && levelNum > highestEligibleSvip) {
+          highestEligibleSvip = levelNum;
+          highestSvipData = level;
         }
       }
 
-      if (highestEligibleLevel > currentActiveLevel && highestLevelData != null) {
-        final levelId = highestLevelData['id'] as String;
+      Map<String, dynamic> custData = userData['customization'] ?? {};
+      bool hasUpdates = false;
 
-        // Mark as claimed for the month
+      void addAssetToInventory(String listKey, String url) {
+        if (url.isNotEmpty) {
+          List<String> currentList = List<String>.from(custData[listKey] ?? []);
+          if (!currentList.contains(url)) {
+            currentList.add(url);
+            custData[listKey] = currentList;
+            hasUpdates = true;
+          }
+        }
+      }
+
+      // Apply SVIP Upgrade if eligible
+      if (highestEligibleSvip > currentActiveSvip && highestSvipData != null) {
+        final levelId = highestSvipData['id'] as String;
         final claimedRef = _firestore.collection('Users').doc(userId).collection('claimed_svips').doc(currentMonth);
         transaction.set(claimedRef, {levelId: true}, SetOptions(merge: true));
 
-        // Update Level
         transaction.update(userRef, {
-          'activeSvipLevel': highestEligibleLevel,
+          'activeSvipLevel': highestEligibleSvip,
           'svipValidUntilMonth': currentMonth,
         });
 
-        // Add assets to inventory
-        Map<String, dynamic> custData = userData['customization'] ?? {};
-        void addAssetToInventory(String listKey, String url) {
-          if (url.isNotEmpty) {
-            List<String> currentList = List<String>.from(custData[listKey] ?? []);
-            if (!currentList.contains(url)) {
-              currentList.add(url);
-              custData[listKey] = currentList;
-            }
-          }
-        }
+        addAssetToInventory('ownedBadges', (highestSvipData['badgeMediaUrl']?.toString() ?? '').isNotEmpty ? highestSvipData['badgeMediaUrl'] : highestSvipData['badgeUrl'] ?? '');
+        addAssetToInventory('ownedFrames', (highestSvipData['frameMediaUrl']?.toString() ?? '').isNotEmpty ? highestSvipData['frameMediaUrl'] : highestSvipData['frameUrl'] ?? '');
+        addAssetToInventory('ownedEntryEffects', (highestSvipData['entryEffectMediaUrl']?.toString() ?? '').isNotEmpty ? highestSvipData['entryEffectMediaUrl'] : highestSvipData['entryEffectUrl'] ?? '');
+        addAssetToInventory('ownedBackgroundThemes', (highestSvipData['profileSkinMediaUrl']?.toString() ?? '').isNotEmpty ? highestSvipData['profileSkinMediaUrl'] : highestSvipData['profileSkinUrl'] ?? '');
+        addAssetToInventory('ownedNameplates', (highestSvipData['nameplateMediaUrl']?.toString() ?? '').isNotEmpty ? highestSvipData['nameplateMediaUrl'] : highestSvipData['nameplateUrl'] ?? '');
+      }
 
-        addAssetToInventory('ownedBadges', (highestLevelData['badgeMediaUrl']?.toString() ?? '').isNotEmpty ? highestLevelData['badgeMediaUrl'] : highestLevelData['badgeUrl'] ?? '');
-        addAssetToInventory('ownedFrames', (highestLevelData['frameMediaUrl']?.toString() ?? '').isNotEmpty ? highestLevelData['frameMediaUrl'] : highestLevelData['frameUrl'] ?? '');
-        addAssetToInventory('ownedEntryEffects', (highestLevelData['entryEffectMediaUrl']?.toString() ?? '').isNotEmpty ? highestLevelData['entryEffectMediaUrl'] : highestLevelData['entryEffectUrl'] ?? '');
-        addAssetToInventory('ownedBackgroundThemes', (highestLevelData['profileSkinMediaUrl']?.toString() ?? '').isNotEmpty ? highestLevelData['profileSkinMediaUrl'] : highestLevelData['profileSkinUrl'] ?? '');
-        addAssetToInventory('ownedNameplates', (highestLevelData['nameplateMediaUrl']?.toString() ?? '').isNotEmpty ? highestLevelData['nameplateMediaUrl'] : highestLevelData['nameplateUrl'] ?? '');
-
+      if (hasUpdates) {
         transaction.update(userRef, {'customization': custData});
       }
     } catch (e) {

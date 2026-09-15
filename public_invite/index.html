@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMChat - Invitation</title>
+  <meta name="description" content="Join Voice Rooms, Chat, and Connect on IMChat!">
+  
+  <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/chat--v1.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top center, #1e1b4b 0%, #0f172a 60%, #090d16 100%);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 28px;
+      padding: 40px 24px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .app-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #818cf8;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    p {
+      color: #94a3b8;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    .btn-open {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+      margin-bottom: 20px;
+    }
+
+    .btn-open:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px rgba(99, 102, 241, 0.5);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 20px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .divider:not(:empty)::before { margin-right: 12px; }
+    .divider:not(:empty)::after { margin-left: 12px; }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .store-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: #e2e8f0;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .store-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .footer-text {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .footer-text a {
+      color: #818cf8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <img class="app-icon" src="https://img.icons8.com/color/96/chat--v1.png" alt="IMChat Logo">
+    
+    <div id="badge-container" class="badge">
+      <i class="fa-solid fa-bolt"></i>
+      <span id="badge-text">Invitation</span>
+    </div>
+
+    <h1 id="invite-title">Join on IMChat</h1>
+    <p id="invite-desc">Tap below to open directly in the IMChat App</p>
+
+    <button id="btn-open-app" class="btn-open">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      <span>Open in IMChat App</span>
+    </button>
+
+    <div class="divider">Don't have the app?</div>
+
+    <div class="download-grid">
+      <a id="btn-playstore" href="https://imchatapp.com#download" class="store-btn">
+        <i class="fa-brands fa-google-play"></i> Get on Google Play
+      </a>
+      <a id="btn-website" href="https://imchatapp.com" class="store-btn">
+        <i class="fa-solid fa-globe"></i> Visit Official Website
+      </a>
+    </div>
+
+    <div class="footer-text">
+      Powered by <a href="https://imchatapp.com">IMChat</a>
+    </div>
+  </div>
+
+  <script>
+    // Parse URL path and parameters
+    const pathParts = window.location.pathname.split('/').filter(p => p.length > 0);
+    const searchParams = new URLSearchParams(window.location.search);
+
+    let type = 'room';
+    let id = searchParams.get('id') || searchParams.get('roomId') || searchParams.get('postId') || searchParams.get('eventId');
+
+    if (pathParts.length >= 2) {
+      type = pathParts[0].toLowerCase();
+      id = pathParts[1];
+    } else if (pathParts.length === 1) {
+      if (pathParts[0] === 'room' || pathParts[0] === 'post' || pathParts[0] === 'event') {
+        type = pathParts[0];
+      } else {
+        id = pathParts[0];
+      }
+    }
+
+    const badgeText = document.getElementById('badge-text');
+    const inviteTitle = document.getElementById('invite-title');
+    const inviteDesc = document.getElementById('invite-desc');
+    const btnOpenApp = document.getElementById('btn-open-app');
+
+    let customSchemeUrl = 'imchat://';
+
+    if (type === 'room' || type === 'audioroom') {
+      badgeText.innerText = 'Voice Room';
+      inviteTitle.innerText = id ? `Join Voice Room #${id}` : 'Join Voice Room';
+      inviteDesc.innerText = 'Listen, talk with multi-seat mics and play games in IMChat.';
+      customSchemeUrl = id ? `imchat://room?id=${id}` : 'imchat://';
+    } else if (type === 'post') {
+      badgeText.innerText = 'Community Post';
+      inviteTitle.innerText = id ? `View Post #${id}` : 'View Shared Post';
+      inviteDesc.innerText = 'Explore moments, photos, and updates in IMChat.';
+      customSchemeUrl = id ? `imchat://post?id=${id}` : 'imchat://';
+    } else if (type === 'event') {
+      badgeText.innerText = 'Live Event';
+      inviteTitle.innerText = id ? `Join Event #${id}` : 'Join Event';
+      inviteDesc.innerText = 'Participate in exciting live community events in IMChat.';
+      customSchemeUrl = id ? `imchat://event?id=${id}` : 'imchat://';
+    }
+
+    function openApp() {
+      window.location.href = customSchemeUrl;
+    }
+
+    btnOpenApp.addEventListener('click', openApp);
+
+    // Auto-attempt to open the app on mobile browsers
+    window.addEventListener('DOMContentLoaded', () => {
+      if (id) {
+        setTimeout(openApp, 300);
+      }
+    });
+  </script>
+
+</body>
+</html>

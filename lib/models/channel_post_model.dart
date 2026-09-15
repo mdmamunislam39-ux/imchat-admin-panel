@@ -5,6 +5,7 @@ class ChannelPostModel {
   final String channelId;
   final String? textContent;
   final String? imageUrl;
+  final String? audioUrl;
   final String? linkUrl;
   final String? voiceRoomId;
   final DateTime createdAt;
@@ -14,6 +15,7 @@ class ChannelPostModel {
     required this.channelId,
     this.textContent,
     this.imageUrl,
+    this.audioUrl,
     this.linkUrl,
     this.voiceRoomId,
     required this.createdAt,
@@ -26,6 +28,7 @@ class ChannelPostModel {
       channelId: data['channelId'] ?? '',
       textContent: data['textContent'],
       imageUrl: data['imageUrl'],
+      audioUrl: data['audioUrl'],
       linkUrl: data['linkUrl'],
       voiceRoomId: data['voiceRoomId'],
       createdAt: data['createdAt'] != null
@@ -39,6 +42,7 @@ class ChannelPostModel {
       'channelId': channelId,
       'textContent': textContent,
       'imageUrl': imageUrl,
+      'audioUrl': audioUrl,
       'linkUrl': linkUrl,
       'voiceRoomId': voiceRoomId,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -50,6 +54,7 @@ class ChannelPostModel {
     String? channelId,
     String? textContent,
     String? imageUrl,
+    String? audioUrl,
     String? linkUrl,
     String? voiceRoomId,
     DateTime? createdAt,
@@ -59,6 +64,7 @@ class ChannelPostModel {
       channelId: channelId ?? this.channelId,
       textContent: textContent ?? this.textContent,
       imageUrl: imageUrl ?? this.imageUrl,
+      audioUrl: audioUrl ?? this.audioUrl,
       linkUrl: linkUrl ?? this.linkUrl,
       voiceRoomId: voiceRoomId ?? this.voiceRoomId,
       createdAt: createdAt ?? this.createdAt,

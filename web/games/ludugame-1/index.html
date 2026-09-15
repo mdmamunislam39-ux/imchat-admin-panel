@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>লুডু চ্যাম্পিয়ন - Authentic Ludo Game</title>
+    <meta name="description" content="খেলুন আকর্ষণীয় রয়্যাল লুডু গেম - ২ থেকে ৪ প্লেয়ার এবং কম্পিউটার বটের সাথে। রাজকীয় গুটি, ইন-বোর্ড ডাইস ও দারুণ সাউন্ড সহ।">
+    <meta name="theme-color" content="#d97706">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Canvas for Winner Confetti -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Global SVG Gradients for Crown, Tokens, and Shadows -->
+    <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <!-- Gold Crown Gradient -->
+            <linearGradient id="goldCrownGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fffbeb" />
+                <stop offset="25%" stop-color="#fde047" />
+                <stop offset="70%" stop-color="#eab308" />
+                <stop offset="100%" stop-color="#ca8a04" />
+            </linearGradient>
+
+            <!-- Green Pawn Gradient -->
+            <linearGradient id="pawnGrad-green" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#34d399" />
+                <stop offset="50%" stop-color="#059669" />
+                <stop offset="100%" stop-color="#065f46" />
+            </linearGradient>
+
+            <!-- Yellow Pawn Gradient -->
+            <linearGradient id="pawnGrad-yellow" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fef08a" />
+                <stop offset="50%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#b45309" />
+            </linearGradient>
+
+            <!-- Red Pawn Gradient -->
+            <linearGradient id="pawnGrad-red" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#f87171" />
+                <stop offset="50%" stop-color="#dc2626" />
+                <stop offset="100%" stop-color="#991b1b" />
+            </linearGradient>
+
+            <!-- Blue Pawn Gradient -->
+            <linearGradient id="pawnGrad-blue" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#60a5fa" />
+                <stop offset="50%" stop-color="#2563eb" />
+                <stop offset="100%" stop-color="#1e40af" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Main Game Wrapper -->
+    <div class="game-wrapper">
+        <!-- Ludo Board Container with Rich Wooden Frame -->
+        <div class="ludo-board-frame" id="ludo-board-frame">
+            
+            <!-- Top Controls Embedded inside the Board Frame -->
+            <div class="top-board-nav left-nav">
+                <button class="round-nav-btn green-btn" id="btn-restart" title="নতুন খেলা শুরু">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button class="round-nav-btn green-btn" id="btn-rules" title="খেলার নিয়ম">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
+                <button class="round-nav-btn green-btn" id="btn-mode" title="গেম মোড পরিবর্তন">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="6" y1="3" x2="6" y2="15"/>
+                        <circle cx="18" cy="6" r="3"/>
+                        <circle cx="6" cy="18" r="3"/>
+                        <path d="M18 9a9 9 0 0 1-9 9"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="top-board-nav right-nav">
+                <button class="round-nav-btn gold-btn" id="btn-sound" title="সাউন্ড অন/অফ">
+                    <span id="sound-icon">🔊</span>
+                </button>
+                <button class="round-nav-btn gold-btn" id="btn-info" title="গেম সেটিংস">
+                    <span>⚙️</span>
+                    <span class="notify-dot"></span>
+                </button>
+            </div>
+
+            <!-- 15x15 Ludo Board Grid -->
+            <div class="ludo-board-grid" id="ludo-board-grid">
+                
+                <!-- TOP-LEFT: GREEN YARD -->
+                <div class="yard yard-green" id="yard-green">
+                    <!-- Player Profile Inside Yard -->
+                    <div class="yard-profile green-profile" id="profile-green">
+                        <div class="avatar-ring-wrapper">
+                            <svg class="timer-svg" viewBox="0 0 44 44">
+                                <circle class="timer-bg" cx="22" cy="22" r="20"/>
+                                <circle class="timer-progress" id="timer-green" cx="22" cy="22" r="20"/>
+                            </svg>
+                            <img class="avatar-img" src="https://api.dicebear.com/7.x/bottts/svg?seed=Eti&backgroundColor=b6e3f4" alt="Player 1" id="avatar-img-green">
+                        </div>
+                        <div class="player-name-pill" id="name-green">সবুজ (You)</div>
+                    </div>
+
+                    <!-- In-Yard Dice Station for Green -->
+                    <div class="in-yard-dice-dock" id="dice-dock-green">
+                        <div class="dice-arrow-indicator">▼</div>
+                        <div class="in-yard-dice-box" id="dice-box-green" title="ডাইস রোল করুন">
+                            <div class="dice-pip-display" id="dice-display-green">
+                                <span class="pip pip-single"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Slot Indents in a Row -->
+                    <div class="yard-slot-row" id="slot-row-green">
+                        <div class="slot-indent slot-green" id="slot-green-0"></div>
+                        <div class="slot-indent slot-green" id="slot-green-1"></div>
+                        <div class="slot-indent slot-green" id="slot-green-2"></div>
+                        <div class="slot-indent slot-green" id="slot-green-3"></div>
+                    </div>
+                </div>
+
+                <!-- TOP-RIGHT: YELLOW YARD -->
+                <div class="yard yard-yellow" id="yard-yellow">
+                    <!-- Player Profile Inside Yard -->
+                    <div class="yard-profile yellow-profile" id="profile-yellow">
+                        <div class="avatar-ring-wrapper">
+                            <svg class="timer-svg" viewBox="0 0 44 44">
+                                <circle class="timer-bg" cx="22" cy="22" r="20"/>
+                                <circle class="timer-progress" id="timer-yellow" cx="22" cy="22" r="20"/>
+                            </svg>
+                            <img class="avatar-img" src="https://api.dicebear.com/7.x/bottts/svg?seed=YellowBot&backgroundColor=ffdfba" alt="Player 2" id="avatar-img-yellow">
+                        </div>
+                        <div class="player-name-pill" id="name-yellow">হলুদ (Bot)</div>
+                    </div>
+
+                    <!-- In-Yard Dice Station for Yellow -->
+                    <div class="in-yard-dice-dock" id="dice-dock-yellow">
+                        <div class="dice-arrow-indicator">▼</div>
+                        <div class="in-yard-dice-box" id="dice-box-yellow" title="ডাইস রোল করুন">
+                            <div class="dice-pip-display" id="dice-display-yellow">
+                                <span class="pip pip-single"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Slot Indents in a Row -->
+                    <div class="yard-slot-row" id="slot-row-yellow">
+                        <div class="slot-indent slot-yellow" id="slot-yellow-0"></div>
+                        <div class="slot-indent slot-yellow" id="slot-yellow-1"></div>
+                        <div class="slot-indent slot-yellow" id="slot-yellow-2"></div>
+                        <div class="slot-indent slot-yellow" id="slot-yellow-3"></div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM-LEFT: RED YARD -->
+                <div class="yard yard-red" id="yard-red">
+                    <!-- In-Yard Dice Station for Red -->
+                    <div class="in-yard-dice-dock" id="dice-dock-red">
+                        <div class="dice-arrow-indicator">▲</div>
+                        <div class="in-yard-dice-box" id="dice-box-red" title="ডাইস রোল করুন">
+                            <div class="dice-pip-display" id="dice-display-red">
+                                <span class="pip pip-single"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player Profile Inside Yard -->
+                    <div class="yard-profile red-profile" id="profile-red">
+                        <div class="avatar-ring-wrapper">
+                            <svg class="timer-svg" viewBox="0 0 44 44">
+                                <circle class="timer-bg" cx="22" cy="22" r="20"/>
+                                <circle class="timer-progress" id="timer-red" cx="22" cy="22" r="20"/>
+                            </svg>
+                            <img class="avatar-img" src="https://api.dicebear.com/7.x/bottts/svg?seed=RedBot&backgroundColor=ffb3ba" alt="Player 4" id="avatar-img-red">
+                        </div>
+                        <div class="player-name-pill" id="name-red">লাল (Bot)</div>
+                    </div>
+
+                    <!-- 4 Slot Indents in a Row -->
+                    <div class="yard-slot-row" id="slot-row-red">
+                        <div class="slot-indent slot-red" id="slot-red-0"></div>
+                        <div class="slot-indent slot-red" id="slot-red-1"></div>
+                        <div class="slot-indent slot-red" id="slot-red-2"></div>
+                        <div class="slot-indent slot-red" id="slot-red-3"></div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM-RIGHT: BLUE YARD -->
+                <div class="yard yard-blue" id="yard-blue">
+                    <!-- In-Yard Dice Station for Blue -->
+                    <div class="in-yard-dice-dock" id="dice-dock-blue">
+                        <div class="dice-arrow-indicator">▲</div>
+                        <div class="in-yard-dice-box" id="dice-box-blue" title="ডাইস রোল করুন">
+                            <div class="dice-pip-display" id="dice-display-blue">
+                                <span class="pip pip-single"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player Profile Inside Yard -->
+                    <div class="yard-profile blue-profile" id="profile-blue">
+                        <div class="avatar-ring-wrapper">
+                            <svg class="timer-svg" viewBox="0 0 44 44">
+                                <circle class="timer-bg" cx="22" cy="22" r="20"/>
+                                <circle class="timer-progress" id="timer-blue" cx="22" cy="22" r="20"/>
+                            </svg>
+                            <img class="avatar-img" src="https://api.dicebear.com/7.x/bottts/svg?seed=BlueBot&backgroundColor=bae1ff" alt="Player 3" id="avatar-img-blue">
+                        </div>
+                        <div class="player-name-pill" id="name-blue">নীল (Bot)</div>
+                    </div>
+
+                    <!-- 4 Slot Indents in a Row -->
+                    <div class="yard-slot-row" id="slot-row-blue">
+                        <div class="slot-indent slot-blue" id="slot-blue-0"></div>
+                        <div class="slot-indent slot-blue" id="slot-blue-1"></div>
+                        <div class="slot-indent slot-blue" id="slot-blue-2"></div>
+                        <div class="slot-indent slot-blue" id="slot-blue-3"></div>
+                    </div>
+                </div>
+
+                <!-- CENTER 3x3 VICTORY AREA -->
+                <div class="center-home" id="center-home">
+                    <div class="center-tri tri-green"></div>
+                    <div class="center-tri tri-yellow"></div>
+                    <div class="center-tri tri-blue"></div>
+                    <div class="center-tri tri-red"></div>
+                    <div class="center-crest">👑</div>
+                </div>
+
+                <!-- Track cells will be generated dynamically by JS -->
+            </div>
+
+            <!-- Interactive Royal Tokens Layer -->
+            <div class="tokens-layer" id="tokens-layer"></div>
+        </div>
+
+        <!-- Floating Turn & Action Status Bar -->
+        <div class="status-bar" id="status-bar">
+            <div class="status-turn-pill" id="status-turn-pill">
+                <span class="status-color-dot" id="status-color-dot"></span>
+                <span id="status-message">আপনার চাল! ডাইস রোল করুন 🎲</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Game Mode & Player Types -->
+    <div class="modal-overlay" id="modal-mode">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 class="modal-title">🎮 গেম মোড ও সেটিংস</h2>
+                <button class="modal-close" id="modal-close-mode">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <div class="setting-label">খেলোয়াড় সংখ্যা নির্বাচন করুন:</div>
+                    <div class="mode-selector-grid">
+                        <div class="mode-card" data-mode="2-players">
+                            <div class="mode-card-icon">👥</div>
+                            <div class="mode-card-title">২ প্লেয়ার</div>
+                            <div class="mode-card-sub">সবুজ বনাম নীল</div>
+                        </div>
+                        <div class="mode-card" data-mode="3-players">
+                            <div class="mode-card-icon">👨‍👩‍👦</div>
+                            <div class="mode-card-title">৩ প্লেয়ার</div>
+                            <div class="mode-card-sub">সবুজ, হলুদ ও নীল</div>
+                        </div>
+                        <div class="mode-card selected" data-mode="4-players">
+                            <div class="mode-card-icon">👨‍👩‍👧‍👦</div>
+                            <div class="mode-card-title">৪ প্লেয়ার</div>
+                            <div class="mode-card-sub">৪টি রঙেই খেলা</div>
+                        </div>
+                        <div class="mode-card" data-mode="vs-computer">
+                            <div class="mode-card-icon">🤖</div>
+                            <div class="mode-card-title">কম্পিউটার বনাম</div>
+                            <div class="mode-card-sub">১ জন মানুষ + ৩টি AI বট</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-label">খেলোয়াড়দের ধরন (Player Types):</div>
+                    <div class="player-setup-list">
+                        <div class="player-setup-row">
+                            <div class="player-setup-info">
+                                <span style="color: #00a859;">🟢</span> সবুজ প্লেয়ার (Green)
+                            </div>
+                            <select class="type-select" id="setup-type-green">
+                                <option value="human">হিউম্যান (আপনি)</option>
+                                <option value="bot">কম্পিউটার বট (AI)</option>
+                            </select>
+                        </div>
+                        <div class="player-setup-row">
+                            <div class="player-setup-info">
+                                <span style="color: #f59e0b;">🟡</span> হলুদ প্লেয়ার (Yellow)
+                            </div>
+                            <select class="type-select" id="setup-type-yellow">
+                                <option value="bot" selected>কম্পিউটার বট (AI)</option>
+                                <option value="human">হিউম্যান (মানুষ)</option>
+                            </select>
+                        </div>
+                        <div class="player-setup-row">
+                            <div class="player-setup-info">
+                                <span style="color: #0284c7;">🔵</span> নীল প্লেয়ার (Blue)
+                            </div>
+                            <select class="type-select" id="setup-type-blue">
+                                <option value="bot" selected>কম্পিউটার বট (AI)</option>
+                                <option value="human">হিউম্যান (মানুষ)</option>
+                            </select>
+                        </div>
+                        <div class="player-setup-row">
+                            <div class="player-setup-info">
+                                <span style="color: #ef4444;">🔴</span> লাল প্লেয়ার (Red)
+                            </div>
+                            <select class="type-select" id="setup-type-red">
+                                <option value="bot" selected>কম্পিউটার বট (AI)</option>
+                                <option value="human">হিউম্যান (মানুষ)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-apply-settings" class="action-btn">
+                    নতুন খেলা শুরু করুন
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Rules -->
+    <div class="modal-overlay" id="modal-rules">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 class="modal-title">📖 খেলার নিয়মাবলী</h2>
+                <button class="modal-close" id="modal-close-rules">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="rule-item">
+                    <div class="rule-icon">🎲</div>
+                    <div><b>ছক্কা (৬) উঠলে বের হওয়া:</b> ঘর থেকে গুটি বের করতে ডাইসে ৬ উঠতে হবে। ৬ উঠলে সাথে আরেকটি বোনাস চাল পাওয়া যাবে।</div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-icon">⭐</div>
+                    <div><b>নিরাপদ ঘর (Safe Stars):</b> বোর্ডে তারকা (★) চিহ্নিত ঘরগুলোতে প্রতিপক্ষের গুটি কাটা যায় না। একাধিক গুটি নিরাপদে একসাথে থাকতে পারে।</div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-icon">⚔️</div>
+                    <div><b>গুটি কাটা (Capture):</b> সাধারণ ঘরে প্রতিপক্ষের গুটির উপর নামলে প্রতিপক্ষের গুটি কাটা যাবে এবং তা পুনরায় ঘরে ফেরত যাবে। গুটি কাটলে একটি ফ্রি বোনাস চাল পাওয়া যায়!</div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-icon">🚫</div>
+                    <div><b>পরপর ৩ বার ছক্কা:</b> পরপর ৩ বার ৬ উঠলে তৃতীয় চালটি বাতিল হয়ে পরবর্তী খেলোয়াড়ের পালা শুরু হবে।</div>
+                </div>
+                <div class="rule-item">
+                    <div class="rule-icon">👑</div>
+                    <div><b>বিজয়ী হওয়া:</b> যে খেলোয়াড়ের ৪টি রাজকীয় গুটি সবার আগে সেন্টারে পৌঁছাবে, সে প্রথম বিজয়ী (Champion) হবে!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Winner Podium -->
+    <div class="modal-overlay" id="modal-winner">
+        <div class="modal-card">
+            <div class="winner-banner">
+                <div class="winner-trophy">🏆</div>
+                <div class="winner-title" id="winner-name">অভিনন্দন! সবুজ বিজয়ী!</div>
+                <p id="winner-subtitle" style="color: #cbd5e1; font-size: 14px;">
+                    আপনি অসাধারণ কৌশল ও বুদ্ধিমত্তায় গেমটি জিতেছেন!
+                </p>
+            </div>
+            <button id="btn-winner-rematch" class="action-btn" style="margin-top: 10px;">
+                🔄 আবার খেলুন
+            </button>
+        </div>
+    </div>
+
+    <!-- Logic Scripts -->
+    <script src="audio.js"></script>
+    <script src="board-data.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

@@ -874,6 +874,10 @@ class _AssignItemScreenState extends State<AssignItemScreen> {
         return '🎙️';
       case StoreItemType.roomProfileBackground:
         return '🖼️';
+      case StoreItemType.shortProfileTheme:
+        return '🖼️';
+      case StoreItemType.roomEntry:
+        return '🚪';
     }
   }
 
@@ -886,15 +890,19 @@ class _AssignItemScreenState extends State<AssignItemScreen> {
       case StoreItemType.badge:
         return 'Badge';
       case StoreItemType.backgroundTheme:
-        return 'Profile Skin';
+        return 'Room Background Theme';
       case StoreItemType.roomTheme:
-        return 'Room Theme';
+        return 'Profile Skin';
       case StoreItemType.micRefill:
         return 'Mic Refill';
       case StoreItemType.seatDecor:
         return 'Seat Decor';
       case StoreItemType.roomProfileBackground:
         return 'RP Background';
+      case StoreItemType.shortProfileTheme:
+        return 'Short Profile Theme';
+      case StoreItemType.roomEntry:
+        return 'Room Entry';
     }
   }
 }

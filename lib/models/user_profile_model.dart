@@ -198,6 +198,52 @@ class UserProfileModel {
 
   Map<String, dynamic> toFirestore() {
     try {
+      bool isLoginBanPermanent = false;
+      DateTime? loginBanEndTime;
+      bool isMicBanPermanent = false;
+      DateTime? micBanEndTime;
+      bool isPostBanPermanent = false;
+      DateTime? postBanEndTime;
+
+      for (final p in punishments) {
+        if (p.isActive && !p.isExpired) {
+          switch (p.type) {
+            case PunishmentType.voiceRoomBan:
+              if (p.expiresAt == null) {
+                isMicBanPermanent = true;
+              } else {
+                micBanEndTime = p.expiresAt;
+              }
+              break;
+            case PunishmentType.postBan:
+              if (p.expiresAt == null) {
+                isPostBanPermanent = true;
+              } else {
+                postBanEndTime = p.expiresAt;
+              }
+              break;
+            case PunishmentType.accountBan:
+            case PunishmentType.deviceBan:
+            case PunishmentType.permanentBlock:
+            case PunishmentType.temporaryBlock:
+            case PunishmentType.suspension:
+              if (p.expiresAt == null || p.type == PunishmentType.permanentBlock) {
+                isLoginBanPermanent = true;
+              } else {
+                loginBanEndTime = p.expiresAt;
+              }
+              break;
+            case PunishmentType.warning:
+              break;
+          }
+        }
+      }
+
+      // If status is explicitly blocked, ensure login ban is true if not already configured
+      if (status == UserStatus.blocked && !isLoginBanPermanent && loginBanEndTime == null) {
+        isLoginBanPermanent = true;
+      }
+
       return {
         'userId': userId,
         'username': username,
@@ -223,6 +269,16 @@ class UserProfileModel {
         'agencyName': agencyName,
         'blockedUserIds': blockedUserIds,
         'punishments': punishments.map((e) => e.toMap()).toList(),
+        'banStatus': {
+          'loginBanEndTime': loginBanEndTime != null ? Timestamp.fromDate(loginBanEndTime) : null,
+          'isLoginBanPermanent': isLoginBanPermanent,
+          'micBanEndTime': micBanEndTime != null ? Timestamp.fromDate(micBanEndTime) : null,
+          'isMicBanPermanent': isMicBanPermanent,
+          'postBanEndTime': postBanEndTime != null ? Timestamp.fromDate(postBanEndTime) : null,
+          'isPostBanPermanent': isPostBanPermanent,
+          'chatBanEndTime': null,
+          'isChatBanPermanent': false,
+        },
       };
     } catch (e) {
       debugPrint('Error converting UserProfileModel to Firestore: $e');
@@ -388,13 +444,20 @@ class UserCustomization {
   final String? selectedEntryEffectId;
   final String? selectedBackgroundThemeId;
   final String? selectedNameplateId;
+  final List<String> selectedNameplateIds;
   final String? selectedMicRefillId;
+  final String? selectedRoomProfileBackgroundId;
+  final String? selectedShortProfileThemeId;
+  final String? selectedRoomEntryId;
   final List<String> ownedBadges;
   final List<String> ownedFrames;
   final List<String> ownedEntryEffects;
   final List<String> ownedBackgroundThemes;
   final List<String> ownedNameplates;
   final List<String> ownedMicRefills;
+  final List<String> ownedRoomProfileBackgrounds;
+  final List<String> ownedShortProfileThemes;
+  final List<String> ownedRoomEntries;
 
   UserCustomization({
     this.selectedBadgeId,
@@ -402,29 +465,51 @@ class UserCustomization {
     this.selectedEntryEffectId,
     this.selectedBackgroundThemeId,
     this.selectedNameplateId,
+    this.selectedNameplateIds = const [],
     this.selectedMicRefillId,
+    this.selectedRoomProfileBackgroundId,
+    this.selectedShortProfileThemeId,
+    this.selectedRoomEntryId,
     this.ownedBadges = const [],
     this.ownedFrames = const [],
     this.ownedEntryEffects = const [],
     this.ownedBackgroundThemes = const [],
     this.ownedNameplates = const [],
     this.ownedMicRefills = const [],
+    this.ownedRoomProfileBackgrounds = const [],
+    this.ownedShortProfileThemes = const [],
+    this.ownedRoomEntries = const [],
   });
 
   factory UserCustomization.fromMap(Map<String, dynamic> data) {
+    final nameplateId = data['selectedNameplateId'] as String?;
+    List<String> nameplateIds = [];
+    if (data['selectedNameplateIds'] != null) {
+      nameplateIds = (data['selectedNameplateIds'] as List?)?.whereType<String>().toList() ?? [];
+    } else if (nameplateId != null && nameplateId.isNotEmpty) {
+      nameplateIds = [nameplateId];
+    }
+
     return UserCustomization(
-      selectedBadgeId: data['selectedBadgeId'],
-      selectedFrameId: data['selectedFrameId'],
-      selectedEntryEffectId: data['selectedEntryEffectId'],
-      selectedBackgroundThemeId: data['selectedBackgroundThemeId'],
-      selectedNameplateId: data['selectedNameplateId'],
-      selectedMicRefillId: data['selectedMicRefillId'],
-      ownedBadges: List<String>.from(data['ownedBadges'] ?? []),
-      ownedFrames: List<String>.from(data['ownedFrames'] ?? []),
-      ownedEntryEffects: List<String>.from(data['ownedEntryEffects'] ?? []),
-      ownedBackgroundThemes: List<String>.from(data['ownedBackgroundThemes'] ?? []),
-      ownedNameplates: List<String>.from(data['ownedNameplates'] ?? []),
-      ownedMicRefills: List<String>.from(data['ownedMicRefills'] ?? []),
+      selectedBadgeId: data['selectedBadgeId'] as String?,
+      selectedFrameId: data['selectedFrameId'] as String?,
+      selectedEntryEffectId: data['selectedEntryEffectId'] as String?,
+      selectedBackgroundThemeId: data['selectedBackgroundThemeId'] as String?,
+      selectedNameplateId: nameplateId ?? (nameplateIds.isNotEmpty ? nameplateIds.first : null),
+      selectedNameplateIds: nameplateIds,
+      selectedMicRefillId: data['selectedMicRefillId'] as String?,
+      selectedRoomProfileBackgroundId: data['selectedRoomProfileBackgroundId'] as String?,
+      selectedShortProfileThemeId: data['selectedShortProfileThemeId'] as String?,
+      selectedRoomEntryId: data['selectedRoomEntryId'] as String?,
+      ownedBadges: (data['ownedBadges'] as List?)?.whereType<String>().toList() ?? [],
+      ownedFrames: (data['ownedFrames'] as List?)?.whereType<String>().toList() ?? [],
+      ownedEntryEffects: (data['ownedEntryEffects'] as List?)?.whereType<String>().toList() ?? [],
+      ownedBackgroundThemes: (data['ownedBackgroundThemes'] as List?)?.whereType<String>().toList() ?? [],
+      ownedNameplates: (data['ownedNameplates'] as List?)?.whereType<String>().toList() ?? [],
+      ownedMicRefills: (data['ownedMicRefills'] as List?)?.whereType<String>().toList() ?? [],
+      ownedRoomProfileBackgrounds: (data['ownedRoomProfileBackgrounds'] as List?)?.whereType<String>().toList() ?? [],
+      ownedShortProfileThemes: (data['ownedShortProfileThemes'] as List?)?.whereType<String>().toList() ?? [],
+      ownedRoomEntries: (data['ownedRoomEntries'] as List?)?.whereType<String>().toList() ?? [],
     );
   }
 
@@ -434,14 +519,21 @@ class UserCustomization {
       'selectedFrameId': selectedFrameId,
       'selectedEntryEffectId': selectedEntryEffectId,
       'selectedBackgroundThemeId': selectedBackgroundThemeId,
-      'selectedNameplateId': selectedNameplateId,
+      'selectedNameplateId': selectedNameplateId ?? (selectedNameplateIds.isNotEmpty ? selectedNameplateIds.first : null),
+      'selectedNameplateIds': selectedNameplateIds,
       'selectedMicRefillId': selectedMicRefillId,
+      'selectedRoomProfileBackgroundId': selectedRoomProfileBackgroundId,
+      'selectedShortProfileThemeId': selectedShortProfileThemeId,
+      'selectedRoomEntryId': selectedRoomEntryId,
       'ownedBadges': ownedBadges,
       'ownedFrames': ownedFrames,
       'ownedEntryEffects': ownedEntryEffects,
       'ownedBackgroundThemes': ownedBackgroundThemes,
       'ownedNameplates': ownedNameplates,
       'ownedMicRefills': ownedMicRefills,
+      'ownedRoomProfileBackgrounds': ownedRoomProfileBackgrounds,
+      'ownedShortProfileThemes': ownedShortProfileThemes,
+      'ownedRoomEntries': ownedRoomEntries,
     };
   }
 
@@ -451,13 +543,20 @@ class UserCustomization {
     String? selectedEntryEffectId,
     String? selectedBackgroundThemeId,
     String? selectedNameplateId,
+    List<String>? selectedNameplateIds,
     String? selectedMicRefillId,
+    String? selectedRoomProfileBackgroundId,
+    String? selectedShortProfileThemeId,
+    String? selectedRoomEntryId,
     List<String>? ownedBadges,
     List<String>? ownedFrames,
     List<String>? ownedEntryEffects,
     List<String>? ownedBackgroundThemes,
     List<String>? ownedNameplates,
     List<String>? ownedMicRefills,
+    List<String>? ownedRoomProfileBackgrounds,
+    List<String>? ownedShortProfileThemes,
+    List<String>? ownedRoomEntries,
   }) {
     return UserCustomization(
       selectedBadgeId: selectedBadgeId ?? this.selectedBadgeId,
@@ -465,13 +564,20 @@ class UserCustomization {
       selectedEntryEffectId: selectedEntryEffectId ?? this.selectedEntryEffectId,
       selectedBackgroundThemeId: selectedBackgroundThemeId ?? this.selectedBackgroundThemeId,
       selectedNameplateId: selectedNameplateId ?? this.selectedNameplateId,
+      selectedNameplateIds: selectedNameplateIds ?? this.selectedNameplateIds,
       selectedMicRefillId: selectedMicRefillId ?? this.selectedMicRefillId,
+      selectedRoomProfileBackgroundId: selectedRoomProfileBackgroundId ?? this.selectedRoomProfileBackgroundId,
+      selectedShortProfileThemeId: selectedShortProfileThemeId ?? this.selectedShortProfileThemeId,
+      selectedRoomEntryId: selectedRoomEntryId ?? this.selectedRoomEntryId,
       ownedBadges: ownedBadges ?? this.ownedBadges,
       ownedFrames: ownedFrames ?? this.ownedFrames,
       ownedEntryEffects: ownedEntryEffects ?? this.ownedEntryEffects,
       ownedBackgroundThemes: ownedBackgroundThemes ?? this.ownedBackgroundThemes,
       ownedNameplates: ownedNameplates ?? this.ownedNameplates,
       ownedMicRefills: ownedMicRefills ?? this.ownedMicRefills,
+      ownedRoomProfileBackgrounds: ownedRoomProfileBackgrounds ?? this.ownedRoomProfileBackgrounds,
+      ownedShortProfileThemes: ownedShortProfileThemes ?? this.ownedShortProfileThemes,
+      ownedRoomEntries: ownedRoomEntries ?? this.ownedRoomEntries,
     );
   }
 }
@@ -669,6 +775,10 @@ class UserPunishment {
 }
 
 enum PunishmentType {
+  voiceRoomBan,
+  postBan,
+  accountBan,
+  deviceBan,
   warning,
   temporaryBlock,
   permanentBlock,

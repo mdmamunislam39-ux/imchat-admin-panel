@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import '../models/store_item_model.dart';
+import 'admin_permission_service.dart';
 
 class StoreService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -27,6 +28,7 @@ class StoreService {
     String? lockedFileUrl,
     Map<String, dynamic>? metadata,
     String? adminId,
+    Map<String, dynamic>? validityPrices,
   }) async {
     try {
       final itemId = _firestore.collection(_storeItemsCollection).doc().id;
@@ -50,6 +52,7 @@ class StoreService {
         thumbnailUrl: thumbnailUrl,
         lockedFileUrl: lockedFileUrl,
         metadata: metadata,
+        validityPrices: validityPrices,
       );
 
       await _firestore.collection(_storeItemsCollection).doc(itemId).set(storeItem.toFirestore());
@@ -219,6 +222,22 @@ class StoreService {
 
       await _firestore.collection(_userStoreItemsCollection).doc(userStoreItem.id).set(userStoreItem.toFirestore());
 
+      // Log to Assign History
+      final userData = userDoc.data() ?? {};
+      final userName = (userData['fullname'] ?? userData['name'] ?? userProfileId).toString();
+      final userPhone = (userData['phone'] ?? userData['number'] ?? '').toString();
+
+      await AdminPermissionService.logAssignHistory(
+        superAdminName: 'Super Admin',
+        superAdminId: adminId,
+        targetUserName: userName,
+        targetUserId: userId,
+        targetPhone: userPhone,
+        actionType: 'Assigned Store Item (${storeItem.type})',
+        assignedItems: [storeItem.name],
+        details: 'Assigned ${storeItem.type}: "${storeItem.name}" to $userName',
+      );
+
       debugPrint('Store item assigned to user successfully');
       return true;
     } catch (e) {
@@ -360,21 +379,25 @@ class StoreService {
   static List<String> getSupportedFileTypes(StoreItemType type) {
     switch (type) {
       case StoreItemType.avatarFrame:
-        return ['.svga', '.gif', '.png'];
+        return ['.svga', '.gif', '.png', '.mp4', '.vap'];
       case StoreItemType.entryEffect:
-        return ['.svga', '.gif', '.image', '.png', '.mp4'];
+        return ['.svga', '.gif', '.image', '.png', '.mp4', '.vap'];
       case StoreItemType.badge:
-        return ['.svga', '.gif', '.image', '.png'];
+        return ['.svga', '.gif', '.image', '.png', '.mp4', '.vap'];
       case StoreItemType.backgroundTheme:
-        return ['.svga'];
+        return ['.svga', '.mp4', '.vap'];
       case StoreItemType.roomTheme:
-        return ['.svga', '.gif', '.image'];
+        return ['.svga', '.gif', '.image', '.mp4', '.vap'];
       case StoreItemType.seatDecor:
         return ['.png'];
       case StoreItemType.micRefill:
-        return ['.svga'];
+        return ['.svga', '.mp4', '.vap'];
       case StoreItemType.roomProfileBackground:
-        return ['.svga', '.gif', '.png', '.image'];
+        return ['.svga', '.gif', '.png', '.image', '.mp4', '.vap'];
+      case StoreItemType.shortProfileTheme:
+        return ['.svga', '.gif', '.png', '.image', '.mp4', '.vap'];
+      case StoreItemType.roomEntry:
+        return ['.png', '.gif', '.image', '.jpg', '.jpeg', '.webp'];
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/store_item_model.dart';
 import '../services/store_service.dart';
+import '../services/official_items_service.dart';
 import '../services/simple_auth_service.dart';
 import 'add_store_item_screen.dart';
 import 'assign_item_screen.dart';
@@ -400,7 +401,7 @@ class _OfficialStoreScreenState extends State<OfficialStoreScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _toggleItemStatus(item),
@@ -411,7 +412,20 @@ class _OfficialStoreScreenState extends State<OfficialStoreScreen> {
                         item.isActive ? 'Deactivate' : 'Activate',
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: item.isActive ? Colors.red : Colors.green,
+                        backgroundColor: item.isActive ? Colors.orange : Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _deleteItem(item),
+                      icon: const Icon(Icons.delete),
+                      label: const Text('Delete'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -467,5 +481,47 @@ class _OfficialStoreScreenState extends State<OfficialStoreScreen> {
     } else {
       _showErrorSnackBar('Failed to update item status');
     }
+  }
+
+  void _deleteItem(StoreItemModel item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'Delete Official Item',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${item.name}"?\n\nThis action cannot be undone and will permanently remove the item from both Official Items and Store Market.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await OfficialItemsService.deleteOfficialItem(item.id);
+              if (mounted) {
+                if (success) {
+                  _showSuccessSnackBar('Official item deleted successfully');
+                  _loadOfficialItems();
+                } else {
+                  _showErrorSnackBar('Failed to delete official item');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
   }
 }

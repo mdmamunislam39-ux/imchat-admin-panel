@@ -461,18 +461,23 @@ class _RoomIdCustomizationScreenState extends State<RoomIdCustomizationScreen> w
                         ),
                         Row(
                           children: [
-                            Switch(
-                              value: assignment.isActive && !isExpired,
-                              onChanged: (value) {
-                                if (isExpired && value) {
-                                  // Let them extend it implicitly or warn them
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot activate expired ID. Please delete and assign a new one.')));
-                                  return;
-                                }
-                                RoomCustomizationService.updateCustomRoomId(assignment.id, assignment.expiresAt, value);
-                              },
-                              activeThumbColor: Colors.blue,
-                            ),
+                             Switch(
+                               value: assignment.isActive && !isExpired,
+                               onChanged: (value) async {
+                                 if (isExpired && value) {
+                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot activate expired ID. Please delete and assign a new one.')));
+                                   return;
+                                 }
+                                 try {
+                                   await RoomCustomizationService.updateCustomRoomId(assignment.id, assignment.expiresAt, value);
+                                 } catch (e) {
+                                   if (mounted) {
+                                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating status: $e')));
+                                   }
+                                 }
+                               },
+                               activeThumbColor: Colors.blue,
+                             ),
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
                               onPressed: () {

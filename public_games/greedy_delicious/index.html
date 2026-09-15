@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Greedy Delicious - HTML5 Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Cinzel:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=7">
+  <!-- Firebase App & Firestore SDKs for Real-time App Wallet & Admin Sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+  <!-- Ambient backdrop for desktop display -->
+  <div class="ambient-screen-bg"></div>
+
+  <!-- Main Game Frame (Mobile App Dimensions) -->
+  <div id="app-container">
+    
+    <!-- Deep Crimson Stage with Spotlights -->
+    <div class="stage-background">
+      <div class="spotlight spotlight-left"></div>
+      <div class="spotlight spotlight-center"></div>
+      <div class="spotlight spotlight-right"></div>
+      <div class="stage-vignette"></div>
+    </div>
+
+    <!-- ================= TOP HEADER ================= -->
+    <header class="game-header">
+      <div class="header-left">
+        <button class="nav-circle-btn" id="btn-back" title="Exit Game" aria-label="Exit Game">
+          <svg viewBox="0 0 24 24" class="header-icon">
+            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="#ffdd55" />
+          </svg>
+        </button>
+        <button class="nav-circle-btn" id="btn-menu" title="Game Options" aria-label="Menu">
+          <svg viewBox="0 0 24 24" class="header-icon">
+            <path d="M7 10l5 5 5-5z" fill="#ffdd55" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Dropdown Menu -->
+      <div class="header-dropdown-menu" id="header-dropdown">
+        <button class="menu-item-btn" id="menu-history">
+          <span class="menu-icon">📜</span>
+          <span>My Record</span>
+        </button>
+        <button class="menu-item-btn" id="menu-how-to-play">
+          <span class="menu-icon">📖</span>
+          <span>How to Play</span>
+        </button>
+        <button class="menu-item-btn" id="menu-sound-toggle">
+          <span class="menu-icon" id="menu-sound-icon">🔊</span>
+          <span id="menu-sound-text">Sound: ON</span>
+        </button>
+        <button class="menu-item-btn" id="menu-bgm-toggle">
+          <span class="menu-icon" id="menu-bgm-icon">🎵</span>
+          <span id="menu-bgm-text">Music: ON</span>
+        </button>
+        <button class="menu-item-btn" id="menu-top-winners">
+          <span class="menu-icon">🏆</span>
+          <span>Top Winners</span>
+        </button>
+      </div>
+
+      <div class="header-right">
+        <div class="balance-pill" id="btn-balance-pill" title="Tap to Recharge">
+          <div class="gem-icon-wrapper">
+            <img src="assets/images/diamond_icon.webp" alt="Diamond" class="gem-img" id="top-diamond-icon">
+          </div>
+          <span class="balance-amount" id="user-balance-val">1000</span>
+          <span class="pill-arrow-right">›</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= FERRIS WHEEL MAIN ARENA ================= -->
+    <main class="wheel-stage-area">
+      <!-- Authentic A-Frame Stand Pillars in SVG (Full 3D Dual-Faced Architecture) -->
+      <svg class="ferris-stand-svg" viewBox="0 0 360 485" preserveAspectRatio="none">
+        <defs>
+          <!-- Regular Red/Maroon Theme Stand Gradients -->
+          <linearGradient id="standGradLeftReg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#350404" />
+            <stop offset="25%" stop-color="#6e1010" />
+            <stop offset="50%" stop-color="#991b1b" />
+            <stop offset="75%" stop-color="#6e1010" />
+            <stop offset="100%" stop-color="#2c0303" />
+          </linearGradient>
+          <linearGradient id="standGradRightReg" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#2c0303" />
+            <stop offset="25%" stop-color="#6e1010" />
+            <stop offset="50%" stop-color="#991b1b" />
+            <stop offset="75%" stop-color="#6e1010" />
+            <stop offset="100%" stop-color="#350404" />
+          </linearGradient>
+
+          <!-- Advanced Purple/Indigo Theme Stand Gradients (Luminous Periwinkle-Lavender 3D Beams matching Screenshot) -->
+          <linearGradient id="standGradLeftAdv" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#3c1578" />
+            <stop offset="20%" stop-color="#6739cf" />
+            <stop offset="50%" stop-color="#9a74f8" />
+            <stop offset="80%" stop-color="#6739cf" />
+            <stop offset="100%" stop-color="#300d68" />
+          </linearGradient>
+          <linearGradient id="standGradRightAdv" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#300d68" />
+            <stop offset="20%" stop-color="#6739cf" />
+            <stop offset="50%" stop-color="#9a74f8" />
+            <stop offset="80%" stop-color="#6739cf" />
+            <stop offset="100%" stop-color="#3c1578" />
+          </linearGradient>
+        </defs>
+
+        <!-- Left Diagonal Support Leg (Slim at top 28px, Chunky at bottom 56px) -->
+        <polygon points="158,175 186,175 104,485 48,485" class="stand-pillar pillar-left" />
+        <line x1="172" y1="175" x2="76" y2="485" class="stand-spine spine-left" />
+
+        <!-- Right Diagonal Support Leg (Slim at top 28px, Chunky at bottom 56px) -->
+        <polygon points="174,175 202,175 312,485 256,485" class="stand-pillar pillar-right" />
+        <line x1="188" y1="175" x2="284" y2="485" class="stand-spine spine-right" />
+      </svg>
+
+      <!-- SVG Radiating Spokes & Carnival Lighting (8 Tubular Rods, Ring, 8 Rivets & Medallions) -->
+      <svg class="spokes-svg" viewBox="0 0 360 360">
+        <defs>
+          <linearGradient id="spokeGradReg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#450a0a" />
+            <stop offset="35%" stop-color="#751515" />
+            <stop offset="65%" stop-color="#8c1b1b" />
+            <stop offset="100%" stop-color="#450a0a" />
+          </linearGradient>
+          <linearGradient id="spokeGradAdv" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#581c87" />
+            <stop offset="35%" stop-color="#8b5cf6" />
+            <stop offset="65%" stop-color="#b892fc" />
+            <stop offset="100%" stop-color="#4c1d95" />
+          </linearGradient>
+
+          <!-- Golden Carnival Light / Rivet Gradient -->
+          <radialGradient id="bulbGrad" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="30%" stop-color="#fef08a" />
+            <stop offset="65%" stop-color="#facc15" />
+            <stop offset="100%" stop-color="#a16207" />
+          </radialGradient>
+        </defs>
+
+        <!-- 8 Thick 3D Tubular Spokes (Base) -->
+        <line x1="180" y1="180" x2="180" y2="30" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="286" y2="74" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="330" y2="180" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="286" y2="286" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="180" y2="330" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="74" y2="286" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="30" y2="180" class="wheel-spoke spoke-base" />
+        <line x1="180" y1="180" x2="74" y2="74" class="wheel-spoke spoke-base" />
+
+        <!-- 8 Specular Highlights down Spoke Centers -->
+        <line x1="180" y1="180" x2="180" y2="30" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="286" y2="74" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="330" y2="180" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="286" y2="286" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="180" y2="330" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="74" y2="286" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="30" y2="180" class="wheel-spoke spoke-highlight" />
+        <line x1="180" y1="180" x2="74" y2="74" class="wheel-spoke spoke-highlight" />
+      </svg>
+
+      <!-- Center Hub -->
+      <div class="center-ferris-hub" id="center-hub">
+        <div class="hub-outer-ring">
+          <div class="hub-inner-disk">
+            <div class="hub-food-deco">
+              <img src="assets/images/hub_pizza.png?v=7" alt="Pizza Hub" class="hub-pizza-img">
+            </div>
+            <div class="hub-round-label" id="round-number-label">Round 448</div>
+            <div class="hub-timer-badge" id="hub-timer-badge">
+              <span id="countdown-timer-val">30s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 Food Cards in Octagonal Wheel Positions -->
+      <div class="food-wheel-container" id="food-wheel-slots">
+        <!-- Generated dynamically in JS -->
+      </div>
+
+      <!-- Rotating Light Indicator -->
+      <div class="spin-pointer-light" id="spin-pointer-light"></div>
+    </main>
+
+    <!-- ================= LOWER STAGE (SALAD, PIZZA, PRIZE, CONSOLE) ================= -->
+    <div class="lower-game-stage">
+      <!-- Center Floating Today's Prize (Between the two Ferris stand legs) -->
+      <div class="center-stage-prize-wrap">
+        <div class="natural-prize-pill" id="btn-prize-pool" title="Today's Prize Pool">
+          <span class="prize-title">Today's prize</span>
+          <img src="assets/images/diamond_icon.webp" class="prize-diamond-img" style="width:16px;height:16px;vertical-align:middle;object-fit:contain;margin:0 2px;" alt="💎">
+          <span class="prize-amount" id="today-prize-val">0</span>
+          <span class="prize-arrow">›</span>
+        </div>
+      </div>
+
+      <!-- Integrated 3D Arcade Stage Console -->
+      <div class="arcade-stage-console">
+        <!-- Upper Pedestal Tier: Salad Column, Center Tab Saddle, Pizza Column -->
+        <div class="console-pedestal-tier">
+          <!-- Salad Pedestal Column (Left - Rules Pop-up) -->
+          <div class="combo-pedestal pedestal-salad" id="btn-combo-salad" title="Salad Rules (Tap to view)">
+            <div class="pedestal-dish-perch">
+              <img src="assets/images/salad.png?v=2" alt="Salad" class="pedestal-dish-img">
+            </div>
+            <div class="pedestal-body">
+              <span class="pedestal-label">Salad</span>
+            </div>
+          </div>
+
+          <!-- Center Saddle housing Regular / Advanced Tabs -->
+          <div class="console-center-saddle">
+            <div class="mode-tabs-container">
+              <button class="tier-tab-btn active" id="tab-regular" data-tier="regular">Regular</button>
+              <button class="tier-tab-btn" id="tab-advanced" data-tier="advanced">Advanced</button>
+            </div>
+          </div>
+
+          <!-- Pizza Pedestal Column (Right - Rules Pop-up) -->
+          <div class="combo-pedestal pedestal-pizza" id="btn-combo-pizza" title="Pizza Rules (Tap to view)">
+            <div class="pedestal-dish-perch">
+              <img src="assets/images/pizza.webp" alt="Pizza" class="pedestal-dish-img">
+            </div>
+            <div class="pedestal-body">
+              <span class="pedestal-label">Pizza</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Console Chip Deck: 4 3D Chip Buttons -->
+        <div class="console-chip-deck" id="chips-container">
+          <!-- Injected dynamically based on tier -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= BOTTOM BAR (RESULT & WINNER) ================= -->
+    <footer class="bottom-stats-footer">
+      <!-- Left: Recent Results with "NEW" badge -->
+      <div class="recent-results-section" id="results-history-bar">
+        <span class="result-label">Result</span>
+        <div class="result-items-scroll" id="result-items-track">
+          <!-- Injected dynamically: Recent winner items -->
+        </div>
+      </div>
+
+      <!-- Right: Leaderboard Preview -->
+      <div class="leaderboard-preview-card is-empty" id="btn-leaderboard-preview" title="Top Winners Leaderboard">
+        <div class="lb-avatar-wrap">
+          <div class="lb-crown-badge" id="lb-preview-crown">👑</div>
+          <div class="lb-rank-num">1</div>
+          <img src="" alt="Winner" class="lb-avatar-img" id="lb-preview-avatar" style="display: none;">
+          <div class="lb-avatar-placeholder" id="lb-preview-placeholder">
+            <svg viewBox="0 0 24 24" class="lb-placeholder-svg">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+          </div>
+        </div>
+        <div class="lb-info-wrap">
+          <div class="lb-username" id="lb-preview-username">-</div>
+          <div class="lb-coins-won" id="lb-preview-coins-wrap">
+            <img src="assets/images/diamond_icon.webp" class="lb-diamond-icon" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span class="lb-coins-text" id="lb-preview-coins">0</span>
+          </div>
+        </div>
+        <span class="lb-arrow-right">›</span>
+      </div>
+    </footer>
+
+    <!-- Floating Flying Chips Container -->
+    <div id="flying-chips-layer"></div>
+
+    <!-- Toast Notification Banner -->
+    <div class="toast-banner" id="toast-banner"></div>
+
+  </div> <!-- End #app-container -->
+
+  <!-- ================= 1. ROUND RESULT CELEBRATION MODAL (SCREENSHOT 1) ================= -->
+  <div class="modal-backdrop bottom-sheet-backdrop" id="modal-round-result">
+    <div class="modal-dialog result-modal-sheet" id="result-modal-sheet">
+      <!-- Close button -->
+      <button class="modal-close-circle" id="btn-close-result-modal">&times;</button>
+
+      <!-- Floating 3D Winner Food with Sunburst Rays and Confetti -->
+      <div class="sheet-winner-halo">
+        <div class="sunburst-rays"></div>
+        <div class="confetti c1">🎉</div>
+        <div class="confetti c2">🎊</div>
+        <div class="confetti c3">✨</div>
+        <div class="confetti c4">🎈</div>
+        <img src="assets/images/corn.webp" alt="Winner Food" class="sheet-winner-img" id="result-winner-img">
+      </div>
+
+      <!-- Title -->
+      <h2 class="sheet-result-title" id="result-modal-round-title">Result of Round 417</h2>
+      <div id="result-special-banner" class="result-special-banner" style="display: none;"></div>
+
+      <!-- Always visible My Spending & My Earnings (1:1 with Screenshot 1) -->
+      <div class="sheet-user-stats-row" id="sheet-user-stats-row">
+        <div class="sheet-stat-card">
+          <span class="sheet-stat-label">My Spending</span>
+          <div class="sheet-stat-val">
+            <img src="assets/images/diamond_icon.webp" class="stat-diamond-img" style="width:16px;height:16px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span id="result-my-spending">0</span>
+          </div>
+        </div>
+
+        <div class="sheet-stat-card">
+          <span class="sheet-stat-label">My Earnings</span>
+          <div class="sheet-stat-val win-val">
+            <img src="assets/images/diamond_icon.webp" class="stat-diamond-img" style="width:16px;height:16px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span id="result-my-earnings">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider: This round's biggest winner -->
+      <div class="sheet-divider-row">
+        <span class="divider-line"></span>
+        <span class="divider-text">This round’s biggest winner</span>
+        <span class="divider-line"></span>
+      </div>
+
+      <!-- 3 Podium Winners Row (Dynamic: Only real winners show, otherwise empty slots with no coins) -->
+      <div class="sheet-winners-trio">
+        <!-- Winner 1 -->
+        <div class="trio-player-col is-empty" id="trio-col-1">
+          <div class="trio-avatar-wrap">
+            <img src="" alt="Rank 1" class="trio-avatar-img" id="trio-avatar-1" style="display: none;">
+            <div class="trio-avatar-placeholder" id="trio-placeholder-1">
+              <svg viewBox="0 0 24 24" class="trio-placeholder-svg">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </div>
+            <div class="trio-rank-badge rank-1">1</div>
+          </div>
+          <div class="trio-username" id="trio-name-1">-</div>
+          <div class="trio-prize-pill" id="trio-prize-pill-1">
+            <img src="assets/images/diamond_icon.webp" class="stat-diamond-img" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span id="trio-win-1">0</span>
+          </div>
+        </div>
+
+        <!-- Winner 2 -->
+        <div class="trio-player-col is-empty" id="trio-col-2">
+          <div class="trio-avatar-wrap">
+            <img src="" alt="Rank 2" class="trio-avatar-img" id="trio-avatar-2" style="display: none;">
+            <div class="trio-avatar-placeholder" id="trio-placeholder-2">
+              <svg viewBox="0 0 24 24" class="trio-placeholder-svg">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </div>
+            <div class="trio-rank-badge rank-2">2</div>
+          </div>
+          <div class="trio-username" id="trio-name-2">-</div>
+          <div class="trio-prize-pill" id="trio-prize-pill-2">
+            <img src="assets/images/diamond_icon.webp" class="stat-diamond-img" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span id="trio-win-2">0</span>
+          </div>
+        </div>
+
+        <!-- Winner 3 -->
+        <div class="trio-player-col is-empty" id="trio-col-3">
+          <div class="trio-avatar-wrap">
+            <img src="" alt="Rank 3" class="trio-avatar-img" id="trio-avatar-3" style="display: none;">
+            <div class="trio-avatar-placeholder" id="trio-placeholder-3">
+              <svg viewBox="0 0 24 24" class="trio-placeholder-svg">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+            </div>
+            <div class="trio-rank-badge rank-3">3</div>
+          </div>
+          <div class="trio-username" id="trio-name-3">-</div>
+          <div class="trio-prize-pill" id="trio-prize-pill-3">
+            <img src="assets/images/diamond_icon.webp" class="stat-diamond-img" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:2px;" alt="💎">
+            <span id="trio-win-3">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-modal-footer">
+        <div class="countdown-next-round">Next round starting in <span id="result-auto-close-sec">5</span>s...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SALAD & PIZZA SPECIAL RULES MINI POPUP ================= -->
+  <div class="modal-backdrop" id="modal-special-rules">
+    <div class="modal-dialog special-rules-mini-dialog">
+      <div class="modal-header-bar">
+        <div class="special-rules-header-title-wrap">
+          <span class="special-rules-header-icon" id="special-rules-header-icon">🥗</span>
+          <h3 class="rules-modal-title" id="special-rules-modal-title">Salad Rules</h3>
+        </div>
+        <button class="modal-close-x" id="btn-close-special-rules-modal">&times;</button>
+      </div>
+
+      <!-- Quick Switcher Tabs (Salad / Pizza) -->
+      <div class="special-rules-tabs">
+        <button class="special-rule-tab-btn active" id="tab-rule-salad" data-dish="salad">
+          <img src="assets/images/salad.webp" alt="Salad" class="rule-tab-thumb">
+          <span>Salad Rules</span>
+        </button>
+        <button class="special-rule-tab-btn" id="tab-rule-pizza" data-dish="pizza">
+          <img src="assets/images/pizza.webp" alt="Pizza" class="rule-tab-thumb">
+          <span>Pizza Rules</span>
+        </button>
+      </div>
+
+      <!-- Content dynamically switched/injected -->
+      <div class="special-rules-body" id="special-rules-body">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="special-rules-footer">
+        <button class="special-rules-gotit-btn" id="btn-special-rules-gotit">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 2. HOW TO PLAY / RULES MODAL (EXACT 1:1 FROM VIDEO) ================= -->
+  <div class="modal-backdrop" id="modal-how-to-play">
+    <div class="modal-dialog rules-modal-dialog">
+      <div class="modal-header-bar">
+        <h3 class="rules-modal-title">How to play</h3>
+        <button class="modal-close-x" id="btn-close-rules-modal">&times;</button>
+      </div>
+
+      <div class="rules-scroll-content">
+        <!-- Rule 1 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">1</div>
+          <div class="rule-body">
+            <h4>Betting Period</h4>
+            <p>Each round lasts <strong>30 seconds</strong>. During the countdown, you can select your chip amount and place bets on any food items.</p>
+          </div>
+        </div>
+
+        <!-- Rule 2 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">2</div>
+          <div class="rule-body">
+            <h4>Wheel Spinning</h4>
+            <p>When the 30s timer reaches 0, betting is locked. The golden spotlight rapidly revolves around the 8 items and stops on the winning food.</p>
+          </div>
+        </div>
+
+        <!-- Rule 3 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">3</div>
+          <div class="rule-body">
+            <h4>Winning Payouts</h4>
+            <p>Players betting on the winning food receive their bet multiplied by the food's multiplier:</p>
+            <div class="payout-table-mini">
+              <div class="payout-row"><span>🌭 Hot Dog:</span> <strong>10x</strong></div>
+              <div class="payout-row"><span>🍢 BBQ Skewer:</span> <strong>15x</strong></div>
+              <div class="payout-row"><span>🍖 Ham Leg:</span> <strong>25x</strong></div>
+              <div class="payout-row"><span>🥩 Steak:</span> <strong>45x</strong></div>
+              <div class="payout-row"><span>🥕 Carrot:</span> <strong>5x</strong></div>
+              <div class="payout-row"><span>🌽 Corn:</span> <strong>5x</strong></div>
+              <div class="payout-row"><span>🥬 Cabbage:</span> <strong>5x</strong></div>
+              <div class="payout-row"><span>🍅 Tomato:</span> <strong>5x</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rule 4 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">4</div>
+          <div class="rule-body">
+            <h4>Salad & Pizza Specials</h4>
+            <p>When the wheel stops on <strong>Salad</strong>, all 4 vegetable items (5x) win simultaneously! When the wheel stops on <strong>Pizza</strong>, all 4 meat items (10x, 15x, 25x, 45x) win simultaneously!</p>
+          </div>
+        </div>
+
+        <!-- Rule 5 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">5</div>
+          <div class="rule-body">
+            <h4>Today's Prize Pool</h4>
+            <p>A portion of every bet enters the Today's Prize pool, awarded to players on lucky jackpot rounds!</p>
+          </div>
+        </div>
+
+        <!-- Rule 6 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">6</div>
+          <div class="rule-body">
+            <h4>Regular & Advanced Chips</h4>
+            <p>Switch between <strong>Regular</strong> (5, 100, 500, 1000) and <strong>Advanced</strong> (2k, 5k, 10k, 50k) chip modes to fit your playing style.</p>
+          </div>
+        </div>
+
+        <!-- Rule 7 -->
+        <div class="rule-card-item">
+          <div class="rule-badge">7</div>
+          <div class="rule-body">
+            <h4>Diamonds & Coins</h4>
+            <p>Use yellow or black diamonds to redeem game coins and play anytime. Collect daily winnings to rise up the leaderboard!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. LEADERBOARD MODAL (DAILY TOP 10) ================= -->
+  <div class="modal-backdrop" id="modal-leaderboard">
+    <div class="modal-dialog leaderboard-modal-dialog">
+      <div class="modal-header-bar">
+        <h3 class="rules-modal-title">Daily Top 10 Winners</h3>
+        <button class="modal-close-x" id="btn-close-lb-modal">&times;</button>
+      </div>
+
+      <div class="leaderboard-list-scroll" id="leaderboard-rows-container">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================= 5. MY RECORD / HISTORY MODAL (EXACT 1:1 WITH SCREENSHOTS) ================= -->
+  <div class="modal-backdrop my-record-backdrop" id="modal-my-record">
+    <div class="modal-dialog my-record-dialog" id="my-record-dialog">
+      <!-- Header -->
+      <div class="record-header-bar">
+        <button class="nav-circle-btn" id="btn-close-record-modal" title="Back" aria-label="Back">
+          <svg viewBox="0 0 24 24" class="header-icon">
+            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="#ffdd55" />
+          </svg>
+        </button>
+        <h2 class="record-header-title">My Record</h2>
+        <div class="record-date-picker-pill" id="btn-record-date-filter" title="Filter Date">
+          <span id="record-date-label">Sep,04 2026</span>
+          <span class="pill-arrow-down">▼</span>
+        </div>
+      </div>
+
+      <!-- Scrollable List of Round Cards -->
+      <div class="record-cards-scroll-container" id="record-cards-list">
+        <!-- Dynamically injected records -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Elements -->
+  <audio id="audio-bet" src="assets/sounds/greedy_bet.mp3" preload="auto"></audio>
+  <audio id="audio-spin" src="assets/sounds/greedy_spin.mp3" preload="auto"></audio>
+  <audio id="audio-win" src="assets/sounds/greedy_win.mp3" preload="auto"></audio>
+  <audio id="audio-bgm" src="assets/sounds/greedy_bgm.mp3" preload="auto" loop></audio>
+
+  <!-- Core Game Script -->
+  <script src="game.js?v=3"></script>
+</body>
+
+</html>

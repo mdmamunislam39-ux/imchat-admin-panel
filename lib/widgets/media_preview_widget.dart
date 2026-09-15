@@ -33,34 +33,45 @@ class MediaPreviewWidget extends StatelessWidget {
     }
     
     // Handle MP4/Video
-    if (lowerUrl.contains('.mp4') || lowerUrl.contains('.mov')) {
+    if (lowerUrl.contains('.mp4') || lowerUrl.contains('.vap') || lowerUrl.contains('.mov')) {
       return _buildPlaceholder(Icons.videocam, label: 'Video');
     }
 
-    // Default to Image/GIF via CachedNetworkImage
-    return ClipRRect(
-      borderRadius: borderRadius ?? BorderRadius.circular(8),
-      child: kIsWeb
-          ? buildWebImage(url, width, height, fit)
-          : CachedNetworkImage(
-              imageUrl: url,
-              width: width,
-              height: height,
-              fit: fit,
-              placeholder: (context, url) => Container(
-                width: width,
-                height: height,
-                color: Colors.grey[800],
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+    final isWebp = lowerUrl.contains('.webp');
+    final effectiveFit = isWebp ? BoxFit.contain : fit;
+
+    // Default to Image/GIF/WEBP via CachedNetworkImage
+    return SizedBox(
+      width: width,
+      height: height,
+      child: ClipRRect(
+        borderRadius: borderRadius ?? BorderRadius.circular(8),
+        child: Container(
+          color: Colors.black12,
+          padding: EdgeInsets.zero,
+          child: kIsWeb
+              ? buildWebImage(url, width, height, effectiveFit)
+              : CachedNetworkImage(
+                  imageUrl: url,
+                  width: width,
+                  height: height,
+                  fit: effectiveFit,
+                  placeholder: (context, url) => Container(
+                    width: width,
+                    height: height,
+                    color: Colors.grey[800],
+                    child: const Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
                   ),
+                  errorWidget: (context, url, error) => _buildPlaceholder(Icons.broken_image),
                 ),
-              ),
-              errorWidget: (context, url, error) => _buildPlaceholder(Icons.broken_image),
-            ),
+        ),
+      ),
     );
   }
 

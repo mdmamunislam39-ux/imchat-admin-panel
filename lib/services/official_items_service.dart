@@ -4,6 +4,7 @@ import '../models/official_item_model.dart';
 import '../models/store_item_model.dart';
 import '../models/agency_notification_model.dart';
 import 'notification_service.dart';
+import 'admin_permission_service.dart';
 
 class OfficialItemsService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -36,6 +37,10 @@ class OfficialItemsService {
         return 'seatDecor';
       case OfficialItemCategory.roomProfileBackground:
         return 'roomProfileBackground';
+      case OfficialItemCategory.shortProfileTheme:
+        return 'shortProfileTheme';
+      case OfficialItemCategory.roomEntry:
+        return 'roomEntry';
     }
   }
 
@@ -204,8 +209,11 @@ class OfficialItemsService {
     required String fileName,
     required String fileType,
     int starRating = 1,
+    int verificationLevel = 1,
+    String badgeSubCategory = 'Verification',
     String? thumbnailUrl,
     String? lockedFileUrl,
+    String? hostSeatDecorUrl,
     double diamondPrice = 0,
     int? expirationDuration,
   }) async {
@@ -226,15 +234,21 @@ class OfficialItemsService {
         thumbnailUrl: thumbnailUrl,
         lockedFileUrl: lockedFileUrl,
         starRating: starRating,
+        verificationLevel: verificationLevel,
+        badgeSubCategory: badgeSubCategory,
         isActive: true,
         createdAt: DateTime.now(),
         displayId: displayId,
       );
 
+      final officialMap = item.toFirestore();
+      officialMap['diamondPrice'] = diamondPrice;
+      officialMap['expirationDuration'] = expirationDuration;
+      if (hostSeatDecorUrl != null) officialMap['hostSeatDecorUrl'] = hostSeatDecorUrl;
       await _firestore
           .collection(_officialItemsCollection)
           .doc(docId)
-          .set(item.toFirestore());
+          .set(officialMap);
 
       // 2. Also write to market_items so mobile app can fetch details
       await _firestore
@@ -250,8 +264,12 @@ class OfficialItemsService {
         'fileType': fileType,
         'thumbnailUrl': thumbnailUrl,
         if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
+        if (hostSeatDecorUrl != null) 'hostSeatDecorUrl': hostSeatDecorUrl,
+        if (hostSeatDecorUrl != null) 'hostFileUrl': hostSeatDecorUrl,
         'imageUrl': thumbnailUrl ?? fileUrl,
         'starRating': starRating,
+        'verificationLevel': verificationLevel,
+        'badgeSubCategory': badgeSubCategory,
         'diamondPrice': diamondPrice,
         'expirationDuration': expirationDuration,
         'isActive': true,
@@ -275,6 +293,8 @@ class OfficialItemsService {
     required String fileName,
     required String fileType,
     int starRating = 1,
+    int verificationLevel = 1,
+    String badgeSubCategory = 'Verification',
     String? thumbnailUrl,
     String? lockedFileUrl,
     double diamondPrice = 0,
@@ -289,6 +309,8 @@ class OfficialItemsService {
         'fileName': fileName,
         'fileType': fileType,
         'starRating': starRating,
+        'verificationLevel': verificationLevel,
+        'badgeSubCategory': badgeSubCategory,
         if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
         if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -306,6 +328,9 @@ class OfficialItemsService {
         'fileUrl': fileUrl,
         'fileName': fileName,
         'fileType': fileType,
+        'starRating': starRating,
+        'verificationLevel': verificationLevel,
+        'badgeSubCategory': badgeSubCategory,
         if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
         if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
         'diamondPrice': diamondPrice,
@@ -326,17 +351,52 @@ class OfficialItemsService {
     }
   }
 
+  /// Real-time stream of all official items ordered by starRating descending & verificationLevel descending
+  static Stream<List<OfficialItemModel>> streamAllOfficialItems() {
+    return _firestore
+        .collection(_officialItemsCollection)
+        .snapshots()
+        .map((snapshot) {
+      final items = snapshot.docs
+          .map((doc) => OfficialItemModel.fromFirestore(doc))
+          .toList();
+
+      items.sort((a, b) {
+        final starCmp = b.starRating.compareTo(a.starRating);
+        if (starCmp != 0) return starCmp;
+
+        final verCmp = b.verificationLevel.compareTo(a.verificationLevel);
+        if (verCmp != 0) return verCmp;
+
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+      return items;
+    });
+  }
+
   /// Get all official items
   static Future<List<OfficialItemModel>> getAllOfficialItems() async {
     try {
       final snapshot = await _firestore
           .collection(_officialItemsCollection)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs
+      final items = snapshot.docs
           .map((doc) => OfficialItemModel.fromFirestore(doc))
           .toList();
+
+      items.sort((a, b) {
+        final starCmp = b.starRating.compareTo(a.starRating);
+        if (starCmp != 0) return starCmp;
+
+        final verCmp = b.verificationLevel.compareTo(a.verificationLevel);
+        if (verCmp != 0) return verCmp;
+
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+      return items;
     } catch (e) {
       debugPrint('Error getting official items: $e');
       return [];
@@ -524,6 +584,9 @@ class OfficialItemsService {
         } else if (itemCategory == OfficialItemCategory.micRefill) {
           ownedField = 'ownedMicRefills';
           selectedField = 'selectedMicRefillId';
+        } else if (itemCategory == OfficialItemCategory.roomEntry) {
+          ownedField = 'ownedRoomEntries';
+          selectedField = 'selectedRoomEntryId';
         }
 
         if (ownedField.isNotEmpty) {
@@ -556,6 +619,17 @@ class OfficialItemsService {
           'expiresAt': expiresAt.toIso8601String(),
           'action': 'view_item',
         },
+      );
+
+      // Log to Assign History
+      await AdminPermissionService.logAssignHistory(
+        superAdminName: 'Super Admin',
+        superAdminId: adminId,
+        targetUserName: username,
+        targetUserId: userId,
+        actionType: 'Assigned Item (${itemCategory.displayName})',
+        assignedItems: [itemName],
+        details: 'Assigned $itemName (${itemCategory.displayName}) to $username for $durationDays days',
       );
 
       debugPrint(

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="site-title">IMChat - Connect, Voice Chat & Share Moments</title>
+  <meta name="description" id="site-meta-desc" content="Download IMChat - The ultimate voice audio room & live community app for Android and iOS. Join room chats, play games, and connect globally!">
+  
+  <!-- Favicon & Fonts -->
+  <link rel="icon" type="image/png" id="site-favicon" href="https://img.icons8.com/color/96/chat--v1.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div id="announcement-bar" class="announcement-bar hidden">
+    <div class="announcement-content">
+      <span class="announcement-badge">NEWS</span>
+      <span id="announcement-text">Welcome to IMChat! Download the latest version for exciting voice rooms and games.</span>
+    </div>
+    <button class="close-announcement" id="close-announcement-btn"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- Deep Link Banner (For Voice Room & Post Shares) -->
+  <div id="deeplink-banner" class="deeplink-bar hidden">
+    <div class="deeplink-container">
+      <div class="deeplink-info">
+        <div class="deeplink-icon" id="deeplink-icon"><i class="fa-solid fa-microphone"></i></div>
+        <div class="deeplink-text">
+          <h4 id="deeplink-title">Voice Room Invitation</h4>
+          <p id="deeplink-subtitle">Tap below to join directly in the IMChat app</p>
+        </div>
+      </div>
+      <div class="deeplink-actions">
+        <a id="deeplink-open-btn" href="#" class="deeplink-btn-open"><i class="fa-solid fa-bolt"></i> Open in App</a>
+        <a href="#download" class="deeplink-btn-download"><i class="fa-solid fa-download"></i> Get App</a>
+        <button id="close-deeplink-btn" class="close-deeplink"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header / Navigation -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="#" class="brand-logo">
+        <img id="app-logo" src="https://img.icons8.com/color/96/chat--v1.png" alt="IMChat Logo">
+        <span id="app-name-brand" class="brand-name">IMChat</span>
+      </a>
+      
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#download" class="nav-download-btn">Download Now</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-glow-1"></div>
+    <div class="hero-glow-2"></div>
+    
+    <div class="hero-container">
+      <div class="hero-content">
+        <div class="version-badge">
+          <i class="fa-solid fa-sparkles"></i>
+          <span id="app-version-badge">Version 1.0.0 Out Now</span>
+        </div>
+        
+        <h1 class="hero-title" id="hero-appName">IMChat</h1>
+        <h2 class="hero-tagline" id="hero-tagline">Connect, Voice Chat & Share Moments</h2>
+        
+        <p class="hero-description" id="hero-description">
+          IMChat is the ultimate audio room & live entertainment platform. Join high-quality multi-seat voice rooms, play fun games with friends, send stunning gifts, and connect globally!
+        </p>
+
+        <!-- Download Buttons -->
+        <div class="download-buttons-group" id="download">
+          <!-- Google Play Store Button -->
+          <a id="btn-playstore" href="#" target="_blank" class="download-btn playstore-btn">
+            <div class="btn-icon"><i class="fa-brands fa-google-play"></i></div>
+            <div class="btn-text">
+              <span class="btn-subtitle">GET IT ON</span>
+              <span class="btn-title">Google Play</span>
+            </div>
+          </a>
+
+          <!-- Apple App Store Button -->
+          <a id="btn-appstore" href="#" target="_blank" class="download-btn appstore-btn">
+            <div class="btn-icon"><i class="fa-brands fa-apple"></i></div>
+            <div class="btn-text">
+              <span class="btn-subtitle">Download on the</span>
+              <span class="btn-title">App Store</span>
+            </div>
+          </a>
+
+          <!-- Direct APK Button -->
+          <a id="btn-apk" href="#" target="_blank" class="download-btn apk-btn">
+            <div class="btn-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
+            <div class="btn-text">
+              <span class="btn-subtitle">DIRECT DOWNLOAD</span>
+              <span class="btn-title">Android APK</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- App Hero Preview Mockup -->
+      <div class="hero-mockup-wrapper">
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <img id="hero-mockup-img" src="https://images.unsplash.com/photo-1616469829941-c7200edec809?w=600&auto=format&fit=crop&q=80" alt="App Preview">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screenshots Gallery Section -->
+  <section id="screenshots" class="screenshots-section">
+    <div class="section-container">
+      <div class="section-header">
+        <span class="section-tag">APP GALLERY</span>
+        <h2 class="section-title">App Interface & Screenshots</h2>
+        <p class="section-subtitle">Take a sneak peek into the vibrant voice rooms and games inside IMChat</p>
+      </div>
+
+      <div class="screenshots-carousel" id="screenshots-container">
+        <!-- Screenshots injected via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features-section">
+    <div class="section-container">
+      <div class="section-header">
+        <span class="section-tag">WHY CHOOSE US</span>
+        <h2 class="section-title">Loaded with Powerful Features</h2>
+        <p class="section-subtitle">Everything you need to enjoy live social interactions and voice rooms</p>
+      </div>
+
+      <div class="features-grid" id="features-container">
+        <!-- Feature Cards injected via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Banner Call-To-Action Section -->
+  <section class="cta-section">
+    <div class="cta-container">
+      <h2 class="cta-title">Ready to Join the IMChat Community?</h2>
+      <p class="cta-desc">Download the app today and start hosting your own audio rooms!</p>
+      <div class="cta-buttons">
+        <a href="#download" class="cta-primary-btn">Download IMChat Now</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <img id="footer-app-logo" src="https://img.icons8.com/color/96/chat--v1.png" alt="IMChat Logo">
+          <span id="footer-app-name">IMChat</span>
+        </div>
+        <p class="footer-tagline">Connecting millions through live voice rooms and interactive games.</p>
+      </div>
+
+      <div class="footer-links">
+        <h4>Support & Legal</h4>
+        <ul>
+          <li><a id="footer-contact-email" href="mailto:support@imchatapp.com"><i class="fa-regular fa-envelope"></i> Contact Support</a></li>
+          <li><a id="footer-privacy-policy" href="#" target="_blank"><i class="fa-solid fa-shield-halved"></i> Privacy Policy</a></li>
+          <li><a id="footer-terms-of-service" href="#" target="_blank"><i class="fa-solid fa-file-contract"></i> Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p>&copy; <span id="copyright-year">2026</span> <span id="copyright-name">IMChat</span>. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- App Script -->
+  <script src="app.js"></script>
+</body>
+</html>

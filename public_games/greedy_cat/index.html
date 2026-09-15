@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Greedy Cat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase App & Firestore SDKs for Real-time App Wallet & Admin Sync -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <!-- Game Wrapper -->
+  <div class="game-wrapper" id="game-wrapper">
+    <!-- Top Action Bar -->
+    <header class="top-bar">
+      <div class="top-left-group">
+        <button class="pink-circle-btn" id="btn-exit" title="Exit">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <button class="pink-circle-btn" id="btn-ranking" title="Ranking">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="top-right-group">
+        <button class="pink-circle-btn" id="btn-rules" title="Game Rules">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+          </svg>
+        </button>
+        <button class="pink-circle-btn" id="btn-help" title="Help">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
+          </svg>
+        </button>
+        <button class="pink-circle-btn" id="btn-setting" title="Settings / Audio">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Ferris Wheel Area -->
+    <main class="wheel-stage">
+      <!-- Wooden A-Frame Stand (2 Thick Legs meeting behind center hub) -->
+      <div class="wooden-stand">
+        <div class="stand-leg stand-left"></div>
+        <div class="stand-leg stand-right"></div>
+      </div>
+
+      <!-- The Ferris Wheel Assembly -->
+      <div class="ferris-wheel-assembly" id="ferris-wheel-assembly">
+
+
+        <!-- 8 Spokes -->
+        <div class="spokes-container" id="spokes-container">
+          <div class="spoke" style="--rot: 0deg;"></div>
+          <div class="spoke" style="--rot: 45deg;"></div>
+          <div class="spoke" style="--rot: 90deg;"></div>
+          <div class="spoke" style="--rot: 135deg;"></div>
+          <div class="spoke" style="--rot: 180deg;"></div>
+          <div class="spoke" style="--rot: 225deg;"></div>
+          <div class="spoke" style="--rot: 270deg;"></div>
+          <div class="spoke" style="--rot: 315deg;"></div>
+        </div>
+
+        <!-- 8 Food Baskets (Outer circle pods) -->
+        <div class="food-pods-container" id="food-pods-container">
+          <!-- 0: Chicken (Top / 12 o'clock) -->
+          <div class="food-pod" data-index="0" data-id="chicken" style="--angle: 0deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap chicken-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x45</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-0">YOU: 0</div>
+          </div>
+
+          <!-- 1: Tomato (Top-Right / 1:30) -->
+          <div class="food-pod" data-index="1" data-id="tomato" style="--angle: 45deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap tomato-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x5</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-1">YOU: 0</div>
+          </div>
+
+          <!-- 2: Goat (Right / 3 o'clock) -->
+          <div class="food-pod" data-index="2" data-id="goat" style="--angle: 90deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap goat-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x15</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-2">YOU: 0</div>
+          </div>
+
+          <!-- 3: Red Pepper (Bottom-Right / 4:30) -->
+          <div class="food-pod" data-index="3" data-id="pepper" style="--angle: 135deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap pepper-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x5</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-3">YOU: 0</div>
+          </div>
+
+          <!-- 4: Fish (Bottom / 6 o'clock) -->
+          <div class="food-pod" data-index="4" data-id="fish" style="--angle: 180deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap fish-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x25</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-4">YOU: 0</div>
+          </div>
+
+          <!-- 5: Carrot (Bottom-Left / 7:30) -->
+          <div class="food-pod" data-index="5" data-id="carrot" style="--angle: 225deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap carrot-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x5</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-5">YOU: 0</div>
+          </div>
+
+          <!-- 6: Shrimp (Left / 9 o'clock) -->
+          <div class="food-pod" data-index="6" data-id="shrimp" style="--angle: 270deg;">
+            <div class="hot-tag popping" id="hot-tag">Hot</div>
+            <div class="pod-inner">
+              <div class="food-img-wrap shrimp-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x10</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-6">YOU: 0</div>
+          </div>
+
+          <!-- 7: Corn (Top-Left / 10:30) -->
+          <div class="food-pod" data-index="7" data-id="corn" style="--angle: 315deg;">
+            <div class="pod-inner">
+              <div class="food-img-wrap corn-img"></div>
+              <div class="pod-badge">
+                <span class="mult-text">x5</span>
+              </div>
+            </div>
+            <div class="pod-bet-bubble" id="bet-bubble-7">YOU: 0</div>
+          </div>
+        </div>
+
+        <!-- Wheel Center Hub -->
+        <div class="wheel-center-hub" id="wheel-center-hub">
+          <!-- Circular Frame (clipped) -->
+          <div class="hub-circle-frame">
+            <div class="hub-wooden-rim">
+              <!-- Rivets around rim -->
+              <span class="hub-rivet" style="--ra: 0deg;"></span>
+              <span class="hub-rivet" style="--ra: 30deg;"></span>
+              <span class="hub-rivet" style="--ra: 60deg;"></span>
+              <span class="hub-rivet" style="--ra: 90deg;"></span>
+              <span class="hub-rivet" style="--ra: 120deg;"></span>
+              <span class="hub-rivet" style="--ra: 150deg;"></span>
+              <span class="hub-rivet" style="--ra: 180deg;"></span>
+              <span class="hub-rivet" style="--ra: 210deg;"></span>
+              <span class="hub-rivet" style="--ra: 240deg;"></span>
+              <span class="hub-rivet" style="--ra: 270deg;"></span>
+              <span class="hub-rivet" style="--ra: 300deg;"></span>
+              <span class="hub-rivet" style="--ra: 330deg;"></span>
+            </div>
+
+            <!-- Status & Countdown Timer Box in Center Hub -->
+            <div class="hub-timer-box" id="hub-timer-box">
+              <div class="hub-phase-label" id="hub-phase-label">Select Time</div>
+              <div class="hub-countdown" id="hub-countdown">12s</div>
+            </div>
+          </div>
+
+          <!-- Mascot Cat in Center (Ears poke out above the circle) -->
+          <div class="cat-mascot-wrapper">
+            <div class="cat-illustration"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mid Wooden Counter (Salad, Bet Chips Deck, Pizza) -->
+    <section class="counter-section">
+      <!-- Salad Prize Info Card -->
+      <div class="combo-bet-card prize-card" id="btn-salad" data-type="salad" title="🥗 Salad Prize Info">
+        <div class="dish-plate-wrap salad-dish">
+          <div class="salad-illustration"></div>
+        </div>
+        <div class="dish-pill-btn">🥗 Salad Prize</div>
+      </div>
+
+      <!-- Wooden Chips Board -->
+      <div class="wager-board">
+        <div class="wager-title">Choose the amount of wager &gt; choose food</div>
+        <div class="chips-row">
+          <!-- Chip 10 (Blue Cat) -->
+          <div class="gummy-chip-wrap active" data-val="10">
+            <div class="gummy-cat gummy-blue">
+              <div class="gummy-ears"></div>
+              <div class="gummy-glasses"></div>
+              <div class="gummy-face"></div>
+            </div>
+            <div class="chip-val-pill">10</div>
+          </div>
+
+          <!-- Chip 100 (Green Cat) -->
+          <div class="gummy-chip-wrap" data-val="100">
+            <div class="gummy-cat gummy-green">
+              <div class="gummy-ears"></div>
+              <div class="gummy-glasses"></div>
+              <div class="gummy-face"></div>
+            </div>
+            <div class="chip-val-pill">100</div>
+          </div>
+
+          <!-- Chip 1000 (Orange Cat) -->
+          <div class="gummy-chip-wrap" data-val="1000">
+            <div class="gummy-cat gummy-orange">
+              <div class="gummy-ears"></div>
+              <div class="gummy-glasses"></div>
+              <div class="gummy-face"></div>
+            </div>
+            <div class="chip-val-pill">1000</div>
+          </div>
+
+          <!-- Chip 10000 (Purple Cat) -->
+          <div class="gummy-chip-wrap" data-val="10000">
+            <div class="gummy-cat gummy-purple">
+              <div class="gummy-ears"></div>
+              <div class="gummy-glasses"></div>
+              <div class="gummy-face"></div>
+            </div>
+            <div class="chip-val-pill">10000</div>
+          </div>
+
+          <!-- Chip 100000 (Red Cat) -->
+          <div class="gummy-chip-wrap" data-val="100000">
+            <div class="gummy-cat gummy-red">
+              <div class="gummy-ears"></div>
+              <div class="gummy-glasses"></div>
+              <div class="gummy-face"></div>
+            </div>
+            <div class="chip-val-pill">100000</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pizza Prize Info Card -->
+      <div class="combo-bet-card prize-card" id="btn-pizza" data-type="pizza" title="🍕 Pizza Prize Info">
+        <div class="dish-plate-wrap pizza-dish">
+          <div class="pizza-illustration"></div>
+        </div>
+        <div class="dish-pill-btn">🍕 Pizza Prize</div>
+      </div>
+    </section>
+
+    <!-- Red Pedestal Stage -->
+    <footer class="red-pedestal">
+      <!-- 3 White Metric Pills -->
+      <div class="pedestal-pills-row">
+        <div class="white-metric-pill" id="pill-today-winning">
+          <div class="pill-label">Today's winning</div>
+          <div class="pill-value">
+            <span class="gold-coin-icon"></span>
+            <span id="txt-today-winning">0</span>
+          </div>
+        </div>
+
+        <button class="white-metric-pill pill-interactive" id="btn-my-records">
+          <div class="pill-center-text">My<br>Records</div>
+        </button>
+
+        <div class="white-metric-pill" id="pill-cats-left">
+          <div class="pill-label">Diamond</div>
+          <div class="pill-value">
+            <span class="diamond-icon sm"></span>
+            <span id="txt-cats-left">1.15B</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Winning Track -->
+      <div class="result-track-bar">
+        <div class="result-label">Result</div>
+        <div class="result-tokens-list" id="result-tokens-list">
+          <!-- Will be filled dynamically -->
+        </div>
+      </div>
+
+      <!-- Today Ranking Preview Bar (Bottom-most strip) -->
+      <div class="today-ranking-strip" id="btn-today-ranking">
+        <div class="strip-left">
+          <div class="today-tag">Today<br>Ranking</div>
+          <div class="strip-divider"></div>
+          <span class="strip-rank-num">1</span>
+          <div class="strip-avatar-wrap">
+            <div class="user-avatar-mini" id="strip-user-avatar">-</div>
+          </div>
+          <div class="strip-username" id="strip-username">--</div>
+        </div>
+        <div class="strip-right">
+          <span class="gold-coin-icon md"></span>
+          <span class="strip-score" id="strip-score">0</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Result Modal (Cyan Theme) -->
+    <div class="game-modal-overlay" id="modal-result">
+      <div class="modal-card result-modal-card">
+        <button class="modal-close-btn" id="btn-close-result-modal">✕</button>
+        <div class="result-modal-header">
+          <h2 class="result-title" id="result-title-text">Result</h2>
+          <div class="result-confetti-banner">
+            <span class="fork-icon">🍴</span>
+            <div class="winning-food-circle" id="result-winning-food"></div>
+            <span class="knife-icon">🎉</span>
+          </div>
+          <div class="result-subtitle" id="result-subtitle-text" style="display:none; font-size:13px; font-weight:800; color:#fef08a; margin-top:4px;"></div>
+        </div>
+
+        <div class="result-player-box">
+          <div class="player-cat-avatar"></div>
+          <div class="player-stats">
+            <div class="stat-row">My Bet: <span id="res-my-bet">0</span></div>
+            <div class="stat-row">Reward: <span id="res-reward">0</span></div>
+          </div>
+        </div>
+
+        <!-- TOP 3 Podium (Empty by default, populated only when real app users win) -->
+        <div class="top3-container">
+          <div class="top3-header">TOP 3</div>
+          <div class="podium-row">
+            <!-- Rank 2 -->
+            <div class="podium-col rank-2">
+              <div class="crown-icon crown-silver">👑<span class="crown-badge">2</span></div>
+              <div class="podium-avatar avatar-empty" id="podium-avatar-2"></div>
+              <div class="podium-name" id="podium-name-2">-</div>
+              <div class="podium-score">
+                <span class="drink-cat-icon xs"></span>
+                <span id="podium-score-2">-</span>
+              </div>
+            </div>
+
+            <!-- Rank 1 (Elevated) -->
+            <div class="podium-col rank-1">
+              <div class="crown-icon crown-gold">👑<span class="crown-badge">1</span></div>
+              <div class="podium-avatar avatar-empty" id="podium-avatar-1"></div>
+              <div class="podium-name" id="podium-name-1">-</div>
+              <div class="podium-score">
+                <span class="drink-cat-icon xs"></span>
+                <span id="podium-score-1">-</span>
+              </div>
+            </div>
+
+            <!-- Rank 3 -->
+            <div class="podium-col rank-3">
+              <div class="crown-icon crown-bronze">👑<span class="crown-badge">3</span></div>
+              <div class="podium-avatar avatar-empty" id="podium-avatar-3"></div>
+              <div class="podium-name" id="podium-name-3">-</div>
+              <div class="podium-score">
+                <span class="drink-cat-icon xs"></span>
+                <span id="podium-score-3">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Special Prize Info Modal -->
+    <div class="game-modal-overlay" id="modal-prize-info">
+      <div class="modal-card">
+        <button class="modal-close-btn" id="btn-close-prize-modal">✕</button>
+        <h2 class="modal-title" id="prize-modal-title">🍕 Pizza Prize</h2>
+        <div class="modal-body-text" id="prize-modal-body" style="font-size: 14px; line-height: 1.6; text-align: center;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Rule Modal -->
+    <div class="game-modal-overlay" id="modal-rules">
+      <div class="modal-card">
+        <button class="modal-close-btn" id="btn-close-rules-modal">✕</button>
+        <h2 class="modal-title">Game Rules</h2>
+        <div class="modal-body-text" style="font-size: 12.5px; line-height: 1.5; text-align: left;">
+          <p style="margin-bottom: 8px;"><strong>How to Play:</strong> Select your wager chip and tap the foods you want to bet on. When the wheel finishes spinning, matching food items win their multiplier reward.</p>
+          <div style="background: rgba(0,0,0,0.22); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.18);">
+            <div style="color: #fef08a; font-weight: 800; font-size: 13.5px; margin-bottom: 2px;">🍕 Pizza Prize</div>
+            <div>When the Pizza Prize is opened, all players who selected any meat ingredient will win a share of the prize pool. (All meat selections win)</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.22); border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.18);">
+            <div style="color: #86efac; font-weight: 800; font-size: 13.5px; margin-bottom: 2px;">🥗 Salad Prize</div>
+            <div>When the Salad Prize is opened, all players who selected any vegetable ingredient will win a share of the prize pool. (All vegetable selections win)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Records Modal -->
+    <div class="game-modal-overlay" id="modal-records">
+      <div class="modal-card records-modal-card">
+        <button class="modal-close-btn" id="btn-close-records-modal">✕</button>
+        <h2 class="modal-title">My Records</h2>
+        <div class="records-table-container">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>My Bet</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody id="records-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="game-modal-overlay" id="modal-settings">
+      <div class="modal-card settings-modal-card">
+        <button class="modal-close-btn" id="btn-close-settings-modal">✕</button>
+        <h2 class="modal-title">Setting</h2>
+        <div class="setting-row">
+          <span class="setting-label">Music</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-music" checked>
+            <span class="toggle-slider"><span class="toggle-text">ON</span></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <span class="setting-label">Sound</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-sound" checked>
+            <span class="toggle-slider"><span class="toggle-text">ON</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's Ranking Modal -->
+    <div class="game-modal-overlay" id="modal-ranking">
+      <div class="modal-card ranking-modal-card">
+        <button class="modal-close-btn" id="btn-close-ranking-modal">✕</button>
+        <h2 class="modal-title">Today's Ranking</h2>
+        <div class="ranking-table-container">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Income</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-table-body">
+              <tr>
+                <td><span class="rank-trophy">🥇</span> 1</td>
+                <td>Nada Batz</td>
+                <td><span class="gold-coin-icon sm"></span> 6.6K</td>
+              </tr>
+              <tr>
+                <td><span class="rank-trophy">🥈</span> 2</td>
+                <td>Emily</td>
+                <td><span class="gold-coin-icon sm"></span> 2.1K</td>
+              </tr>
+              <tr>
+                <td><span class="rank-trophy">🥉</span> 3</td>
+                <td>Daniel</td>
+                <td><span class="gold-coin-icon sm"></span> 1.34K</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>Lily</td>
+                <td><span class="gold-coin-icon sm"></span> 550</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="game-toast" id="game-toast">Please Bet Next round</div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

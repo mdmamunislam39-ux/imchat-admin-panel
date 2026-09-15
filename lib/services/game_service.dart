@@ -59,10 +59,62 @@ class GameService {
   // Toggle game active status
   static Future<void> toggleGameStatus(String id, bool isActive) async {
     try {
-      await _firestore.collection(_collectionName).doc(id).update({
+      await _firestore.collection(_collectionName).doc(id).set({
         'isActive': isActive,
+        'isEnabled': isActive,
+        'status': isActive ? 'active' : 'inactive',
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
+
+      if (id == 'html5_greedy_market' || id == 'html5_greedy_game') {
+        try {
+          await _firestore.collection('config').doc('html5_greedy_game').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      } else if (id == 'greedy_game') {
+        try {
+          await _firestore.collection('config').doc('greedy_game').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      } else if (id == 'fruit_wheel') {
+        try {
+          await _firestore.collection('config').doc('fruit_wheel').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      } else if (id == 'pink_greedy_game') {
+        try {
+          await _firestore.collection('config').doc('pink_greedy_game').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      } else if (id == 'food_spin_game') {
+        try {
+          await _firestore.collection('config').doc('food_spin_game').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      } else if (id == 'html5_greedy_cat' || id == 'greedy_cat') {
+        try {
+          await _firestore.collection('config').doc('html5_greedy_cat').set({
+            'isActive': isActive,
+            'isEnabled': isActive,
+            'status': isActive ? 'active' : 'inactive',
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      }
     } catch (e) {
       debugPrint('Error toggling game status: $e');
       rethrow;

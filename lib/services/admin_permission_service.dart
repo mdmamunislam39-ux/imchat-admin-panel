@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/admin_permission_model.dart';
+import 'admin_auth_service.dart';
+import 'simple_auth_service.dart';
 
 class AdminPermissionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,6 +16,7 @@ class AdminPermissionService {
     'Hosts & Agencies',
     'Blocked Users',
     'Family Management',
+    'imChat Moment Management',
     'Banner Management',
     'Event Management',
     'Official Channels',
@@ -21,7 +24,10 @@ class AdminPermissionService {
     'Gifts Management',
     'Emojis Management',
     'Level System',
+    'Intimacy Levels',
+    'Couple Levels',
     'User History & Stats',
+    'VIP Management',
     'SVIP Management',
     'Agency Management',
     'Seller Management',
@@ -146,7 +152,11 @@ class AdminPermissionService {
   }
 
   // Assign or Update Super Admin
-  static Future<void> assignOrUpdateAdmin(AdminPermissionModel admin) async {
+  static Future<void> assignOrUpdateAdmin(
+    AdminPermissionModel admin, {
+    String superAdminName = 'Super Admin',
+    String superAdminId = 'root',
+  }) async {
     try {
       if (admin.id.isEmpty) {
         // Create new
@@ -163,6 +173,25 @@ class AdminPermissionService {
       await _firestore.collection(_usersCollection).doc(admin.userId).update({
         'userType': admin.isActive ? 'admin' : 'regular',
       });
+
+      // Log to Assign History
+      final activePermissions = admin.permissions.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .toList();
+
+      await logAssignHistory(
+        superAdminName: superAdminName,
+        superAdminId: superAdminId,
+        targetUserName: admin.userName,
+        targetUserId: admin.userId,
+        actionType: admin.id.isEmpty
+            ? 'Assigned Admin Rights'
+            : 'Updated Admin Rights',
+        assignedItems: activePermissions,
+        details:
+            'Assigned ${activePermissions.length} modules to ${admin.userName}',
+      );
     } catch (e) {
       debugPrint('Error saving admin: $e');
       rethrow;
@@ -170,16 +199,32 @@ class AdminPermissionService {
   }
 
   // Delete Super Admin
-  static Future<void> deleteAdmin(String docId) async {
+  static Future<void> deleteAdmin(
+    String docId, {
+    String superAdminName = 'Super Admin',
+    String superAdminId = 'root',
+  }) async {
     try {
       final doc = await _firestore.collection(_collectionName).doc(docId).get();
       if (doc.exists) {
-        final userId = doc.data()?['userId'];
+        final data = doc.data() ?? {};
+        final userId = data['userId'];
+        final userName = data['userName'] ?? 'Admin';
         if (userId != null) {
           await _firestore.collection(_usersCollection).doc(userId).update({
             'userType': 'regular',
           });
         }
+
+        await logAssignHistory(
+          superAdminName: superAdminName,
+          superAdminId: superAdminId,
+          targetUserName: userName,
+          targetUserId: userId ?? '',
+          actionType: 'Removed Super Admin',
+          assignedItems: [],
+          details: 'Removed $userName from Super Admin privileges',
+        );
       }
       await _firestore.collection(_collectionName).doc(docId).delete();
     } catch (e) {
@@ -189,7 +234,12 @@ class AdminPermissionService {
   }
 
   // Toggle Admin Status
-  static Future<void> toggleAdminStatus(String docId, bool isActive) async {
+  static Future<void> toggleAdminStatus(
+    String docId,
+    bool isActive, {
+    String superAdminName = 'Super Admin',
+    String superAdminId = 'root',
+  }) async {
     try {
       await _firestore.collection(_collectionName).doc(docId).update({
         'isActive': isActive,
@@ -197,16 +247,106 @@ class AdminPermissionService {
 
       final doc = await _firestore.collection(_collectionName).doc(docId).get();
       if (doc.exists) {
-        final userId = doc.data()?['userId'];
+        final data = doc.data() ?? {};
+        final userId = data['userId'];
+        final userName = data['userName'] ?? 'Admin';
         if (userId != null) {
           await _firestore.collection(_usersCollection).doc(userId).update({
             'userType': isActive ? 'admin' : 'regular',
           });
         }
+
+        await logAssignHistory(
+          superAdminName: superAdminName,
+          superAdminId: superAdminId,
+          targetUserName: userName,
+          targetUserId: userId ?? '',
+          actionType: isActive ? 'Activated Admin' : 'Deactivated Admin',
+          assignedItems: [],
+          details:
+              'Toggled $userName status to ${isActive ? 'Active ✅' : 'Deactivated ❌'}',
+        );
       }
     } catch (e) {
       debugPrint('Error toggling admin status: $e');
       rethrow;
+    }
+  }
+
+  // Log Assign History Entry
+  static Future<void> logAssignHistory({
+    String superAdminName = 'Super Admin',
+    String superAdminId = '',
+    required String targetUserName,
+    required String targetUserId,
+    String targetPhone = '',
+    required String actionType,
+    required List<String> assignedItems,
+    required String details,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final dateFormatted =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+
+      // Resolve exact current logged in admin UID
+      String currentAdminUid = superAdminId;
+      String currentAdminName = superAdminName;
+
+      if (currentAdminUid.isEmpty ||
+          currentAdminUid == 'root' ||
+          currentAdminUid == 'admin' ||
+          currentAdminUid == 'unknown_admin') {
+        currentAdminUid =
+            AdminAuthService.currentUserId ??
+            SimpleAuthService.currentUserId ??
+            '';
+      }
+
+      if (currentAdminName.isEmpty || currentAdminName == 'Super Admin') {
+        final email =
+            AdminAuthService.currentUserEmail ??
+            SimpleAuthService.currentUserEmail ??
+            '';
+        currentAdminName = email.isNotEmpty
+            ? email.split('@').first
+            : 'Super Admin';
+      }
+
+      // If currentAdminUid exists, fetch name from Users collection if missing
+      if (currentAdminUid.isNotEmpty &&
+          (currentAdminName == 'Super Admin' || currentAdminName.isEmpty)) {
+        try {
+          final userDoc = await _firestore
+              .collection('Users')
+              .doc(currentAdminUid)
+              .get();
+          if (userDoc.exists) {
+            final data = userDoc.data()!;
+            currentAdminName =
+                (data['fullname'] ??
+                        data['name'] ??
+                        data['username'] ??
+                        currentAdminName)
+                    .toString();
+          }
+        } catch (_) {}
+      }
+
+      await _firestore.collection('super_admin_assign_history').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'dateString': dateFormatted,
+        'assignedByAdminName': currentAdminName,
+        'assignedByAdminId': currentAdminUid,
+        'targetUserName': targetUserName,
+        'targetUserId': targetUserId,
+        'targetPhone': targetPhone,
+        'actionType': actionType,
+        'assignedItems': assignedItems,
+        'details': details,
+      });
+    } catch (e) {
+      debugPrint('Error logging assign history: $e');
     }
   }
 }
