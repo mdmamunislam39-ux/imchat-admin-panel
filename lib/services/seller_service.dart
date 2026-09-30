@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/seller_model.dart';
 import '../models/transaction_model.dart';
 import 'svip_service.dart';
+import 'user_position_service.dart';
 
 class SellerService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -58,6 +59,19 @@ class SellerService {
         'lastUpdated': Timestamp.fromDate(now),
       });
 
+      // Automatically apply Seller position items (Frame, Badge, Nameplate)
+      try {
+        await UserPositionService.applyPositionToUser(
+          userId: userId,
+          positionKey: 'seller',
+          adminId: adminId,
+          userProfileId: profileId,
+          userName: sellerName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Error auto-applying seller position items: $e');
+      }
+
       // Log admin action
       if (adminId != null) {
         await _logTransaction(
@@ -75,6 +89,16 @@ class SellerService {
       debugPrint('Error creating seller: $e');
       return null;
     }
+  }
+
+  // Get real-time stream of all sellers
+  static Stream<List<SellerModel>> getSellersStream() {
+    return _firestore
+        .collection(_sellersCollection)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => SellerModel.fromFirestore(doc)).toList());
   }
 
   // Get all sellers
@@ -173,10 +197,71 @@ class SellerService {
         adminId: adminId,
       );
 
+      // Sync balance to Users document in real-time
+      try {
+        final updatedDoc = await _firestore.collection(_sellersCollection).doc(sellerId).get();
+        if (updatedDoc.exists) {
+          final sData = updatedDoc.data() ?? {};
+          final uId = sData['userId']?.toString();
+          final bal = (sData['accountBalance'] ?? 0.0).toDouble();
+          if (uId != null && uId.isNotEmpty) {
+            await _firestore.collection(_usersCollection).doc(uId).update({
+              'diamonds': bal.toInt(),
+              'totalDiamonds': bal.toInt(),
+              'walletDiamonds': bal.toInt(),
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error syncing seller balance to Users doc: $e');
+      }
+
       debugPrint('Seller balance updated successfully');
       return true;
     } catch (e) {
       debugPrint('Error updating seller balance: $e');
+      return false;
+    }
+  }
+
+  // Update seller info and sync with Users document in real-time
+  static Future<bool> updateSellerInfo({
+    required String sellerId,
+    required String userId,
+    required String sellerName,
+    required String idNumber,
+    required String profileId,
+    String? phone,
+    String? email,
+  }) async {
+    try {
+      final now = DateTime.now();
+      await _firestore.collection(_sellersCollection).doc(sellerId).update({
+        'sellerName': sellerName,
+        'idNumber': idNumber,
+        'profileId': profileId,
+        'updatedAt': Timestamp.fromDate(now),
+      });
+
+      if (userId.isNotEmpty) {
+        final Map<String, dynamic> userUpdate = {
+          'fullname': sellerName,
+          'searchId': profileId,
+          'updatedAt': Timestamp.fromDate(now),
+        };
+        if (phone != null && phone.isNotEmpty) {
+          userUpdate['number'] = phone;
+          userUpdate['phone'] = phone;
+        }
+        if (email != null && email.isNotEmpty) {
+          userUpdate['email'] = email;
+          userUpdate['googleEmail'] = email;
+        }
+        await _firestore.collection(_usersCollection).doc(userId).update(userUpdate);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error updating seller info: $e');
       return false;
     }
   }
@@ -195,13 +280,31 @@ class SellerService {
         'updatedAt': Timestamp.fromDate(now),
       });
 
-      // Update user document
+      // Update user document and sync position items
       final seller = await getSellerById(sellerId);
       if (seller != null) {
         await _firestore.collection(_usersCollection).doc(seller.userId).update({
           'isSeller': isActive,
           'updatedAt': Timestamp.fromDate(now),
         });
+
+        try {
+          if (isActive) {
+            await UserPositionService.applyPositionToUser(
+              userId: seller.userId,
+              positionKey: 'seller',
+              adminId: adminId,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: seller.userId,
+              positionKey: 'seller',
+              adminId: adminId,
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating seller position items on status toggle: $e');
+        }
       }
 
       // Log transaction
@@ -371,13 +474,16 @@ class SellerService {
     }
   }
 
-  // Search user by profile ID or phone number
+  // Search user by profile ID, phone number, email or UID
   static Future<Map<String, dynamic>?> searchUser(String query) async {
     try {
-      // Search by searchId (profile ID) first
+      final clean = query.trim();
+      if (clean.isEmpty) return null;
+
+      // 1. Search by searchId (profile ID) first
       var querySnapshot = await _firestore
           .collection(_usersCollection)
-          .where('searchId', isEqualTo: query)
+          .where('searchId', isEqualTo: clean)
           .limit(1)
           .get();
 
@@ -385,17 +491,45 @@ class SellerService {
         final userData = querySnapshot.docs.first.data();
         return {
           'id': querySnapshot.docs.first.id,
-          'name': userData['fullname'] ?? '',
+          'name': userData['fullname'] ?? userData['name'] ?? userData['username'] ?? '',
           'profileId': userData['searchId'] ?? '',
-          'phone': userData['number'] ?? '',
+          'phone': userData['number'] ?? userData['phone'] ?? '',
+          'email': userData['email'] ?? userData['googleEmail'] ?? '',
           'balance': (userData['diamonds'] ?? 0.0).toDouble(),
         };
       }
 
-      // Search by phone number
+      // 2. Search by phone number (number or phone)
       querySnapshot = await _firestore
           .collection(_usersCollection)
-          .where('number', isEqualTo: query)
+          .where('number', isEqualTo: clean)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        querySnapshot = await _firestore
+            .collection(_usersCollection)
+            .where('phone', isEqualTo: clean)
+            .limit(1)
+            .get();
+      }
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final userData = querySnapshot.docs.first.data();
+        return {
+          'id': querySnapshot.docs.first.id,
+          'name': userData['fullname'] ?? userData['name'] ?? userData['username'] ?? '',
+          'profileId': userData['searchId'] ?? '',
+          'phone': userData['number'] ?? userData['phone'] ?? '',
+          'email': userData['email'] ?? userData['googleEmail'] ?? '',
+          'balance': (userData['diamonds'] ?? 0.0).toDouble(),
+        };
+      }
+
+      // 3. Search by Google / Email
+      querySnapshot = await _firestore
+          .collection(_usersCollection)
+          .where('email', isEqualTo: clean)
           .limit(1)
           .get();
 
@@ -403,9 +537,24 @@ class SellerService {
         final userData = querySnapshot.docs.first.data();
         return {
           'id': querySnapshot.docs.first.id,
-          'name': userData['fullname'] ?? '',
+          'name': userData['fullname'] ?? userData['name'] ?? userData['username'] ?? '',
           'profileId': userData['searchId'] ?? '',
-          'phone': userData['number'] ?? '',
+          'phone': userData['number'] ?? userData['phone'] ?? '',
+          'email': userData['email'] ?? userData['googleEmail'] ?? '',
+          'balance': (userData['diamonds'] ?? 0.0).toDouble(),
+        };
+      }
+
+      // 4. By Document ID
+      final docSnap = await _firestore.collection(_usersCollection).doc(clean).get();
+      if (docSnap.exists) {
+        final userData = docSnap.data() ?? {};
+        return {
+          'id': docSnap.id,
+          'name': userData['fullname'] ?? userData['name'] ?? userData['username'] ?? '',
+          'profileId': userData['searchId'] ?? '',
+          'phone': userData['number'] ?? userData['phone'] ?? '',
+          'email': userData['email'] ?? userData['googleEmail'] ?? '',
           'balance': (userData['diamonds'] ?? 0.0).toDouble(),
         };
       }
@@ -543,4 +692,202 @@ class SellerService {
       debugPrint('Error updating sales summary: $e');
     }
   }
+
+  // --- Seller Top-Up Requests Management ---
+
+  /// Stream all seller top-up requests
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getSellerRequestsStream() {
+    return _firestore
+        .collection('seller_diamond_requests')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  /// Approve a seller top-up request
+  static Future<bool> approveSellerDiamondRequest({
+    required String requestId,
+    required String sellerId,
+    required String sellerName,
+    required String sellerSearchId,
+    required int amount,
+    required String adminId,
+    required String adminName,
+    required String adminNote,
+    String? paymentMethod,
+    String? transactionId,
+  }) async {
+    try {
+      // 1. Locate or create seller document
+      final sellerSnap = await _firestore
+          .collection(_sellersCollection)
+          .where('userId', isEqualTo: sellerId)
+          .limit(1)
+          .get();
+
+      String sellerDocId = '';
+      if (sellerSnap.docs.isNotEmpty) {
+        sellerDocId = sellerSnap.docs.first.id;
+        await _firestore.collection(_sellersCollection).doc(sellerDocId).update({
+          'accountBalance': FieldValue.increment(amount),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        final newDoc = _firestore.collection(_sellersCollection).doc();
+        sellerDocId = newDoc.id;
+        await newDoc.set({
+          'userId': sellerId,
+          'sellerName': sellerName,
+          'idNumber': sellerSearchId,
+          'profileId': sellerSearchId,
+          'accountBalance': amount.toDouble(),
+          'totalSales': 0.0,
+          'totalUsersRecharged': 0,
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 2. Add record in seller_admin_credits
+      final creditDoc = _firestore.collection('seller_admin_credits').doc();
+      await creditDoc.set({
+        'id': creditDoc.id,
+        'sellerId': sellerId,
+        'sellerDocId': sellerDocId,
+        'sellerName': sellerName,
+        'sellerSearchId': sellerSearchId,
+        'amount': amount,
+        'note': adminNote,
+        'adminNote': adminNote,
+        'paymentMethod': paymentMethod ?? '',
+        'transactionId': transactionId ?? '',
+        'adminId': adminId,
+        'adminName': adminName,
+        'type': 'request_approved',
+        'requestId': requestId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3. Log transaction
+      await _logTransaction(
+        sellerId: sellerDocId.isNotEmpty ? sellerDocId : sellerId,
+        amount: amount.toDouble(),
+        type: TransactionType.add,
+        description: 'Approved top-up request #$requestId via ${paymentMethod ?? 'Direct'}. Admin: $adminName. Note: $adminNote',
+        adminId: adminId,
+      );
+
+      // 4. Update request status in seller_diamond_requests
+      await _firestore.collection('seller_diamond_requests').doc(requestId).update({
+        'status': 'approved',
+        'adminNote': adminNote,
+        'processedBy': adminName,
+        'adminId': adminId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('Error approving seller request: $e');
+      return false;
+    }
+  }
+
+  /// Reject a seller top-up request
+  static Future<bool> rejectSellerDiamondRequest({
+    required String requestId,
+    required String adminId,
+    required String adminName,
+    required String rejectionReason,
+  }) async {
+    try {
+      await _firestore.collection('seller_diamond_requests').doc(requestId).update({
+        'status': 'rejected',
+        'adminNote': rejectionReason,
+        'processedBy': adminName,
+        'adminId': adminId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      debugPrint('Error rejecting seller request: $e');
+      return false;
+    }
+  }
+
+  /// Direct credit seller diamonds
+  static Future<bool> directCreditSellerDiamonds({
+    required String sellerId,
+    required String sellerName,
+    required String sellerSearchId,
+    required int amount,
+    required String adminId,
+    required String adminName,
+    required String adminNote,
+  }) async {
+    try {
+      // 1. Update or create seller doc
+      final sellerSnap = await _firestore
+          .collection(_sellersCollection)
+          .where('userId', isEqualTo: sellerId)
+          .limit(1)
+          .get();
+
+      String sellerDocId = '';
+      if (sellerSnap.docs.isNotEmpty) {
+        sellerDocId = sellerSnap.docs.first.id;
+        await _firestore.collection(_sellersCollection).doc(sellerDocId).update({
+          'accountBalance': FieldValue.increment(amount),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        final newDoc = _firestore.collection(_sellersCollection).doc();
+        sellerDocId = newDoc.id;
+        await newDoc.set({
+          'userId': sellerId,
+          'sellerName': sellerName,
+          'idNumber': sellerSearchId,
+          'profileId': sellerSearchId,
+          'accountBalance': amount.toDouble(),
+          'totalSales': 0.0,
+          'totalUsersRecharged': 0,
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 2. Add credit record
+      final creditDoc = _firestore.collection('seller_admin_credits').doc();
+      await creditDoc.set({
+        'id': creditDoc.id,
+        'sellerId': sellerId,
+        'sellerDocId': sellerDocId,
+        'sellerName': sellerName,
+        'sellerSearchId': sellerSearchId,
+        'amount': amount,
+        'note': adminNote,
+        'adminNote': adminNote,
+        'adminId': adminId,
+        'adminName': adminName,
+        'type': 'direct_topup',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3. Log transaction
+      await _logTransaction(
+        sellerId: sellerDocId.isNotEmpty ? sellerDocId : sellerId,
+        amount: amount.toDouble(),
+        type: TransactionType.add,
+        description: 'Direct top-up of $amount 💎 by Admin $adminName. Note: $adminNote',
+        adminId: adminId,
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Error direct crediting seller: $e');
+      return false;
+    }
+  }
 }
+

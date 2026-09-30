@@ -33,30 +33,43 @@ class HostModel {
     this.notes,
   });
 
+  static DateTime _parseDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return DateTime.now();
+  }
+
+  static DateTime? _parseNullableDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value);
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
+  }
+
   factory HostModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
     return HostModel(
       id: doc.id,
-      userId: data['userId'] ?? '',
-      agencyId: data['agencyId'] ?? '',
-      hostName: data['hostName'] ?? '',
-      profileImageUrl: data['profileImageUrl'],
-      phone: data['phone'] ?? '',
-      email: data['email'] ?? '',
-      joinedDate: (data['joinedDate'] as Timestamp).toDate(),
-      lastActiveDate: data['lastActiveDate'] != null 
-          ? (data['lastActiveDate'] as Timestamp).toDate()
-          : null,
-      isActive: data['isActive'] ?? true,
+      userId: data['userId']?.toString() ?? '',
+      agencyId: data['agencyId']?.toString() ?? '',
+      hostName: data['hostName']?.toString() ?? '',
+      profileImageUrl: data['profileImageUrl']?.toString(),
+      phone: data['phone']?.toString() ?? '',
+      email: data['email']?.toString() ?? '',
+      joinedDate: _parseDate(data['joinedDate']),
+      lastActiveDate: _parseNullableDate(data['lastActiveDate']),
+      isActive: data['isActive'] == true || data['isActive'] == null,
       status: HostStatus.values.firstWhere(
-        (e) => e.name == data['status'],
+        (e) => e.name.toLowerCase() == data['status']?.toString().toLowerCase(),
         orElse: () => HostStatus.pending,
       ),
-      performance: HostPerformance.fromMap(data['performance'] ?? {}),
+      performance: HostPerformance.fromMap(data['performance'] is Map ? Map<String, dynamic>.from(data['performance']) : {}),
       earnings: (data['earnings'] as List<dynamic>?)
-          ?.map((e) => HostEarning.fromMap(e))
+          ?.map((e) => HostEarning.fromMap(e is Map ? Map<String, dynamic>.from(e) : {}))
           .toList() ?? [],
-      notes: data['notes'],
+      notes: data['notes']?.toString(),
     );
   }
 
@@ -141,12 +154,12 @@ class HostPerformance {
 
   factory HostPerformance.fromMap(Map<String, dynamic> data) {
     return HostPerformance(
-      totalEarnings: (data['totalEarnings'] ?? 0.0).toDouble(),
-      totalDiamonds: (data['totalDiamonds'] ?? 0.0).toDouble(),
-      totalLiveHours: data['totalLiveHours'] ?? 0,
-      totalGiftsReceived: data['totalGiftsReceived'] ?? 0,
-      averageRating: (data['averageRating'] ?? 0.0).toDouble(),
-      lastUpdated: (data['lastUpdated'] as Timestamp).toDate(),
+      totalEarnings: (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+      totalDiamonds: (data['totalDiamonds'] as num?)?.toDouble() ?? 0.0,
+      totalLiveHours: (data['totalLiveHours'] as num?)?.toInt() ?? 0,
+      totalGiftsReceived: (data['totalGiftsReceived'] as num?)?.toInt() ?? 0,
+      averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
+      lastUpdated: HostModel._parseDate(data['lastUpdated']),
     );
   }
 
@@ -203,17 +216,17 @@ class HostEarning {
 
   factory HostEarning.fromMap(Map<String, dynamic> data) {
     return HostEarning(
-      id: data['id'] ?? '',
-      hostId: data['hostId'] ?? '',
-      agencyId: data['agencyId'] ?? '',
-      diamondsEarned: (data['diamondsEarned'] ?? 0.0).toDouble(),
-      commissionAmount: (data['commissionAmount'] ?? 0.0).toDouble(),
-      earningDate: (data['earningDate'] as Timestamp).toDate(),
+      id: data['id']?.toString() ?? '',
+      hostId: data['hostId']?.toString() ?? '',
+      agencyId: data['agencyId']?.toString() ?? '',
+      diamondsEarned: (data['diamondsEarned'] as num?)?.toDouble() ?? 0.0,
+      commissionAmount: (data['commissionAmount'] as num?)?.toDouble() ?? 0.0,
+      earningDate: HostModel._parseDate(data['earningDate']),
       period: EarningPeriod.values.firstWhere(
-        (e) => e.name == data['period'],
+        (e) => e.name.toLowerCase() == data['period']?.toString().toLowerCase(),
         orElse: () => EarningPeriod.weekly,
       ),
-      description: data['description'],
+      description: data['description']?.toString(),
     );
   }
 

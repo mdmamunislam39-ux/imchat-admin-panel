@@ -7,6 +7,7 @@ import '../services/store_service.dart';
 import '../services/auth_service.dart';
 import '../services/official_items_service.dart';
 import '../models/official_item_model.dart';
+import '../widgets/golden_seat_widget.dart';
 
 class AddStoreItemScreen extends StatefulWidget {
   const AddStoreItemScreen({super.key});
@@ -33,6 +34,12 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
   int _selectedStarRating = 1;
   bool _isPermanent = true;
   bool _isCreating = false;
+
+  // Animation settings
+  bool _isAnimated = false;
+  String _animationType = 'rotatingRing';
+  double _animationSpeed = 1.0;
+  String _animationColor = 'cyan';
 
   // Normal PNG
   Uint8List? _normalImageBytes;
@@ -100,6 +107,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
 
   String _getTypeIcon(StoreItemType type) {
     switch (type) {
+      case 'beamSweep':
+      case 'lightBeam':
+      case 'lightBeamSweep':
+        return 'Laser Light Beam Sweep';
       case StoreItemType.avatarFrame:
         return '🖼️';
       case StoreItemType.entryEffect:
@@ -362,6 +373,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           lockedFileUrl: lockedUrl,
           diamondPrice: effectiveDiamondPrice,
           expirationDuration: effectiveExpirationDuration,
+          isAnimated: _isAnimated,
+          animationType: _isAnimated ? _animationType : null,
+          animationSpeed: _animationSpeed,
+          animationColor: _animationColor,
         );
       } else {
         itemId = await StoreService.createStoreItem(
@@ -379,6 +394,10 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
           lockedFileUrl: lockedUrl,
           adminId: AuthService.currentUser?.uid,
           validityPrices: validityPrices.isNotEmpty ? validityPrices : null,
+          isAnimated: _isAnimated,
+          animationType: _isAnimated ? _animationType : null,
+          animationSpeed: _animationSpeed,
+          animationColor: _animationColor,
         );
       }
 
@@ -790,6 +809,11 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
 
               const SizedBox(height: 24),
 
+              // ── Seat Animation & Effects Section ────────────────────────
+              _buildAnimationSettingsCard(),
+
+              const SizedBox(height: 24),
+
               // ── Pricing & Duration ─────────────────────────────────────
               _sectionTitle('Pricing & Duration'),
               const SizedBox(height: 12),
@@ -1005,6 +1029,270 @@ class _AddStoreItemScreenState extends State<AddStoreItemScreen> {
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
+    );
+  }
+
+  Color _getAnimationColorValue(String colorKey) {
+    switch (colorKey) {
+      case 'purple':
+        return const Color(0xFFFF00D4);
+      case 'golden':
+        return const Color(0xFFFFD700);
+      case 'emerald':
+        return const Color(0xFF00E676);
+      case 'amber':
+        return const Color(0xFFFF9100);
+      case 'cyan':
+      default:
+        return const Color(0xFF00FFE0);
+    }
+  }
+
+  Widget _buildAnimationSettingsCard() {
+    final glowColor = _getAnimationColorValue(_animationColor);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _isAnimated ? Colors.cyanAccent.withValues(alpha: 0.6) : Colors.white12,
+          width: _isAnimated ? 1.5 : 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row with Switch
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _isAnimated ? Colors.cyanAccent.withValues(alpha: 0.2) : Colors.white10,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: _isAnimated ? Colors.cyanAccent : Colors.grey,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Seat Animation & Effects (সিট অ্যানিমেশন)',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'অন রাখলে সিটে রিয়েল-টাইম ঘুরন্ত নিয়ন অরা, পালস বা স্পার্কলিং এনিমেশন হবে।',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _isAnimated,
+                onChanged: (val) => setState(() => _isAnimated = val),
+                activeColor: Colors.cyanAccent,
+              ),
+            ],
+          ),
+
+          if (_isAnimated) ...[
+            const Divider(color: Colors.white24, height: 24),
+
+            // Live Animated Preview
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  // Live Animation Canvas
+                  AnimatedSeatDecorWidget(
+                    isAnimated: true,
+                    animationType: _animationType,
+                    animationSpeed: _animationSpeed,
+                    glowColor: glowColor,
+                    size: 64,
+                    child: _normalImageBytes != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(32),
+                            child: Image.memory(
+                              _normalImageBytes!,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : const CyberEmeraldDiamondOrbWidget(
+                            size: 56,
+                            child: Icon(Icons.mic_rounded, color: Colors.white, size: 24),
+                          ),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.play_circle_fill, color: Colors.greenAccent, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Live Animation Preview',
+                              style: TextStyle(
+                                color: Colors.greenAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Type: $_animationType • Speed: ${_animationSpeed}x • Glow: $_animationColor',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'অডিও রুমে ইউজার এই সিট ব্যবহার করলে ঠিক এমন এনিমেশন দেখতে পাবে।',
+                          style: TextStyle(color: Colors.grey, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Animation Effect Dropdown
+            const Text(
+              'Animation Effect Style (অ্যানিমেশন স্টাইল):',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _animationType,
+              dropdownColor: Colors.grey[900],
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration('Select Animation Style'),
+              items: const [
+                                    DropdownMenuItem(
+                                      value: 'beamSweep',
+                                      child: Text('⚡ Laser Light Beam Sweep (বাম থেকে ডানে আলো যাওয়া)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rotatingRing',
+                  child: Text('💫 360° Rotating Neon Aura Ring (ঘুরন্ত নিয়ন রিং)'),
+                ),
+                DropdownMenuItem(
+                  value: 'neonPulse',
+                  child: Text('💓 Breathing Neon Glow Pulse (পালসিং গ্লো)'),
+                ),
+                DropdownMenuItem(
+                  value: 'starSparkle',
+                  child: Text('✨ Orbiting Star Sparkles (স্পার্কলিং স্টার)'),
+                ),
+                DropdownMenuItem(
+                  value: 'rippleWave',
+                  child: Text('🌊 Cyber Sonar Ripple Wave (রিপল ওয়েভ)'),
+                ),
+                DropdownMenuItem(
+                  value: 'goldenShimmer',
+                  child: Text('🌟 Holographic Shimmer Sweep (শিমার ইফেক্ট)'),
+                ),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _animationType = val);
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Aura Glow Color Selector
+            const Text(
+              'Aura Glow Color (অরা নিয়ন কালার):',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildColorChip('Cyan Neon', 'cyan', const Color(0xFF00FFE0)),
+                _buildColorChip('Electric Purple', 'purple', const Color(0xFFFF00D4)),
+                _buildColorChip('Champagne Gold', 'golden', const Color(0xFFFFD700)),
+                _buildColorChip('Cosmic Emerald', 'emerald', const Color(0xFF00E676)),
+                _buildColorChip('Fire Amber', 'amber', const Color(0xFFFF9100)),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Animation Speed Selector
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Animation Speed (গতি):',
+                  style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${_animationSpeed.toStringAsFixed(2)}x',
+                  style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            Slider(
+              value: _animationSpeed,
+              min: 0.5,
+              max: 2.5,
+              divisions: 8,
+              label: '${_animationSpeed.toStringAsFixed(2)}x',
+              activeColor: Colors.cyanAccent,
+              inactiveColor: Colors.grey[800],
+              onChanged: (val) => setState(() => _animationSpeed = val),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorChip(String label, String colorKey, Color color) {
+    final isSelected = _animationColor == colorKey;
+    return ChoiceChip(
+      avatar: CircleAvatar(backgroundColor: color, radius: 8),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.black : Colors.white,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      backgroundColor: Colors.black45,
+      onSelected: (selected) {
+        if (selected) setState(() => _animationColor = colorKey);
+      },
     );
   }
 }

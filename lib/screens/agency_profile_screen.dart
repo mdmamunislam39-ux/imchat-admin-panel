@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,6 +24,7 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
   bool _isLoading = true;
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
+  StreamSubscription<DocumentSnapshot>? _agencySub;
   
   // Controllers
   final _agencyNameController = TextEditingController();
@@ -39,11 +41,12 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAgencyData();
+    _startRealtimeListener();
   }
 
   @override
   void dispose() {
+    _agencySub?.cancel();
     _agencyNameController.dispose();
     _agencyIdController.dispose();
     _ownerNameController.dispose();
@@ -53,27 +56,38 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
     super.dispose();
   }
 
+  void _startRealtimeListener() {
+    _agencySub?.cancel();
+    if (mounted) setState(() => _isLoading = true);
+
+    _agencySub = FirebaseFirestore.instance
+        .collection('agencies')
+        .doc(widget.agencyId)
+        .snapshots()
+        .listen(
+          (doc) {
+            if (!mounted) return;
+            if (doc.exists) {
+              setState(() {
+                _agency = AgencyModel.fromFirestore(doc);
+                if (!_isEditing) {
+                  _populateForm();
+                }
+                _isLoading = false;
+              });
+            } else {
+              setState(() => _isLoading = false);
+            }
+          },
+          onError: (e) {
+            debugPrint('Error listening to agency profile: $e');
+            if (mounted) setState(() => _isLoading = false);
+          },
+        );
+  }
+
   Future<void> _loadAgencyData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final agency = await AgencyService.getAgency(widget.agencyId);
-      if (agency != null) {
-        _agency = agency;
-        _populateForm();
-      }
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading agency data: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _startRealtimeListener();
   }
 
   void _populateForm() {
@@ -105,7 +119,12 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          if (!_isEditing)
+          if (!_isEditing) ...[
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _loadAgencyData,
+            ),
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () {
@@ -113,7 +132,8 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
                   _isEditing = true;
                 });
               },
-            )
+            ),
+          ]
           else
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -525,19 +545,24 @@ class _AgencyProfileScreenState extends State<AgencyProfileScreen> {
       final success = await AgencyService.updateAgency(widget.agencyId, updatedAgency);
       
       if (success) {
-        // If name changed, sync it to the owner user doc
-        if (_agency!.owner.userId != null &&
-            _agency!.owner.userId!.isNotEmpty &&
-            _agency!.agencyName != _agencyNameController.text.trim()) {
+        // If owner exists, sync name, phone, email, and agencyName to the owner's Users doc
+        if (_agency!.owner.userId != null && _agency!.owner.userId!.isNotEmpty) {
           try {
             await FirebaseFirestore.instance
                 .collection('Users')
                 .doc(_agency!.owner.userId)
                 .update({
               'agencyName': _agencyNameController.text.trim(),
+              'fullname': _ownerNameController.text.trim(),
+              'username': _ownerNameController.text.trim(),
+              'number': _ownerPhoneController.text.trim(),
+              'phone': _ownerPhoneController.text.trim(),
+              'email': _ownerEmailController.text.trim(),
+              'address': _ownerAddressController.text.trim(),
+              'updatedAt': Timestamp.now(),
             });
           } catch (e) {
-            debugPrint('Error syncing agencyName to User doc: $e');
+            debugPrint('Error syncing agency owner info to User doc: $e');
           }
         }
 

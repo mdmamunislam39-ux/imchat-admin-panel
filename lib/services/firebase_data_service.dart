@@ -99,6 +99,41 @@ class FirebaseDataService {
     }
   }
 
+  // Audio Room Rules & Guideline
+  static Future<String> getAudioRoomRules() async {
+    try {
+      final doc = await _firestore.collection('system_configs').doc('audio_room_rules').get();
+      if (doc.exists && doc.data() != null) {
+        final text = doc.data()!['rulesText']?.toString();
+        if (text != null && text.trim().isNotEmpty) {
+          return text;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting audio room rules: $e');
+    }
+    return "There are a lot of very interested friends here. Let's chat together.";
+  }
+
+  static Future<bool> updateAudioRoomRules(String rulesText) async {
+    try {
+      await _firestore.collection('system_configs').doc('audio_room_rules').set({
+        'rulesText': rulesText.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Also sync to global_settings/app_settings for redundant coverage
+      await _firestore.collection('global_settings').doc('app_settings').set({
+        'audioRoomRules': rulesText.trim(),
+      }, SetOptions(merge: true)).catchError((_) {});
+
+      return true;
+    } catch (e) {
+      debugPrint('Error updating audio room rules: $e');
+      return false;
+    }
+  }
+
   // Gifts Management
   static Future<List<Map<String, dynamic>>> getAllGifts() async {
     try {

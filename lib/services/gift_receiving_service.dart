@@ -12,6 +12,102 @@ class GiftReceivingService {
   static const double normalReceiverRate = 0.50;
   static const double beanToDiamondRate = 1.0;
 
+  // Bean Exchange Packages Collection
+  static final CollectionReference _packagesCollection =
+      _firestore.collection('bean_exchange_packages');
+
+  static const List<Map<String, int>> defaultPackages = [
+    {'diamonds': 1000, 'beans': 1000},
+    {'diamonds': 5000, 'beans': 5000},
+    {'diamonds': 15100, 'beans': 15000},
+    {'diamonds': 60800, 'beans': 60000},
+    {'diamonds': 245000, 'beans': 240000},
+    {'diamonds': 1225000, 'beans': 1200000},
+    {'diamonds': 6125000, 'beans': 6000000},
+  ];
+
+  /// Initialize default exchange packages if collection is empty
+  static Future<void> initializeDefaultExchangePackages() async {
+    try {
+      final snap = await _packagesCollection.limit(1).get();
+      if (snap.docs.isEmpty) {
+        final batch = _firestore.batch();
+        for (int i = 0; i < defaultPackages.length; i++) {
+          final pkg = defaultPackages[i];
+          final docRef = _packagesCollection.doc();
+          batch.set(docRef, {
+            'diamonds': pkg['diamonds'],
+            'beans': pkg['beans'],
+            'sortOrder': i,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+        debugPrint('Initialized default bean exchange packages');
+      }
+    } catch (e) {
+      debugPrint('Error initializing default exchange packages: $e');
+    }
+  }
+
+  /// Stream exchange packages in real-time ordered by beans
+  static Stream<QuerySnapshot> streamExchangePackages() {
+    return _packagesCollection.orderBy('beans', descending: false).snapshots();
+  }
+
+  /// Add new package to bean wall
+  static Future<bool> addExchangePackage({
+    required int diamonds,
+    required int beans,
+  }) async {
+    try {
+      await _packagesCollection.add({
+        'diamonds': diamonds,
+        'beans': beans,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Added exchange package: $diamonds diamonds for $beans beans');
+      return true;
+    } catch (e) {
+      debugPrint('Error adding exchange package: $e');
+      return false;
+    }
+  }
+
+  /// Update existing package
+  static Future<bool> updateExchangePackage({
+    required String packageId,
+    required int diamonds,
+    required int beans,
+  }) async {
+    try {
+      await _packagesCollection.doc(packageId).update({
+        'diamonds': diamonds,
+        'beans': beans,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Updated exchange package $packageId: $diamonds diamonds, $beans beans');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating exchange package: $e');
+      return false;
+    }
+  }
+
+  /// Delete exchange package
+  static Future<bool> deleteExchangePackage(String packageId) async {
+    try {
+      await _packagesCollection.doc(packageId).delete();
+      debugPrint('Deleted exchange package: $packageId');
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting exchange package: $e');
+      return false;
+    }
+  }
+
   /// Initialize default conversion config in Firestore
   static Future<void> initializeConversionConfig() async {
     try {
@@ -23,7 +119,6 @@ class GiftReceivingService {
           'hostReceiverRate': hostReceiverRate,
           'hostAgencyRate': hostAgencyRate,
           'normalReceiverRate': normalReceiverRate,
-          'beanToDiamondRate': beanToDiamondRate,
           'updatedAt': Timestamp.now(),
         });
         debugPrint('Conversion config initialized with defaults');
@@ -50,7 +145,6 @@ class GiftReceivingService {
         'hostReceiverRate': hostReceiverRate,
         'hostAgencyRate': hostAgencyRate,
         'normalReceiverRate': normalReceiverRate,
-        'beanToDiamondRate': beanToDiamondRate,
       };
     } catch (e) {
       debugPrint('Error getting conversion config: $e');
@@ -58,7 +152,6 @@ class GiftReceivingService {
         'hostReceiverRate': hostReceiverRate,
         'hostAgencyRate': hostAgencyRate,
         'normalReceiverRate': normalReceiverRate,
-        'beanToDiamondRate': beanToDiamondRate,
       };
     }
   }
@@ -68,7 +161,6 @@ class GiftReceivingService {
     double? newHostReceiverRate,
     double? newHostAgencyRate,
     double? newNormalReceiverRate,
-    double? newBeanToDiamondRate,
   }) async {
     try {
       final updates = <String, dynamic>{
@@ -83,9 +175,6 @@ class GiftReceivingService {
       }
       if (newNormalReceiverRate != null) {
         updates['normalReceiverRate'] = newNormalReceiverRate;
-      }
-      if (newBeanToDiamondRate != null) {
-        updates['beanToDiamondRate'] = newBeanToDiamondRate;
       }
 
       await _firestore

@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/host_model.dart';
+import '../models/agency_model.dart';
 import '../services/agency_service.dart';
+import '../widgets/media_preview_widget.dart';
 
 class AgencyIncomeScreen extends StatefulWidget {
   final String agencyId;
@@ -15,40 +19,99 @@ class AgencyIncomeScreen extends StatefulWidget {
 }
 
 class _AgencyIncomeScreenState extends State<AgencyIncomeScreen> {
+  AgencyModel? _agency;
   List<HostModel> _hosts = [];
   Map<String, dynamic> _analytics = {};
   bool _isLoading = true;
   EarningPeriod _selectedPeriod = EarningPeriod.weekly;
 
+  StreamSubscription<DocumentSnapshot>? _agencySub;
+  StreamSubscription<List<HostModel>>? _hostsSub;
+
   @override
   void initState() {
     super.initState();
-    _loadIncomeData();
+    _startRealtimeListeners();
+  }
+
+  @override
+  void dispose() {
+    _agencySub?.cancel();
+    _hostsSub?.cancel();
+    super.dispose();
+  }
+
+  void _startRealtimeListeners() {
+    _agencySub?.cancel();
+    _hostsSub?.cancel();
+
+    if (mounted) setState(() => _isLoading = true);
+
+    _agencySub = FirebaseFirestore.instance
+        .collection('agencies')
+        .doc(widget.agencyId)
+        .snapshots()
+        .listen(
+          (doc) {
+            if (!mounted) return;
+            if (doc.exists) {
+              setState(() {
+                _agency = AgencyModel.fromFirestore(doc);
+                _recalculateAnalytics();
+                _isLoading = false;
+              });
+            }
+          },
+          onError: (e) {
+            debugPrint('Error listening to agency: $e');
+            if (mounted) setState(() => _isLoading = false);
+          },
+        );
+
+    _hostsSub = AgencyService.getAgencyHostsStream(widget.agencyId).listen(
+      (hosts) {
+        if (!mounted) return;
+        setState(() {
+          _hosts = hosts;
+          _recalculateAnalytics();
+          _isLoading = false;
+        });
+      },
+      onError: (e) {
+        debugPrint('Error listening to agency hosts: $e');
+        if (mounted) setState(() => _isLoading = false);
+      },
+    );
+  }
+
+  void _recalculateAnalytics() {
+    double totalDiamonds = 0.0;
+    int totalLiveHours = 0;
+    int totalGifts = 0;
+
+    for (final host in _hosts) {
+      totalDiamonds += host.performance.totalDiamonds;
+      totalLiveHours += host.performance.totalLiveHours;
+      totalGifts += host.performance.totalGiftsReceived;
+    }
+
+    final rate = _agency?.commissionRate ?? 0.10;
+    final totalCommission = totalDiamonds * rate;
+
+    _analytics = {
+      'totalHosts': _hosts.length,
+      'activeHosts': _hosts.where((h) => h.isActive).length,
+      'totalDiamonds': totalDiamonds,
+      'totalLiveHours': totalLiveHours,
+      'totalGifts': totalGifts,
+      'totalCommission': totalCommission,
+      'commissionRate': rate,
+      'isCommissionHeld': _agency?.isCommissionHeld ?? false,
+    };
   }
 
   Future<void> _loadIncomeData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Load hosts
-      final hosts = await AgencyService.getAgencyHosts(widget.agencyId);
-      _hosts = hosts;
-
-      // Load analytics
-      final analytics = await AgencyService.getAgencyAnalytics(widget.agencyId);
-      _analytics = analytics;
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading income data: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _startRealtimeListeners();
   }
 
   @override
@@ -404,94 +467,147 @@ class _AgencyIncomeScreenState extends State<AgencyIncomeScreen> {
   }
 
   Widget _buildHostEarningCard(HostModel host) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[700]!),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.blue,
-            child: Text(
-              host.hostName.isNotEmpty ? host.hostName[0].toUpperCase() : 'H',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+    final rate = _agency?.commissionRate ?? 0.10;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(host.userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayName = host.hostName;
+        String? photoUrl;
+        String searchId = '';
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final ud = snapshot.data!.data() as Map<String, dynamic>;
+          displayName = ud['fullname'] ?? ud['username'] ?? displayName;
+          photoUrl = ud['photoUrl'] ?? ud['profileImageUrl'];
+          searchId = ud['searchId']?.toString() ?? '';
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[700]!),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  host.hostName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Status: ${host.status.name.toUpperCase()}',
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Row(
             children: [
-              Text(
-                host.performance.totalDiamonds.toStringAsFixed(0),
-                style: const TextStyle(
-                  color: Colors.purple,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              photoUrl != null && photoUrl.isNotEmpty
+                  ? MediaPreviewWidget(
+                      url: photoUrl,
+                      width: 40,
+                      height: 40,
+                      borderRadius: BorderRadius.circular(20),
+                    )
+                  : CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue,
+                      child: Text(
+                        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'H',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (searchId.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              'ID: $searchId',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Status: ${host.status.name.toUpperCase()}',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Text(
-                'Diamonds',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    host.performance.totalDiamonds.toStringAsFixed(0),
+                    style: const TextStyle(
+                      color: Colors.purple,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'Diamonds',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    (host.performance.totalDiamonds * rate).toStringAsFixed(2),
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'Commission',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                (host.performance.totalDiamonds * 0.10).toStringAsFixed(2),
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Text(
-                'Commission',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

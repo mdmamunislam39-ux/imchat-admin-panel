@@ -418,3 +418,39 @@ In the `emojis` array of category documents (`Activity`, `Customize`, `Free`):
    `final outcomeUrl = emoji.outcomes[rolledIndex];`
 3. **Spinning Animation & Display**:
    Show `SpinningDiceWidget` rapidly cycling through `emoji.outcomes` for 1.2-1.5s, then reveal `outcomeUrl`.
+
+---
+
+## 9. Grab the Top 🪑 Feature
+
+When a gift is sent in a live room, check if it should trigger the **Grab the Top** banner.
+
+### ⚠️ Critical: Only configured gifts trigger the banner
+
+The banner fires **only** when:
+1. Admin has enabled the global toggle (`platform_config/grab_the_top` → `isFeatureEnabled == true`)
+2. The sent gift's `giftId` **exactly matches** a rule in `platform_config/grab_the_top/rules`
+3. That rule is **active** (`isActive == true`)
+4. The count sent **≥ `minGiftCount`** on that rule
+
+**Any other gift — no matter how expensive — will NOT trigger Grab the Top.**
+
+### Quick Integration
+
+After a successful gift send, call:
+
+```dart
+final result = await GrabTheTopService.checkGiftTrigger(
+  giftId: sentGiftId,        // e.g. "2023"
+  giftCount: sentCount,      // e.g. 9
+  senderName: senderName,
+  receiverName: receiverName,
+);
+
+if (result.triggered && result.rule != null) {
+  // Show GrabTheTopBanner overlay
+}
+```
+
+> 📖 Full implementation (service + widget + overlay) is in **`FLUTTER_APP_IMPLEMENTATION_GUIDE.md`** — section **"GRAB THE TOP — Flutter App Implementation"**.
+

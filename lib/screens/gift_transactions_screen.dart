@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/gift_transaction_model.dart';
 import '../models/bean_conversion_model.dart';
 import '../services/gift_receiving_service.dart';
@@ -20,13 +21,13 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
   final TextEditingController _hostReceiverRateController = TextEditingController();
   final TextEditingController _hostAgencyRateController = TextEditingController();
   final TextEditingController _normalReceiverRateController = TextEditingController();
-  final TextEditingController _beanToDiamondRateController = TextEditingController();
   bool _isSavingConfig = false;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    GiftReceivingService.initializeDefaultExchangePackages();
   }
 
   @override
@@ -34,7 +35,6 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
     _hostReceiverRateController.dispose();
     _hostAgencyRateController.dispose();
     _normalReceiverRateController.dispose();
-    _beanToDiamondRateController.dispose();
     super.dispose();
   }
 
@@ -62,8 +62,6 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
             ((config['hostAgencyRate'] ?? 0.10) * 100).toStringAsFixed(0);
         _normalReceiverRateController.text =
             ((config['normalReceiverRate'] ?? 0.50) * 100).toStringAsFixed(0);
-        _beanToDiamondRateController.text =
-            (config['beanToDiamondRate'] ?? 1.0).toString();
 
         _isLoading = false;
       });
@@ -77,7 +75,7 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
@@ -103,6 +101,7 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
               Tab(text: 'Gift Transactions'),
               Tab(text: 'Bean Conversions'),
               Tab(text: 'Config'),
+              Tab(text: 'Beans Wall'),
             ],
           ),
         ),
@@ -113,6 +112,7 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
                   _buildGiftTransactionsTab(),
                   _buildBeanConversionsTab(),
                   _buildConfigTab(),
+                  _buildBeansWallTab(),
                 ],
               ),
       ),
@@ -529,12 +529,6 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
                   controller: _normalReceiverRateController,
                   hint: 'e.g. 50',
                 ),
-                const SizedBox(height: 16),
-                _buildConfigField(
-                  label: 'Bean to Diamond Rate',
-                  controller: _beanToDiamondRateController,
-                  hint: 'e.g. 1.0',
-                ),
                 const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -599,6 +593,377 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
     );
   }
 
+  // ─── Tab 4: Beans Wall (Exchange Packages) ───
+
+  Widget _buildBeansWallTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: GiftReceivingService.streamExchangePackages(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading packages: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.white));
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFF4511E).withValues(alpha: 0.15),
+                      const Color(0xFFFF8A65).withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF4511E).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4511E).withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.currency_exchange, color: Color(0xFFFF8A65), size: 32),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Exchange To Diamonds Wall',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Manage bean-to-diamond exchange packages displayed on the mobile app in real-time. Changes apply instantly.',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _showAddEditPackageDialog(),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Add Package'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF4511E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Active Packages (${docs.length})',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await GiftReceivingService.initializeDefaultExchangePackages();
+                      _showSnackBar('Default packages checked/restored', Colors.orange);
+                    },
+                    icon: const Icon(Icons.restore, size: 16, color: Colors.grey),
+                    label: const Text('Restore Missing Defaults', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (docs.isEmpty)
+                _buildEmptyState('No exchange packages found. Click "Add Package" above to create one.')
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.maxWidth > 1100
+                        ? 4
+                        : constraints.maxWidth > 700
+                            ? 3
+                            : 2;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.15,
+                      ),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final data = doc.data() as Map<String, dynamic>;
+                        final diamonds = (data['diamonds'] as num?)?.toInt() ?? 0;
+                        final beans = (data['beans'] as num?)?.toInt() ?? 0;
+                        return _buildPackageCard(doc.id, diamonds, beans);
+                      },
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPackageCard(String packageId, int diamonds, int beans) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[800]!),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.diamond, color: Colors.amber, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                _formatNumber(diamonds),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.monetization_on, color: Colors.orangeAccent, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  '${_formatNumber(beans)} Beans',
+                  style: const TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                tooltip: 'Edit Package',
+                onPressed: () => _showAddEditPackageDialog(
+                  packageId: packageId,
+                  currentDiamonds: diamonds,
+                  currentBeans: beans,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                tooltip: 'Delete Package',
+                onPressed: () => _showDeletePackageDialog(packageId, diamonds, beans),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddEditPackageDialog({
+    String? packageId,
+    int? currentDiamonds,
+    int? currentBeans,
+  }) {
+    final isEditing = packageId != null;
+    final diamondsCtrl = TextEditingController(
+      text: currentDiamonds != null ? currentDiamonds.toString() : '',
+    );
+    final beansCtrl = TextEditingController(
+      text: currentBeans != null ? currentBeans.toString() : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          isEditing ? 'Edit Exchange Package' : 'Add New Exchange Package',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: diamondsCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Diamonds Received',
+                labelStyle: const TextStyle(color: Colors.grey),
+                hintText: 'e.g. 1000',
+                hintStyle: TextStyle(color: Colors.grey[700]),
+                prefixIcon: const Icon(Icons.diamond, color: Colors.amber),
+                filled: true,
+                fillColor: Colors.grey[850],
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: beansCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Beans Required',
+                labelStyle: const TextStyle(color: Colors.grey),
+                hintText: 'e.g. 1000',
+                hintStyle: TextStyle(color: Colors.grey[700]),
+                prefixIcon: const Icon(Icons.monetization_on, color: Colors.orangeAccent),
+                filled: true,
+                fillColor: Colors.grey[850],
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final diamonds = int.tryParse(diamondsCtrl.text.replaceAll(',', ''));
+              final beans = int.tryParse(beansCtrl.text.replaceAll(',', ''));
+              if (diamonds == null || beans == null || diamonds <= 0 || beans <= 0) {
+                _showSnackBar('Please enter valid positive numbers', Colors.red);
+                return;
+              }
+
+              Navigator.pop(ctx);
+
+              bool success;
+              if (isEditing) {
+                success = await GiftReceivingService.updateExchangePackage(
+                  packageId: packageId,
+                  diamonds: diamonds,
+                  beans: beans,
+                );
+              } else {
+                success = await GiftReceivingService.addExchangePackage(
+                  diamonds: diamonds,
+                  beans: beans,
+                );
+              }
+
+              if (success) {
+                _showSnackBar(
+                  isEditing ? 'Package updated successfully' : 'Package added successfully',
+                  Colors.green,
+                );
+              } else {
+                _showSnackBar('Failed to save package', Colors.red);
+              }
+            },
+            child: Text(isEditing ? 'Update' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeletePackageDialog(String packageId, int diamonds, int beans) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Delete Package', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to delete the package ${_formatNumber(diamonds)} Diamonds for ${_formatNumber(beans)} Beans?',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final success = await GiftReceivingService.deleteExchangePackage(packageId);
+              if (success) {
+                _showSnackBar('Package deleted', Colors.orange);
+              } else {
+                _showSnackBar('Failed to delete package', Colors.red);
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatNumber(int number) {
+    RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    String mathFunc(Match match) => '${match[1]},';
+    return number.toString().replaceAllMapped(reg, mathFunc);
+  }
+
   Widget _buildConfigField({
     required String label,
     required TextEditingController controller,
@@ -631,9 +996,8 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
     final hostRate = double.tryParse(_hostReceiverRateController.text);
     final agencyRate = double.tryParse(_hostAgencyRateController.text);
     final normalRate = double.tryParse(_normalReceiverRateController.text);
-    final diamondRate = double.tryParse(_beanToDiamondRateController.text);
 
-    if (hostRate == null || agencyRate == null || normalRate == null || diamondRate == null) {
+    if (hostRate == null || agencyRate == null || normalRate == null) {
       _showSnackBar('Please enter valid numbers', Colors.red);
       return;
     }
@@ -644,7 +1008,6 @@ class _GiftTransactionsScreenState extends State<GiftTransactionsScreen> {
       newHostReceiverRate: hostRate / 100,
       newHostAgencyRate: agencyRate / 100,
       newNormalReceiverRate: normalRate / 100,
-      newBeanToDiamondRate: diamondRate,
     );
 
     if (!mounted) return;

@@ -13,6 +13,7 @@ class AdminPermissionService {
   static const List<String> availableModules = [
     'Users Management',
     'User Profiles',
+    'User Positions',
     'Hosts & Agencies',
     'Blocked Users',
     'Family Management',

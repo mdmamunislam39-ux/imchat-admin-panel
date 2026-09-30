@@ -15,6 +15,7 @@ class SubOfficialAdminService {
       'modules': [
         'Users Management',
         'User Profiles',
+        'User Positions',
         'Hosts & Agencies',
         'Blocked Users',
         'Ban Management',

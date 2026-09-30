@@ -77,6 +77,10 @@ class RoomDecorationAdminService {
     String? seatColorMode,
     String? seatDecorUrl,
     String? lockedSeatDecorUrl,
+    bool? isAnimated,
+    String? animationType,
+    double? animationSpeed,
+    String? animationColor,
   }) async {
     try {
       final String effectiveName = name ?? 'Classic Mic & Owner (Free)';
@@ -98,6 +102,10 @@ class RoomDecorationAdminService {
         'isOfficial': true,
         'starRating': 5,
         'description': 'Free Classic Frosted Glass Mic & Owner seat decor set for voice rooms',
+        'isAnimated': isAnimated ?? false,
+        'animationType': animationType ?? 'rotatingRing',
+        'animationSpeed': animationSpeed ?? 1.0,
+        'animationColor': animationColor,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -120,6 +128,7 @@ class RoomDecorationAdminService {
         'isOfficial': true,
         'starRating': 5,
         'description': 'Free Golden Frosted Glass Sofa & Host seat decor set for voice rooms',
+        'isAnimated': false,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -142,6 +151,36 @@ class RoomDecorationAdminService {
         'isOfficial': true,
         'starRating': 5,
         'description': 'Free Neon Royal Purple & Gold Sofa seat decor set for voice rooms',
+        'isAnimated': true,
+        'animationType': 'rotatingRing',
+        'animationSpeed': 1.0,
+        'animationColor': 'purple',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final cyberEmeraldPayload = {
+        'id': 'free_mode_cyberEmerald',
+        'name': 'Cyber Emerald Aura (Animated)',
+        'title': 'Cyber Emerald Aura (Animated)',
+        'type': 'seatDecor',
+        'category': 'seatDecor',
+        'diamondPrice': 0.0,
+        'price': 0,
+        'isFree': true,
+        'isFreeMode': true,
+        'seatColorMode': 'cyberEmerald',
+        'fileUrl': '',
+        'lockedFileUrl': '',
+        'thumbnailUrl': '',
+        'isActive': true,
+        'isOfficial': true,
+        'starRating': 5,
+        'description': 'Animated Cyber Emerald & Cyan Diamond Glass Orb with Rotating Aura Halo',
+        'isAnimated': true,
+        'animationType': 'rotatingRing',
+        'animationSpeed': 1.2,
+        'animationColor': 'cyan',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -164,6 +203,7 @@ class RoomDecorationAdminService {
         'isOfficial': true,
         'starRating': 5,
         'description': 'Free Dashed Pink musical notes seat decor set for voice rooms',
+        'isAnimated': false,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -186,6 +226,7 @@ class RoomDecorationAdminService {
         'isOfficial': true,
         'starRating': 5,
         'description': 'Free Dashed Orange sofa seat decor set for voice rooms',
+        'isAnimated': false,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -195,6 +236,7 @@ class RoomDecorationAdminService {
         classicPayload,
         goldenPayload,
         purplePayload,
+        cyberEmeraldPayload,
         dashedPinkPayload,
         dashedOrangePayload,
       ];

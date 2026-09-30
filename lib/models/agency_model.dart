@@ -33,14 +33,20 @@ class AgencyModel {
     this.isCommissionHeld = false,
   });
 
+  String get ownerUserId => owner.userId ?? '';
+
   factory AgencyModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final ownerMap = Map<String, dynamic>.from(data['owner'] ?? {});
+    if ((ownerMap['userId'] == null || ownerMap['userId'].toString().isEmpty) && data['ownerUserId'] != null) {
+      ownerMap['userId'] = data['ownerUserId'];
+    }
     return AgencyModel(
       id: doc.id,
-      agencyName: data['agencyName'] ?? '',
-      logoUrl: data['logoUrl'],
-      agencyIdNumber: data['agencyIdNumber'] ?? '',
-      owner: AgencyOwner.fromMap(data['owner'] ?? {}),
+      agencyName: data['agencyName'] ?? data['name'] ?? data['title'] ?? '',
+      logoUrl: data['logoUrl'] ?? data['photoUrl'] ?? data['imageUrl'],
+      agencyIdNumber: data['agencyIdNumber'] ?? data['agencyId'] ?? data['searchId'] ?? doc.id,
+      owner: AgencyOwner.fromMap(ownerMap),
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),

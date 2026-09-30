@@ -4,6 +4,7 @@ import '../models/agency_model.dart';
 import '../models/host_model.dart';
 import '../models/agency_notification_model.dart';
 import '../helpers/official_team_helper.dart';
+import 'user_position_service.dart';
 
 class AgencyService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,6 +14,27 @@ class AgencyService {
     try {
       final docRef = await _firestore.collection('agencies').add(agency.toFirestore());
       await docRef.update({'agencyId': docRef.id});
+      
+      // Update owner user document & apply Agency position items
+      if (agency.ownerUserId.isNotEmpty) {
+        await _firestore.collection('Users').doc(agency.ownerUserId).update({
+          'isAgency': true,
+          'agencyId': docRef.id,
+          'agencyName': agency.agencyName,
+          'userType': 'agency',
+          'roles': FieldValue.arrayUnion(['agency']),
+        });
+        try {
+          await UserPositionService.applyPositionToUser(
+            userId: agency.ownerUserId,
+            positionKey: 'agency',
+            userName: agency.agencyName,
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error auto-applying agency position items on createAgency: $e');
+        }
+      }
+
       debugPrint('Agency created successfully with ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
@@ -126,6 +148,14 @@ class AgencyService {
               'userType': 'regular',
               'roles': FieldValue.arrayRemove(['agency']),
             });
+            try {
+              await UserPositionService.removePositionFromUser(
+                userId: ownerUserId.toString(),
+                positionKey: 'agency',
+              );
+            } catch (e) {
+              debugPrint('⚠️ Error removing agency position items on deleteAgency: $e');
+            }
             debugPrint('Safely reset agency status for owner: $ownerUserId');
           } else {
             debugPrint('Owner $ownerUserId still has other active agencies. Roles not reset.');
@@ -179,21 +209,40 @@ class AgencyService {
 
       if (querySnapshot.docs.isEmpty) {
         // Try searching by phone number
-        final phoneQuery = await _firestore
+        var phoneQuery = await _firestore
             .collection('Users')
             .where('number', isGreaterThanOrEqualTo: query)
             .where('number', isLessThan: '$query\uf8ff')
             .limit(10)
             .get();
+
+        if (phoneQuery.docs.isEmpty) {
+          phoneQuery = await _firestore
+              .collection('Users')
+              .where('phone', isGreaterThanOrEqualTo: query)
+              .where('phone', isLessThan: '$query\uf8ff')
+              .limit(10)
+              .get();
+        }
+
+        // Try searching by email
+        if (phoneQuery.docs.isEmpty) {
+          phoneQuery = await _firestore
+              .collection('Users')
+              .where('email', isGreaterThanOrEqualTo: query)
+              .where('email', isLessThan: '$query\uf8ff')
+              .limit(10)
+              .get();
+        }
         
         return phoneQuery.docs.map((doc) {
           final userData = doc.data();
           return {
             'id': doc.id,
-            'name': userData['fullname'] ?? 'Unknown',
+            'name': userData['fullname'] ?? userData['name'] ?? userData['username'] ?? 'Unknown',
             'profileId': userData['searchId'] ?? '',
-            'phone': userData['number'] ?? '',
-            'email': userData['email'] ?? '',
+            'phone': userData['number'] ?? userData['phone'] ?? '',
+            'email': userData['email'] ?? userData['googleEmail'] ?? '',
             'address': userData['address'] ?? '',
             'balance': (userData['diamonds'] ?? 0.0).toDouble(),
             'isAgency': userData['isAgency'] ?? false,
@@ -235,6 +284,17 @@ class AgencyService {
         'hostIds': FieldValue.arrayUnion([docRef.id]),
         'updatedAt': Timestamp.now(),
       });
+
+      // Automatically apply Host position items (Frame, Badge, Nameplate)
+      try {
+        await UserPositionService.applyPositionToUser(
+          userId: host.userId,
+          positionKey: 'host',
+          userName: host.hostName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Error auto-applying host position items: $e');
+      }
       
       debugPrint('Host added to agency successfully with ID: ${docRef.id}');
       return docRef.id;
@@ -266,6 +326,26 @@ class AgencyService {
       debugPrint('Error getting agency hosts: $e');
       return [];
     }
+  }
+
+  /// Real-time stream of active hosts for an agency
+  static Stream<List<HostModel>> getAgencyHostsStream(String agencyId) {
+    return _firestore
+        .collection('hosts')
+        .where('agencyId', isEqualTo: agencyId)
+        .snapshots()
+        .map((snapshot) {
+          final List<HostModel> uniqueHosts = [];
+          final Set<String> seenUserIds = {};
+          for (var doc in snapshot.docs) {
+            final host = HostModel.fromFirestore(doc);
+            if (host.isActive && !seenUserIds.contains(host.userId)) {
+              seenUserIds.add(host.userId);
+              uniqueHosts.add(host);
+            }
+          }
+          return uniqueHosts;
+        });
   }
 
   static Future<HostModel?> getHost(String hostId) async {
@@ -317,13 +397,21 @@ class AgencyService {
         'updatedAt': Timestamp.now(),
       });
 
-      // Clear host user agency fields
+      // Clear host user agency fields and remove position items
       if (hostUserId.isNotEmpty) {
         await _firestore.collection('Users').doc(hostUserId).update({
           'agencyId': null,
           'agencyName': null,
           'userType': 'regular',
         });
+        try {
+          await UserPositionService.removePositionFromUser(
+            userId: hostUserId,
+            positionKey: 'host',
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error removing host position items on removeHostFromAgency: $e');
+        }
       }
       
       // Update agency host count
@@ -615,4 +703,398 @@ class AgencyService {
       return false;
     }
   }
+
+  // ==========================================
+  // Agency Transfer / Change Management
+  // ==========================================
+
+  /// Stream all agency transfer requests ordered by createdAt descending
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getTransferRequestsStream() {
+    return _firestore
+        .collection('agency_transfer_requests')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  /// Approve an Agency Transfer Request
+  static Future<void> approveTransferRequest({
+    required String requestId,
+    required String adminId,
+  }) async {
+    try {
+      final docRef = _firestore.collection('agency_transfer_requests').doc(requestId);
+      final doc = await docRef.get();
+      if (!doc.exists) throw Exception('Transfer request not found');
+
+      final data = doc.data()!;
+      final String userId = data['userId'] ?? '';
+      final String targetAgencyId = data['targetAgencyId'] ?? '';
+      final String targetAgencyName = data['targetAgencyName'] ?? 'New Agency';
+      final String targetAgencyIdNumber = data['targetAgencyIdNumber'] ?? '';
+      final String currentAgencyId = data['currentAgencyId'] ?? '';
+      final String userName = data['userName'] ?? 'Host';
+      final String userPhotoUrl = data['userPhotoUrl'] ?? '';
+
+      if (userId.isEmpty || targetAgencyId.isEmpty) {
+        throw Exception('Invalid request: missing userId or targetAgencyId');
+      }
+
+      // 1. Update User document in Users collection
+      await _firestore.collection('Users').doc(userId).update({
+        'agencyId': targetAgencyId,
+        'agencyName': targetAgencyName,
+        'agencyIdNumber': targetAgencyIdNumber,
+        'isHost': true,
+        'userType': 'host',
+        'roles': FieldValue.arrayUnion(['host']),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Auto-apply Host position items if available
+      try {
+        await UserPositionService.applyPositionToUser(
+          userId: userId,
+          positionKey: 'host',
+          userName: userName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Error applying host position on transfer approve: $e');
+      }
+
+      // 3. Update or Create Host document in hosts collection
+      final hostSnapshot = await _firestore
+          .collection('hosts')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      String hostDocId = '';
+      if (hostSnapshot.docs.isNotEmpty) {
+        for (final hostDoc in hostSnapshot.docs) {
+          hostDocId = hostDoc.id;
+          await hostDoc.reference.update({
+            'agencyId': targetAgencyId,
+            'agencyName': targetAgencyName,
+            if (targetAgencyIdNumber.isNotEmpty) 'agencyIdNumber': targetAgencyIdNumber,
+            'isActive': true,
+            'status': 'active',
+            'hostName': userName,
+            if (userPhotoUrl.isNotEmpty) 'profileImageUrl': userPhotoUrl,
+            'notes': 'Transferred to $targetAgencyName by admin',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        final newHostRef = _firestore.collection('hosts').doc();
+        hostDocId = newHostRef.id;
+        await newHostRef.set({
+          'hostId': newHostRef.id,
+          'userId': userId,
+          'agencyId': targetAgencyId,
+          'agencyName': targetAgencyName,
+          'agencyIdNumber': targetAgencyIdNumber,
+          'hostName': userName,
+          'profileImageUrl': userPhotoUrl,
+          'phone': '',
+          'email': '',
+          'joinedDate': FieldValue.serverTimestamp(),
+          'lastActiveDate': FieldValue.serverTimestamp(),
+          'isActive': true,
+          'status': 'active',
+          'notes': 'Joined via transfer approved by admin',
+          'performance': {
+            'totalEarnings': 0.0,
+            'totalDiamonds': 0,
+            'totalLiveHours': 0,
+            'totalGiftsReceived': 0,
+            'averageRating': 0.0,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          },
+          'earnings': [],
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 4. Update Target Agency document (hostIds and totalHosts)
+      try {
+        await _firestore.collection('agencies').doc(targetAgencyId).update({
+          'totalHosts': FieldValue.increment(1),
+          'hostIds': FieldValue.arrayUnion([hostDocId, userId]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('⚠️ Note updating target agency doc: $e');
+      }
+
+      // 5. If previous agency existed, remove from previous agency doc
+      if (currentAgencyId.isNotEmpty && currentAgencyId != targetAgencyId) {
+        try {
+          await _firestore.collection('agencies').doc(currentAgencyId).update({
+            'totalHosts': FieldValue.increment(-1),
+            'hostIds': FieldValue.arrayRemove([hostDocId, userId]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('⚠️ Note updating previous agency doc: $e');
+        }
+      }
+
+      // 6. Update the transfer request document
+      await docRef.update({
+        'status': 'approved',
+        'reviewedBy': adminId,
+        'approvedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 7. Send Notification to User
+      try {
+        await _firestore
+            .collection('Users')
+            .doc(userId)
+            .collection('notifications')
+            .add({
+          'title': 'Agency Transfer Approved 🎉',
+          'body': 'Your agency transfer to "$targetAgencyName" has been approved by admin.',
+          'type': 'agency_transfer_approved',
+          'targetAgencyId': targetAgencyId,
+          'targetAgencyName': targetAgencyName,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('⚠️ Error sending user notification: $e');
+      }
+
+      debugPrint('✅ Agency transfer approved for user $userId to agency $targetAgencyName');
+    } catch (e) {
+      debugPrint('❌ Error approving agency transfer: $e');
+      rethrow;
+    }
+  }
+
+  /// Reject an Agency Transfer Request
+  static Future<void> rejectTransferRequest({
+    required String requestId,
+    required String adminId,
+    required String rejectionReason,
+  }) async {
+    try {
+      final docRef = _firestore.collection('agency_transfer_requests').doc(requestId);
+      final doc = await docRef.get();
+      if (!doc.exists) throw Exception('Transfer request not found');
+
+      final data = doc.data()!;
+      final String userId = data['userId'] ?? '';
+      final String targetAgencyName = data['targetAgencyName'] ?? 'Agency';
+
+      await docRef.update({
+        'status': 'rejected',
+        'rejectionReason': rejectionReason.trim(),
+        'reviewedBy': adminId,
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Send rejection notification to user
+      if (userId.isNotEmpty) {
+        try {
+          await _firestore
+              .collection('Users')
+              .doc(userId)
+              .collection('notifications')
+              .add({
+            'title': 'Agency Transfer Request Rejected',
+            'body': 'Your request to transfer to "$targetAgencyName" was rejected. Reason: ${rejectionReason.trim()}',
+            'type': 'agency_transfer_rejected',
+            'rejectionReason': rejectionReason.trim(),
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('⚠️ Error sending rejection notification: $e');
+        }
+      }
+
+      debugPrint('✅ Agency transfer request $requestId rejected by admin $adminId');
+    } catch (e) {
+      debugPrint('❌ Error rejecting agency transfer: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete an agency transfer request record
+  static Future<void> deleteTransferRequest(String requestId) async {
+    try {
+      await _firestore.collection('agency_transfer_requests').doc(requestId).delete();
+      debugPrint('✅ Agency transfer request $requestId deleted');
+    } catch (e) {
+      debugPrint('❌ Error deleting agency transfer request: $e');
+      rethrow;
+    }
+  }
+
+  /// Manually Transfer a User / Host to an Agency directly
+  static Future<void> manualTransferHost({
+    required String userId,
+    required String userName,
+    required String userSearchId,
+    required String userPhotoUrl,
+    required String currentAgencyId,
+    required String currentAgencyName,
+    required AgencyModel targetAgency,
+    required String adminId,
+    String? reason,
+  }) async {
+    try {
+      // 1. Update User document in Users collection
+      await _firestore.collection('Users').doc(userId).update({
+        'agencyId': targetAgency.id,
+        'agencyName': targetAgency.agencyName,
+        'agencyIdNumber': targetAgency.agencyIdNumber,
+        'isHost': true,
+        'userType': 'host',
+        'roles': FieldValue.arrayUnion(['host']),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Apply Host position
+      try {
+        await UserPositionService.applyPositionToUser(
+          userId: userId,
+          positionKey: 'host',
+          userName: userName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Error applying host position on manual transfer: $e');
+      }
+
+      // 3. Update or Create Host doc in hosts collection
+      final hostSnapshot = await _firestore
+          .collection('hosts')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      String hostDocId = '';
+      if (hostSnapshot.docs.isNotEmpty) {
+        for (final hostDoc in hostSnapshot.docs) {
+          hostDocId = hostDoc.id;
+          await hostDoc.reference.update({
+            'agencyId': targetAgency.id,
+            'agencyName': targetAgency.agencyName,
+            'agencyIdNumber': targetAgency.agencyIdNumber,
+            'isActive': true,
+            'status': 'active',
+            'hostName': userName,
+            if (userPhotoUrl.isNotEmpty) 'profileImageUrl': userPhotoUrl,
+            'notes': 'Directly transferred to ${targetAgency.agencyName} by admin',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        final newHostRef = _firestore.collection('hosts').doc();
+        hostDocId = newHostRef.id;
+        await newHostRef.set({
+          'hostId': newHostRef.id,
+          'userId': userId,
+          'agencyId': targetAgency.id,
+          'agencyName': targetAgency.agencyName,
+          'agencyIdNumber': targetAgency.agencyIdNumber,
+          'hostName': userName,
+          'profileImageUrl': userPhotoUrl,
+          'phone': '',
+          'email': '',
+          'joinedDate': FieldValue.serverTimestamp(),
+          'lastActiveDate': FieldValue.serverTimestamp(),
+          'isActive': true,
+          'status': 'active',
+          'notes': 'Directly added to agency by admin',
+          'performance': {
+            'totalEarnings': 0.0,
+            'totalDiamonds': 0,
+            'totalLiveHours': 0,
+            'totalGiftsReceived': 0,
+            'averageRating': 0.0,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          },
+          'earnings': [],
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 4. Update Target Agency document (hostIds and totalHosts)
+      try {
+        await _firestore.collection('agencies').doc(targetAgency.id).update({
+          'totalHosts': FieldValue.increment(1),
+          'hostIds': FieldValue.arrayUnion([hostDocId, userId]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('⚠️ Note updating target agency doc: $e');
+      }
+
+      // 5. If previous agency existed, remove host from previous agency doc
+      if (currentAgencyId.isNotEmpty && currentAgencyId != targetAgency.id) {
+        try {
+          await _firestore.collection('agencies').doc(currentAgencyId).update({
+            'totalHosts': FieldValue.increment(-1),
+            'hostIds': FieldValue.arrayRemove([hostDocId, userId]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('⚠️ Note updating previous agency doc: $e');
+        }
+      }
+
+      // 6. Log transfer in agency_transfer_requests
+      final docRef = _firestore.collection('agency_transfer_requests').doc();
+      await docRef.set({
+        'requestId': docRef.id,
+        'userId': userId,
+        'userName': userName,
+        'userSearchId': userSearchId,
+        'userPhotoUrl': userPhotoUrl,
+        'currentAgencyId': currentAgencyId,
+        'currentAgencyName': currentAgencyName,
+        'targetAgencyId': targetAgency.id,
+        'targetAgencyName': targetAgency.agencyName,
+        'targetAgencyIdNumber': targetAgency.agencyIdNumber,
+        'targetOwnerUserId': targetAgency.ownerUserId,
+        'targetOwnerName': targetAgency.owner.name,
+        'targetLogoUrl': targetAgency.logoUrl ?? '',
+        'reason': reason ?? 'Direct Admin Transfer',
+        'status': 'approved',
+        'reviewedBy': adminId,
+        'approvedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 7. Notify user
+      try {
+        await _firestore
+            .collection('Users')
+            .doc(userId)
+            .collection('notifications')
+            .add({
+          'title': 'Agency Assigned 🎉',
+          'body': 'Admin has transferred your profile to "${targetAgency.agencyName}".',
+          'type': 'agency_transfer_approved',
+          'targetAgencyId': targetAgency.id,
+          'targetAgencyName': targetAgency.agencyName,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('⚠️ Error notifying user: $e');
+      }
+
+      debugPrint('✅ Manual transfer completed for user $userId to agency ${targetAgency.agencyName}');
+    } catch (e) {
+      debugPrint('❌ Error performing manual transfer: $e');
+      rethrow;
+    }
+  }
 }
+

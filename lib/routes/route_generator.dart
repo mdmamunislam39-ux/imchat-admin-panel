@@ -29,11 +29,38 @@ import '../screens/analytics/gift_analytics_screen.dart';
 import '../screens/analytics/seller_recharge_analytics_screen.dart';
 import '../screens/room_game_management_screen.dart';
 import '../screens/recharge_wallet_management_screen.dart';
+import '../screens/users_history_screen.dart';
+import '../screens/user_position_management_screen.dart';
+import '../screens/agency_commission_tier_management.dart';
+import '../screens/agency_transfer_management_screen.dart';
+import '../screens/seller_requests_screen.dart';
+import '../screens/seller_management.dart';
+import '../screens/seller_history_screen.dart';
 import 'app_routes.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.sellerRequests:
+        return MaterialPageRoute(
+          builder: (_) => const SellerRequestsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.sellerManagement:
+        return MaterialPageRoute(
+          builder: (_) => const SellerManagement(),
+          settings: settings,
+        );
+      case AppRoutes.agencyTransfers:
+        return MaterialPageRoute(
+          builder: (_) => const AgencyTransferManagementScreen(),
+          settings: settings,
+        );
+      case AppRoutes.userPositions:
+        return MaterialPageRoute(
+          builder: (_) => const UserPositionManagementScreen(),
+          settings: settings,
+        );
       case AppRoutes.roomGameManagement:
         return MaterialPageRoute(
           builder: (_) => const RoomGameManagementScreen(),
@@ -58,6 +85,12 @@ class RouteGenerator {
       case AppRoutes.users:
         return MaterialPageRoute(
           builder: (_) => const UsersManagement(),
+          settings: settings,
+        );
+
+      case AppRoutes.usersHistory:
+        return MaterialPageRoute(
+          builder: (_) => const UsersHistoryScreen(),
           settings: settings,
         );
 
@@ -152,6 +185,12 @@ class RouteGenerator {
       case AppRoutes.coupleLevelManagement:
         return MaterialPageRoute(
           builder: (_) => const CoupleLevelManagementScreen(),
+          settings: settings,
+        );
+
+      case AppRoutes.agencyCommissionTiers:
+        return MaterialPageRoute(
+          builder: (_) => const AgencyCommissionTierManagementScreen(),
           settings: settings,
         );
 

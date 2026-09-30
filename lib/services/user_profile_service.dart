@@ -35,6 +35,45 @@ class UserProfileService {
     }
   }
 
+  /// Find user by searchId, userId, or doc id
+  static Future<UserProfileModel?> findUserBySearchIdOrUid(String query) async {
+    try {
+      final clean = query.trim();
+      if (clean.isEmpty) return null;
+
+      // 1. By searchId
+      final snapSearchId = await _firestore
+          .collection(_userProfilesCollection)
+          .where('searchId', isEqualTo: clean)
+          .limit(1)
+          .get();
+      if (snapSearchId.docs.isNotEmpty) {
+        return UserProfileModel.fromFirestore(snapSearchId.docs.first);
+      }
+
+      // 2. By userId
+      final snapUserId = await _firestore
+          .collection(_userProfilesCollection)
+          .where('userId', isEqualTo: clean)
+          .limit(1)
+          .get();
+      if (snapUserId.docs.isNotEmpty) {
+        return UserProfileModel.fromFirestore(snapUserId.docs.first);
+      }
+
+      // 3. By Document ID
+      final docSnap = await _firestore.collection(_userProfilesCollection).doc(clean).get();
+      if (docSnap.exists) {
+        return UserProfileModel.fromFirestore(docSnap);
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error finding user by searchId or UID: $e');
+      return null;
+    }
+  }
+
   static Stream<List<UserProfileModel>> getUserProfilesStream({int limit = 50}) {
     return _firestore
         .collection(_userProfilesCollection)

@@ -27,6 +27,7 @@ class _RoomCreateDecorationScreenState
   bool _enableBackground = true;
   bool _enableSeatDecor = true;
   bool _enableRoomProfilePic = true;
+  bool _enableSeatAnimation = true;
 
   // Controllers for direct URL / names
   final TextEditingController _bgUrlCtrl = TextEditingController();
@@ -36,6 +37,9 @@ class _RoomCreateDecorationScreenState
   final TextEditingController _lockedSeatDecorUrlCtrl = TextEditingController();
   final TextEditingController _seatNameCtrl = TextEditingController();
   String _seatColorMode = 'original';
+  String _seatAnimationType = 'rotatingRing';
+  double _seatAnimationSpeed = 1.0;
+  String _seatAnimationColor = 'cyan';
 
   final TextEditingController _profilePicUrlCtrl = TextEditingController();
   final TextEditingController _profilePicNameCtrl = TextEditingController();
@@ -62,6 +66,7 @@ class _RoomCreateDecorationScreenState
     'original',
     'golden',
     'purple',
+    'cyberEmerald',
     'dashedPink',
     'dashedOrange',
   ];
@@ -112,6 +117,7 @@ class _RoomCreateDecorationScreenState
     _enableBackground = config['enableDefaultBackground'] ?? config['enableBackground'] ?? true;
     _enableSeatDecor = config['enableDefaultSeatDecor'] ?? config['enableSeatDecor'] ?? true;
     _enableRoomProfilePic = config['enableDefaultRoomProfilePic'] ?? config['enableRoomProfilePic'] ?? true;
+    _enableSeatAnimation = config['enableSeatAnimation'] ?? config['seatDecor']?['isAnimated'] ?? true;
 
     // Background
     _bgUrlCtrl.text = config['defaultBackgroundImageUrl'] ?? config['backgroundTheme']?['imageUrl'] ?? '';
@@ -122,6 +128,9 @@ class _RoomCreateDecorationScreenState
     _lockedSeatDecorUrlCtrl.text = config['defaultLockedSeatDecorUrl'] ?? config['seatDecor']?['lockedSeatDecorUrl'] ?? '';
     _seatNameCtrl.text = config['defaultSeatName'] ?? config['seatDecor']?['name'] ?? 'Standard Seat Decor';
     _seatColorMode = config['defaultSeatColorMode'] ?? config['seatDecor']?['seatColorMode'] ?? 'original';
+    _seatAnimationType = config['seatAnimationType'] ?? config['seatDecor']?['animationType'] ?? 'rotatingRing';
+    _seatAnimationSpeed = (config['seatAnimationSpeed'] ?? config['seatDecor']?['animationSpeed'] ?? 1.0).toDouble();
+    _seatAnimationColor = config['seatAnimationColor'] ?? config['seatDecor']?['animationColor'] ?? 'cyan';
 
     // Profile Pic
     _profilePicUrlCtrl.text = config['defaultRoomProfilePicUrl'] ?? config['roomProfilePic']?['imageUrl'] ?? '';
@@ -237,6 +246,10 @@ class _RoomCreateDecorationScreenState
         'enableDefaultBackground': _enableBackground,
         'enableDefaultSeatDecor': _enableSeatDecor,
         'enableDefaultRoomProfilePic': _enableRoomProfilePic,
+        'enableSeatAnimation': _enableSeatAnimation,
+        'seatAnimationType': _seatAnimationType,
+        'seatAnimationSpeed': _seatAnimationSpeed,
+        'seatAnimationColor': _seatAnimationColor,
 
         // Flat fields for easy query
         'defaultBackgroundImageUrl': finalBgUrl.isNotEmpty ? finalBgUrl : null,
@@ -262,6 +275,10 @@ class _RoomCreateDecorationScreenState
           'lockedSeatDecorUrl': finalLockedSeatDecorUrl,
           'name': _seatNameCtrl.text.trim(),
           'seatColorMode': _seatColorMode,
+          'isAnimated': _enableSeatAnimation,
+          'animationType': _seatAnimationType,
+          'animationSpeed': _seatAnimationSpeed,
+          'animationColor': _seatAnimationColor,
         },
         'roomProfilePic': {
           'enabled': _enableRoomProfilePic,
@@ -781,6 +798,22 @@ class _RoomCreateDecorationScreenState
     );
   }
 
+  Color _getAnimationGlowColor(String colorKey) {
+    switch (colorKey) {
+      case 'purple':
+        return const Color(0xFFFF00D4);
+      case 'golden':
+        return const Color(0xFFFFD700);
+      case 'emerald':
+        return const Color(0xFF00E676);
+      case 'amber':
+        return const Color(0xFFFF9100);
+      case 'cyan':
+      default:
+        return const Color(0xFF00FFE0);
+    }
+  }
+
   Widget _buildMockSeat({
     required int number,
     required bool isHost,
@@ -791,81 +824,103 @@ class _RoomCreateDecorationScreenState
         _enableSeatDecor &&
         (_lockedSeatDecorBytes != null || _lockedSeatDecorUrlCtrl.text.isNotEmpty);
 
+    final glowColor = _getAnimationGlowColor(_seatAnimationColor);
+
+    Widget seatBase;
+    if (hasSeatSkin || hasLockedSkin) {
+      seatBase = SizedBox(
+        width: 52,
+        height: 52,
+        child: hasLockedSkin
+            ? (_lockedSeatDecorBytes != null
+                ? Image.memory(_lockedSeatDecorBytes!, fit: BoxFit.contain)
+                : MediaPreviewWidget(url: _lockedSeatDecorUrlCtrl.text, width: 52, height: 52, fit: BoxFit.contain))
+            : (_seatDecorBytes != null
+                ? Image.memory(_seatDecorBytes!, fit: BoxFit.contain)
+                : MediaPreviewWidget(url: _seatDecorUrlCtrl.text, width: 52, height: 52, fit: BoxFit.contain)),
+      );
+    } else if (_seatColorMode == 'cyberEmerald') {
+      seatBase = CyberEmeraldDiamondOrbWidget(
+        size: 48,
+        isLocked: isLocked,
+        child: isHost
+            ? const GoldenHomeIcon(width: 25, height: 25, isNeonPurple: false)
+            : (isLocked
+                ? const GoldenLockIcon(width: 23, height: 26, isNeonPurple: false)
+                : const GoldenSofaIcon(width: 27, height: 24, isNeonPurple: false)),
+      );
+    } else if (_seatColorMode == 'purple') {
+      seatBase = NeonPurpleGlassOrbWidget(
+        size: 48,
+        isLocked: isLocked,
+        child: isHost
+            ? const GoldenHomeIcon(width: 25, height: 25, isNeonPurple: true)
+            : (isLocked
+                ? const GoldenLockIcon(width: 23, height: 26, isNeonPurple: true)
+                : const GoldenSofaIcon(width: 27, height: 24, isNeonPurple: true)),
+      );
+    } else if (_seatColorMode == 'golden') {
+      seatBase = GoldenGlassOrbWidget(
+        size: 48,
+        isLocked: isLocked,
+        child: isHost
+            ? const GoldenHomeIcon(width: 25, height: 25)
+            : (isLocked
+                ? const GoldenLockIcon(width: 23, height: 26)
+                : const GoldenSofaIcon(width: 27, height: 24)),
+      );
+    } else {
+      seatBase = Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.18),
+          border: Border.all(
+            color: isLocked
+                ? Colors.white.withValues(alpha: 0.45)
+                : Colors.white.withValues(alpha: 0.35),
+            width: 1.5,
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            // Seat Skin background / decor
-            if (hasSeatSkin || hasLockedSkin)
-              SizedBox(
-                width: 52,
-                height: 52,
-                child: hasLockedSkin
-                    ? (_lockedSeatDecorBytes != null
-                        ? Image.memory(_lockedSeatDecorBytes!, fit: BoxFit.contain)
-                        : MediaPreviewWidget(url: _lockedSeatDecorUrlCtrl.text, width: 52, height: 52, fit: BoxFit.contain))
-                    : (_seatDecorBytes != null
-                        ? Image.memory(_seatDecorBytes!, fit: BoxFit.contain)
-                        : MediaPreviewWidget(url: _seatDecorUrlCtrl.text, width: 52, height: 52, fit: BoxFit.contain)),
-              )
-            else if (_seatColorMode == 'purple')
-              NeonPurpleGlassOrbWidget(
-                size: 48,
-                isLocked: isLocked,
-                child: isHost
-                    ? const GoldenHomeIcon(width: 25, height: 25, isNeonPurple: true)
-                    : (isLocked
-                        ? const GoldenLockIcon(width: 23, height: 26, isNeonPurple: true)
-                        : const GoldenSofaIcon(width: 27, height: 24, isNeonPurple: true)),
-              )
-            else if (_seatColorMode == 'golden')
-              GoldenGlassOrbWidget(
-                size: 48,
-                isLocked: isLocked,
-                child: isHost
-                    ? const GoldenHomeIcon(width: 25, height: 25)
-                    : (isLocked
-                        ? const GoldenLockIcon(width: 23, height: 26)
-                        : const GoldenSofaIcon(width: 27, height: 24)),
-              )
-            else
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.18),
-                  border: Border.all(
-                    color: isLocked
-                        ? Colors.white.withValues(alpha: 0.45)
-                        : Colors.white.withValues(alpha: 0.35),
-                    width: 1.5,
-                  ),
-                ),
-              ),
+        AnimatedSeatDecorWidget(
+          isAnimated: _enableSeatAnimation,
+          animationType: _seatAnimationType,
+          animationSpeed: _seatAnimationSpeed,
+          glowColor: glowColor,
+          size: 52,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              seatBase,
 
-            // Center Icon / Avatar (for non-golden modes)
-            if (_seatColorMode != 'golden') ...[
-              if (isHost)
-                const Icon(Icons.home_rounded, color: Colors.white, size: 24)
-              else if (isLocked)
-                Icon(Icons.lock_rounded, color: Colors.white.withValues(alpha: 0.85), size: 20)
-              else
-                Icon(Icons.mic_rounded, color: Colors.white.withValues(alpha: 0.75), size: 22),
+              // Center Icon / Avatar (for non-golden / non-purple / non-cyber modes)
+              if (_seatColorMode != 'golden' && _seatColorMode != 'purple' && _seatColorMode != 'cyberEmerald') ...[
+                if (isHost)
+                  const Icon(Icons.home_rounded, color: Colors.white, size: 24)
+                else if (isLocked)
+                  Icon(Icons.lock_rounded, color: Colors.white.withValues(alpha: 0.85), size: 20)
+                else
+                  Icon(Icons.mic_rounded, color: Colors.white.withValues(alpha: 0.75), size: 22),
+              ],
             ],
-          ],
+          ),
         ),
         const SizedBox(height: 5),
         Text(
-          (_seatColorMode == 'golden' || _seatColorMode == 'purple')
+          (_seatColorMode == 'golden' || _seatColorMode == 'purple' || _seatColorMode == 'cyberEmerald')
               ? (isHost ? 'Host' : 'No.$number')
               : (isHost ? 'Owner' : 'No.${number - 1}'),
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            shadows: const [
+            shadows: [
               Shadow(
                 color: Colors.black87,
                 blurRadius: 3,
@@ -983,6 +1038,7 @@ class _RoomCreateDecorationScreenState
             spacing: 10,
             runSpacing: 10,
             children: [
+              _buildPresetChip('Cyber Emerald Aura (Animated)', 'cyberEmerald', 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800', seatName: 'Cyber Emerald Aura (Animated)'),
               _buildPresetChip('Aurora Classic Mic & Owner (Free)', 'original', 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800', seatName: 'Classic Mic & Owner (Free)'),
               _buildPresetChip('Golden Sofa & Host (Free)', 'golden', 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800', seatName: 'Golden Sofa & Host (Free)'),
               _buildPresetChip('Cyber Neon Blue', 'golden', 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800'),
@@ -1003,6 +1059,11 @@ class _RoomCreateDecorationScreenState
       onPressed: () {
         setState(() {
           _seatColorMode = colorMode;
+          if (colorMode == 'cyberEmerald' || colorMode == 'purple') {
+            _enableSeatAnimation = true;
+            _seatAnimationType = 'rotatingRing';
+            _seatAnimationColor = colorMode == 'cyberEmerald' ? 'cyan' : 'purple';
+          }
           if (seatName != null) {
             _seatNameCtrl.text = seatName;
             _seatDecorUrlCtrl.clear();
@@ -1127,6 +1188,10 @@ class _RoomCreateDecorationScreenState
                         seatColorMode: _seatColorMode,
                         seatDecorUrl: _seatDecorUrlCtrl.text.trim(),
                         lockedSeatDecorUrl: _lockedSeatDecorUrlCtrl.text.trim(),
+                        isAnimated: _enableSeatAnimation,
+                        animationType: _seatAnimationType,
+                        animationSpeed: _seatAnimationSpeed,
+                        animationColor: _seatAnimationColor,
                       );
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1160,6 +1225,161 @@ class _RoomCreateDecorationScreenState
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Real-time Seat Animation Controls Section ──
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _enableSeatAnimation ? Colors.cyanAccent.withValues(alpha: 0.6) : Colors.white12,
+                width: _enableSeatAnimation ? 1.5 : 1.0,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _enableSeatAnimation ? Colors.cyanAccent.withValues(alpha: 0.2) : Colors.white10,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome,
+                        color: _enableSeatAnimation ? Colors.cyanAccent : Colors.grey,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Real-Time Seat Animation (সিট অ্যানিমেশন অন/অফ)',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'সুইচ অন রাখলে সব সিটে রিয়েল-টাইমে ঘুরন্ত নিয়ন অরা, স্পার্কল ও পালসিং এনিমেশন চলবে।',
+                            style: TextStyle(color: Colors.white60, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _enableSeatAnimation,
+                      activeColor: Colors.cyanAccent,
+                      onChanged: (val) => setState(() => _enableSeatAnimation = val),
+                    ),
+                  ],
+                ),
+
+                if (_enableSeatAnimation) ...[
+                  const Divider(color: Colors.white24, height: 24),
+
+                  const Text(
+                    'Animation Effect Style (অ্যানিমেশন ইফেক্ট):',
+                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _seatAnimationType,
+                    dropdownColor: Colors.grey[900],
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.black26,
+                    ),
+                    items: const [
+                                    DropdownMenuItem(
+                                      value: 'beamSweep',
+                                      child: Text('⚡ Laser Light Beam Sweep (বাম থেকে ডানে আলো যাওয়া)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rotatingRing',
+                        child: Text('💫 360° Rotating Neon Aura Ring (ঘুরন্ত নিয়ন রিং)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'neonPulse',
+                        child: Text('💓 Breathing Neon Glow Pulse (পালসিং গ্লো)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'starSparkle',
+                        child: Text('✨ Orbiting Star Sparkles (স্পার্কলিং স্টার)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'rippleWave',
+                        child: Text('🌊 Cyber Sonar Ripple Wave (রিপল ওয়েভ)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'goldenShimmer',
+                        child: Text('🌟 Holographic Shimmer Sweep (শিমার ইফেক্ট)'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _seatAnimationType = val);
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'Aura Glow Color (অরা নিয়ন কালার):',
+                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildRoomColorChip('Cyan Neon', 'cyan', const Color(0xFF00FFE0)),
+                      _buildRoomColorChip('Electric Purple', 'purple', const Color(0xFFFF00D4)),
+                      _buildRoomColorChip('Champagne Gold', 'golden', const Color(0xFFFFD700)),
+                      _buildRoomColorChip('Cosmic Emerald', 'emerald', const Color(0xFF00E676)),
+                      _buildRoomColorChip('Fire Amber', 'amber', const Color(0xFFFF9100)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Animation Speed (গতি):',
+                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${_seatAnimationSpeed.toStringAsFixed(2)}x',
+                        style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: _seatAnimationSpeed,
+                    min: 0.5,
+                    max: 2.5,
+                    divisions: 8,
+                    label: '${_seatAnimationSpeed.toStringAsFixed(2)}x',
+                    activeColor: Colors.cyanAccent,
+                    inactiveColor: Colors.grey[800],
+                    onChanged: (val) => setState(() => _seatAnimationSpeed = val),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1258,6 +1478,27 @@ class _RoomCreateDecorationScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRoomColorChip(String label, String colorKey, Color color) {
+    final isSelected = _seatAnimationColor == colorKey;
+    return ChoiceChip(
+      avatar: CircleAvatar(backgroundColor: color, radius: 8),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.black : Colors.white,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      backgroundColor: Colors.black45,
+      onSelected: (selected) {
+        if (selected) setState(() => _seatAnimationColor = colorKey);
+      },
     );
   }
 

@@ -9,6 +9,7 @@ import 'agency_profile_screen.dart';
 import 'agency_hosts_screen.dart';
 import 'agency_income_screen.dart';
 import 'agency_reports_screen.dart';
+import '../widgets/media_preview_widget.dart';
 
 class AgencyDashboard extends StatefulWidget {
   final String agencyId;
@@ -87,10 +88,14 @@ class _AgencyDashboardState extends State<AgencyDashboard> {
         final List<HostModel> uniqueHosts = [];
         final Set<String> seenUserIds = {};
         for (var doc in hostsQuery.docs) {
-          final host = HostModel.fromFirestore(doc);
-          if (host.isActive && !seenUserIds.contains(host.userId)) {
-            seenUserIds.add(host.userId);
-            uniqueHosts.add(host);
+          try {
+            final host = HostModel.fromFirestore(doc);
+            if (host.isActive && !seenUserIds.contains(host.userId)) {
+              seenUserIds.add(host.userId);
+              uniqueHosts.add(host);
+            }
+          } catch (e) {
+            debugPrint('Error parsing host ${doc.id}: $e');
           }
         }
         setState(() {
@@ -135,7 +140,7 @@ class _AgencyDashboardState extends State<AgencyDashboard> {
       'averageHostRating': _hosts.isNotEmpty
           ? _hosts
                     .map((h) => h.performance.averageRating)
-                    .reduce((a, b) => a + b) /
+                    .fold(0.0, (a, b) => a + b) /
                 _hosts.length
           : 0.0,
     };
@@ -768,61 +773,113 @@ class _AgencyDashboardState extends State<AgencyDashboard> {
   }
 
   Widget _buildHostItem(HostModel host) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.blue,
-            child: Text(
-              host.hostName.isNotEmpty ? host.hostName[0].toUpperCase() : 'H',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(host.userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String displayName = host.hostName;
+        String? photoUrl;
+        String searchId = '';
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final ud = snapshot.data!.data() as Map<String, dynamic>;
+          displayName = ud['fullname'] ?? ud['username'] ?? displayName;
+          photoUrl = ud['photoUrl'] ?? ud['profileImageUrl'];
+          searchId = ud['searchId']?.toString() ?? '';
+        }
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              photoUrl != null && photoUrl.isNotEmpty
+                  ? MediaPreviewWidget(
+                      url: photoUrl,
+                      width: 40,
+                      height: 40,
+                      borderRadius: BorderRadius.circular(20),
+                    )
+                  : CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue,
+                      child: Text(
+                        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'H',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (searchId.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              'ID: $searchId',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Status: ${host.status.name}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  host.hostName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: host.isActive
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.red.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  host.isActive ? 'Active' : 'Inactive',
+                  style: TextStyle(
+                    color: host.isActive ? Colors.green : Colors.red,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Status: ${host.status.name}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: host.isActive
-                  ? Colors.green.withValues(alpha: 0.2)
-                  : Colors.red.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              host.isActive ? 'Active' : 'Inactive',
-              style: TextStyle(
-                color: host.isActive ? Colors.green : Colors.red,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

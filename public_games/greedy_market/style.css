@@ -43,7 +43,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 48px 10px 24px 10px;
+  padding: max(46px, env(safe-area-inset-top, 46px)) 10px 24px 10px;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }
 
@@ -91,8 +91,7 @@ body {
   justify-content: space-between;
   width: 100%;
   height: 42px;
-  margin-top: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
@@ -173,7 +172,90 @@ body {
 /* Floating Corner Trophy */
 .floating-trophy {
   position: absolute;
-  top: 48px;
+  top: max(46px, env(safe-area-inset-top, 46px));
+  left: 10px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s;
+}
+
+.floating-trophy:active {
+  transform: scale(0.9);
+}
+
+.floating-trophy img {
+  width: 38px;
+  height: 38px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.7));
+}
+
+.trophy-pill-count {
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffd700;
+  border: 1px solid #ffd700;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 0 4px;
+  border-radius: 8px;
+  margin-top: -5px;
+}
+
+/* ================= 2. FERRIS WHEEL MAIN ARENA ================= */
+.ferris-arena {
+  position: relative;
+  width: 100%;
+  height: 330px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  margin: 0 auto;
+}
+
+.wheel-stage {
+  position: relative;
+  width: 320px;
+  height: 330px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ferris A-Frame Stand */
+.ferris-stand {
+  position: absolute;
+  bottom: 0px;
+  left: 110px;
+  width: 100px;
+  height: 155px;
+  background: linear-gradient(180deg, #8a4128 0%, #3e170a 100%);
+  clip-path: polygon(32% 0%, 68% 0%, 100% 100%, 0% 100%);
+  z-index: 2;
+  opacity: 0.9;
+}
+
+/* 8 Radiating Wooden Spokes */
+.spokes-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 320px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Floating Side Fruit & Pizza Badges */
+.side-badge-fruit {
+  position: absolute;
+  top: 246px;
   left: 8px;
   z-index: 10;
   display: flex;

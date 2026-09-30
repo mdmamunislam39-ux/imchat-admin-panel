@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/host_model.dart';
 import '../models/agency_notification_model.dart';
 import '../services/agency_service.dart';
+import '../widgets/media_preview_widget.dart';
 import 'user_history_stats.dart';
 
 class AgencyHostsScreen extends StatefulWidget {
@@ -21,30 +25,41 @@ class _AgencyHostsScreenState extends State<AgencyHostsScreen> {
   bool _isLoading = true;
   String _searchQuery = '';
   HostStatus? _selectedStatus;
+  StreamSubscription<List<HostModel>>? _hostsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadHosts();
+    _startRealtimeHostsListener();
+  }
+
+  @override
+  void dispose() {
+    _hostsSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _startRealtimeHostsListener() {
+    _hostsSubscription?.cancel();
+    if (mounted) setState(() => _isLoading = true);
+    _hostsSubscription = AgencyService.getAgencyHostsStream(widget.agencyId).listen(
+      (hosts) {
+        if (mounted) {
+          setState(() {
+            _hosts = hosts;
+            _isLoading = false;
+          });
+        }
+      },
+      onError: (e) {
+        debugPrint('Error loading hosts stream: $e');
+        if (mounted) setState(() => _isLoading = false);
+      },
+    );
   }
 
   Future<void> _loadHosts() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final hosts = await AgencyService.getAgencyHosts(widget.agencyId);
-      setState(() {
-        _hosts = hosts;
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading hosts: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _startRealtimeHostsListener();
   }
 
   List<HostModel> get _filteredHosts {
@@ -245,116 +260,211 @@ class _AgencyHostsScreenState extends State<AgencyHostsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Host Header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Colors.blue,
-                  child: Text(
-                    host.hostName.isNotEmpty ? host.hostName[0].toUpperCase() : 'H',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        host.hostName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        host.email,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildStatusChip(host.status),
-                const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  color: Colors.grey[900],
-                  onSelected: (value) {
-                    if (value == 'history') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => UserHistoryStats(
-                            userId: host.userId,
-                            username: host.hostName,
+            // Host Header (Real-time from Users collection)
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('Users')
+                  .doc(host.userId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String displayName = host.hostName;
+                String? photoUrl;
+                String searchId = '';
+                String displayEmail = host.email;
+                String displayPhone = host.phone;
+
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final ud = snapshot.data!.data() as Map<String, dynamic>;
+                  displayName = ud['fullname'] ?? ud['username'] ?? displayName;
+                  photoUrl = ud['photoUrl'] ?? ud['profileImageUrl'];
+                  searchId = ud['searchId']?.toString() ?? '';
+                  displayPhone = (ud['number'] ?? ud['phone'] ?? displayPhone).toString();
+                  displayEmail = (ud['email'] ?? ud['googleEmail'] ?? ud['mail'] ?? displayEmail).toString();
+                }
+
+                final hasPhone = displayPhone.trim().isNotEmpty;
+                final hasEmail = displayEmail.trim().isNotEmpty;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        photoUrl != null && photoUrl.isNotEmpty
+                            ? MediaPreviewWidget(
+                                url: photoUrl,
+                                width: 50,
+                                height: 50,
+                                borderRadius: BorderRadius.circular(25),
+                              )
+                            : CircleAvatar(
+                                radius: 25,
+                                backgroundColor: Colors.blue,
+                                child: Text(
+                                  displayName.isNotEmpty ? displayName[0].toUpperCase() : 'H',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      displayName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (searchId.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        'ID: $searchId',
+                                        style: const TextStyle(
+                                          color: Colors.blue,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'UID: ${host.userId}',
+                                style: const TextStyle(color: Colors.grey, fontSize: 11),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    } else if (value == 'details') {
-                      _viewHostDetails(host);
-                    } else if (value == 'edit') {
-                      _editHost(host);
-                    } else if (value == 'remove') {
-                      _removeHost(host);
-                    }
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'history',
-                      child: Row(
-                        children: [
-                          Icon(Icons.history, color: Colors.blue, size: 20),
-                          SizedBox(width: 10),
-                          Text('User History', style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
+                        _buildStatusChip(host.status),
+                        const SizedBox(width: 8),
+                        _buildHostPopupMenu(host, displayName),
+                      ],
                     ),
-                    const PopupMenuItem<String>(
-                      value: 'details',
-                      child: Row(
-                        children: [
-                          Icon(Icons.visibility, color: Colors.green, size: 20),
-                          SizedBox(width: 10),
-                          Text('View Details', style: TextStyle(color: Colors.white)),
-                        ],
+                    const SizedBox(height: 10),
+                    // Contact Info (Phone & Google / Email)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                       ),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit, color: Colors.orange, size: 20),
-                          SizedBox(width: 10),
-                          Text('Edit Info', style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'remove',
-                      child: Row(
-                        children: [
-                          Icon(Icons.remove_circle, color: Colors.red, size: 20),
-                          SizedBox(width: 10),
-                          Text('Remove Host', style: TextStyle(color: Colors.white)),
+                          // Phone
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.phone_android_rounded, size: 13, color: Colors.greenAccent),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    hasPhone ? displayPhone : 'No phone',
+                                    style: TextStyle(
+                                      color: hasPhone ? Colors.white70 : Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (hasPhone) ...[
+                                  const SizedBox(width: 4),
+                                  InkWell(
+                                    onTap: () {
+                                      Clipboard.setData(ClipboardData(text: displayPhone));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Host phone copied!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 1),
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Google / Email
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Text(
+                                    'G',
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    hasEmail ? displayEmail : 'No Google/email',
+                                    style: TextStyle(
+                                      color: hasEmail ? Colors.white70 : Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (hasEmail) ...[
+                                  const SizedBox(width: 4),
+                                  InkWell(
+                                    onTap: () {
+                                      Clipboard.setData(ClipboardData(text: displayEmail));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Host Google email copied!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 1),
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             ),
-            
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             
             // Host Performance
             Row(
@@ -388,6 +498,74 @@ class _AgencyHostsScreenState extends State<AgencyHostsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHostPopupMenu(HostModel host, String displayName) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      color: Colors.grey[900],
+      onSelected: (value) {
+        if (value == 'history') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserHistoryStats(
+                userId: host.userId,
+                username: displayName,
+              ),
+            ),
+          );
+        } else if (value == 'details') {
+          _viewHostDetails(host);
+        } else if (value == 'edit') {
+          _editHost(host);
+        } else if (value == 'remove') {
+          _removeHost(host);
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'history',
+          child: Row(
+            children: [
+              Icon(Icons.history, color: Colors.blue, size: 20),
+              SizedBox(width: 10),
+              Text('User History', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'details',
+          child: Row(
+            children: [
+              Icon(Icons.visibility, color: Colors.green, size: 20),
+              SizedBox(width: 10),
+              Text('View Details', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.orange, size: 20),
+              SizedBox(width: 10),
+              Text('Edit Info', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'remove',
+          child: Row(
+            children: [
+              Icon(Icons.remove_circle, color: Colors.red, size: 20),
+              SizedBox(width: 10),
+              Text('Remove Host', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -827,6 +1005,22 @@ class _EditHostDialogState extends State<_EditHostDialog> {
       );
 
       final success = await AgencyService.updateHost(widget.host.id, updatedHost);
+      
+      // Also sync name, phone, email directly to the Users collection for real-time consistency
+      if (widget.host.userId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance.collection('Users').doc(widget.host.userId).update({
+            'fullname': _nameController.text.trim(),
+            'username': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'number': _phoneController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'updatedAt': Timestamp.now(),
+          });
+        } catch (e) {
+          debugPrint('Error syncing host to Users document: $e');
+        }
+      }
       
       if (!mounted) return;
       if (success) {

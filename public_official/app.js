@@ -189,28 +189,66 @@ function resolveUserDisplay(userId, userProfileId, defaultName, defaultSearchId,
   return { name, avatar, searchId };
 }
 
+let adminDocUnsub = null;
+
 function initAuthSession() {
   const savedSession = localStorage.getItem('sub_admin_session');
   if (savedSession) {
     try {
       currentAdmin = JSON.parse(savedSession);
-      db.collection('web_admins').doc(currentAdmin.id).get().then(doc => {
-        if (doc.exists && doc.data().isActive !== false) {
-          currentAdmin = { id: doc.id, ...doc.data() };
-          localStorage.setItem('sub_admin_session', JSON.stringify(currentAdmin));
-          showAppPortal();
-        } else {
-          logoutAdmin('Your account has been deactivated or removed.');
-        }
-      }).catch(() => {
-        showAppPortal();
-      });
+      if (currentAdmin.role === 'main_admin' || currentAdmin.isSuperAdmin === true || currentAdmin.email === 'admin@imchatapp.com') {
+        logoutAdmin('Main Super Admin cannot log in to Sub-Official portal. Please use admin.imchatapp.com');
+        return;
+      }
+      listenToCurrentAdminDoc(currentAdmin.id);
+      showAppPortal();
     } catch (e) {
       showLoginScreen();
     }
   } else {
     showLoginScreen();
   }
+}
+
+function listenToCurrentAdminDoc(adminId) {
+  if (adminDocUnsub) {
+    adminDocUnsub();
+    adminDocUnsub = null;
+  }
+  if (!adminId) return;
+
+  adminDocUnsub = db.collection('web_admins').doc(adminId).onSnapshot(doc => {
+    if (!doc.exists || doc.data().isActive === false) {
+      logoutAdmin('Your sub-admin account is no longer active or has been removed.');
+      return;
+    }
+    const data = doc.data();
+    if (data.role === 'main_admin' || data.isSuperAdmin === true || data.email === 'admin@imchatapp.com') {
+      logoutAdmin('Main Super Admin cannot log in to Sub-Official portal. Please use admin.imchatapp.com');
+      return;
+    }
+    
+    currentAdmin = { id: doc.id, ...data };
+    localStorage.setItem('sub_admin_session', JSON.stringify(currentAdmin));
+    
+    // Live update UI & sidebar permissions
+    const avatarEl = document.getElementById('current-user-avatar');
+    const nameEl = document.getElementById('current-user-name');
+    const emailEl = document.getElementById('current-user-email');
+    if (avatarEl) avatarEl.textContent = (currentAdmin.name ? currentAdmin.name[0] : 'A').toUpperCase();
+    if (nameEl) nameEl.textContent = currentAdmin.name || 'Sub Official Admin';
+    if (emailEl) emailEl.textContent = currentAdmin.email || '';
+
+    renderDynamicSidebar();
+
+    // If active view is no longer permitted, redirect to dashboard
+    if (currentActiveView !== 'dashboard' && !canView(currentActiveView)) {
+      showToast(`Access to "${currentActiveView}" was updated or removed.`, 'error');
+      navigateTo('dashboard');
+    }
+  }, err => {
+    console.error('Error listening to sub admin permissions:', err);
+  });
 }
 
 function setupEventListeners() {
@@ -240,6 +278,10 @@ function setupEventListeners() {
           const doc = query.docs[0];
           const data = doc.data();
 
+          if (data.role === 'main_admin' || data.isSuperAdmin === true || data.email === 'admin@imchatapp.com') {
+            throw new Error('This portal (official.imchatapp.com) is strictly for Sub Official Admins. Main Super Admin must log in at https://admin.imchatapp.com');
+          }
+
           if (data.isActive === false) {
             throw new Error('This sub-admin account is deactivated. Please contact Main Super Admin.');
           }
@@ -251,6 +293,7 @@ function setupEventListeners() {
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
           }).catch(() => {});
 
+          listenToCurrentAdminDoc(doc.id);
           showToast('Welcome, ' + (currentAdmin.name || 'Sub Official Admin') + '!', 'success');
           showAppPortal();
         } else {
@@ -354,6 +397,10 @@ function showAppPortal() {
 }
 
 function logoutAdmin(msg) {
+  if (adminDocUnsub) {
+    adminDocUnsub();
+    adminDocUnsub = null;
+  }
   localStorage.removeItem('sub_admin_session');
   currentAdmin = null;
   showLoginScreen();

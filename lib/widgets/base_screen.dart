@@ -16,6 +16,8 @@ import '../screens/realtime_server_setup_screen.dart';
 import '../screens/html5_game_management_screen.dart';
 import '../screens/room_game_management_screen.dart';
 import '../screens/recharge_wallet_management_screen.dart';
+import '../screens/users_history_screen.dart';
+import '../screens/user_position_management_screen.dart';
 
 class BaseScreen extends StatelessWidget {
   final String title;
@@ -117,6 +119,26 @@ class BaseScreen extends StatelessWidget {
               _navigateToScreen(context, 'Users Management');
             },
             isSelected: title == 'Users Management',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.workspace_premium,
+            title: 'User Position',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'User Position');
+            },
+            isSelected: title == 'User Position',
+          ),
+          _buildDrawerItem(
+            context,
+            icon: Icons.manage_history,
+            title: 'Users History',
+            onTap: () {
+              Navigator.pop(context);
+              _navigateToScreen(context, 'Users History');
+            },
+            isSelected: title == 'Users History',
           ),
           _buildDrawerItem(
             context,
@@ -299,6 +321,14 @@ class BaseScreen extends StatelessWidget {
     switch (screenName) {
       case 'Users Management':
         screen = const UsersManagement();
+        break;
+      case 'User Position':
+      case 'User Position Management':
+      case 'User Positions':
+        screen = const UserPositionManagementScreen();
+        break;
+      case 'Users History':
+        screen = const UsersHistoryScreen();
         break;
       case 'Rooms Management':
         screen = const RoomsManagement();

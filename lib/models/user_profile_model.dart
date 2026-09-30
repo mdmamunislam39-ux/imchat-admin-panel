@@ -32,6 +32,8 @@ class UserProfileModel {
   final String? profileImageUrl;
   final String? bio;
   final String? phone;
+  final String? email;
+  final String? loginProvider;
   final String? searchId;
   final UserType userType;
   final UserStatus status;
@@ -71,6 +73,8 @@ class UserProfileModel {
     this.profileImageUrl,
     this.bio,
     this.phone,
+    this.email,
+    this.loginProvider,
     this.searchId,
     this.userType = UserType.regular,
     this.status = UserStatus.active,
@@ -145,6 +149,12 @@ class UserProfileModel {
       final rawPhone = _firstNonEmptyNullable(data, [
         'number', 'phone', 'phoneNumber', 'mobile', 'mobileNumber', 'phone_number'
       ]);
+      final rawEmail = _firstNonEmptyNullable(data, [
+        'email', 'googleEmail', 'userEmail', 'mail', 'google', 'user_email'
+      ]);
+      final rawLoginProvider = _firstNonEmptyNullable(data, [
+        'loginProvider', 'provider', 'authProvider', 'login_provider'
+      ]);
       final rawSearchId = _firstNonEmptyNullable(data, [
         'searchId', 'uniqueId', 'user_id', 'id'
       ]);
@@ -156,6 +166,8 @@ class UserProfileModel {
         profileImageUrl: rawPhoto,
         bio: data['bio']?.toString(),
         phone: rawPhone,
+        email: rawEmail,
+        loginProvider: rawLoginProvider,
         searchId: rawSearchId,
         userType: UserType.values.firstWhere(
           (e) => e.name == data['userType'],
@@ -250,6 +262,8 @@ class UserProfileModel {
         'profileImageUrl': profileImageUrl,
         'bio': bio,
         'phone': phone,
+        'email': email,
+        'loginProvider': loginProvider,
         'searchId': searchId,
         'userType': userType.name,
         'status': status.name,
@@ -293,6 +307,8 @@ class UserProfileModel {
     String? profileImageUrl,
     String? bio,
     String? phone,
+    String? email,
+    String? loginProvider,
     String? searchId,
     UserType? userType,
     UserStatus? status,
@@ -320,6 +336,8 @@ class UserProfileModel {
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       bio: bio ?? this.bio,
       phone: phone ?? this.phone,
+      email: email ?? this.email,
+      loginProvider: loginProvider ?? this.loginProvider,
       searchId: searchId ?? this.searchId,
       userType: userType ?? this.userType,
       status: status ?? this.status,
@@ -340,6 +358,19 @@ class UserProfileModel {
       blockedUserIds: blockedUserIds ?? this.blockedUserIds,
       punishments: punishments ?? this.punishments,
     );
+  }
+
+  bool get hasPhone => phone != null && phone!.trim().isNotEmpty && phone != '-';
+  bool get hasEmail => email != null && email!.trim().isNotEmpty && email != '-';
+  String get contactInfo {
+    if (hasPhone && hasEmail) {
+      return '$phone | $email';
+    } else if (hasPhone) {
+      return phone!;
+    } else if (hasEmail) {
+      return email!;
+    }
+    return '-';
   }
 
   bool get isHost => userType == UserType.host;

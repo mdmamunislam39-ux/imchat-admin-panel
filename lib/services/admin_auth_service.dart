@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +15,9 @@ class AdminAuthService {
   static String? _currentUserRole; // 'main_admin' or 'sub_official_admin' or 'master_admin'
   static List<String> _currentPermissions = [];
   static Map<String, String> _permissionsMap = {}; // module -> 'edit' | 'view'
+  
+  static StreamSubscription<DocumentSnapshot>? _realtimeSubscription;
+  static final ValueNotifier<int> permissionNotifier = ValueNotifier<int>(0);
 
   static bool get isAuthenticated => _isAuthenticated;
   static String? get currentUserId => _currentUserId;
@@ -78,6 +82,39 @@ class AdminAuthService {
     }
   }
 
+  static void _startRealtimeListener(String uid) {
+    _realtimeSubscription?.cancel();
+    _realtimeSubscription = FirebaseFirestore.instance
+        .collection(_collection)
+        .doc(uid)
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) {
+        debugPrint('⚠️ Admin Auth: Account doc deleted in Firestore. Signing out.');
+        signOut();
+        return;
+      }
+      final data = doc.data() ?? {};
+      if (data['isActive'] == false) {
+        debugPrint('⚠️ Admin Auth: Account deactivated in Firestore. Signing out.');
+        signOut();
+        return;
+      }
+
+      _currentUserName = data['name'] ??
+          data['fullname'] ??
+          (data['email'] != null ? (data['email'] as String).split('@').first : 'Admin');
+      _currentUserRole = data['role'];
+      _parsePermissions(data['permissions']);
+      
+      // Notify listeners in real-time
+      permissionNotifier.value++;
+      debugPrint('🔄 Admin Auth: Realtime permissions synced (${_currentPermissions.length} modules allowed)');
+    }, onError: (e) {
+      debugPrint('Error in admin realtime listener: $e');
+    });
+  }
+
   static Future<void> checkPersistedLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -96,6 +133,7 @@ class AdminAuthService {
           _currentUserName = data['name'] ?? data['fullname'] ?? (data['email'] != null ? (data['email'] as String).split('@').first : 'Admin');
           _currentUserRole = data['role'];
           _parsePermissions(data['permissions']);
+          _startRealtimeListener(doc.id);
           debugPrint('✅ Admin Auth: Restored session for $_currentUserEmail');
         } else {
           await signOut();
@@ -140,6 +178,8 @@ class AdminAuthService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('admin_uid', doc.id);
 
+        _startRealtimeListener(doc.id);
+
         debugPrint('✅ Admin Auth: Login successful for $email as $_currentUserRole');
         return true;
       } else {
@@ -167,6 +207,8 @@ class AdminAuthService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('admin_uid', newDoc.id);
 
+          _startRealtimeListener(newDoc.id);
+
           return true;
         }
 
@@ -190,6 +232,8 @@ class AdminAuthService {
 
   static Future<void> signOut() async {
     try {
+      _realtimeSubscription?.cancel();
+      _realtimeSubscription = null;
       _isAuthenticated = false;
       _currentUserId = null;
       _currentUserEmail = null;
@@ -201,6 +245,7 @@ class AdminAuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('admin_uid');
 
+      permissionNotifier.value++;
       debugPrint('🚪 Admin Auth: User signed out');
     } catch (e) {
       debugPrint('Error signing out: $e');

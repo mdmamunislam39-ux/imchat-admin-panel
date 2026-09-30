@@ -5,6 +5,7 @@ import '../widgets/base_screen.dart';
 import '../services/firebase_data_service.dart';
 import '../widgets/media_preview_widget.dart';
 import '../widgets/room_edit_dialog.dart';
+import '../widgets/room_rules_dialog.dart';
 import 'room_create_decoration_screen.dart';
 
 class RoomsManagement extends StatefulWidget {
@@ -267,6 +268,23 @@ class _RoomsManagementState extends State<RoomsManagement> {
                   _searchQuery = value;
                 });
               },
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: () {
+              RoomRulesDialog.show(context);
+            },
+            icon: const Icon(Icons.gavel_rounded, color: Colors.cyanAccent, size: 18),
+            label: const Text('Rules & Guideline', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0E3A4B),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Colors.cyanAccent, width: 0.8),
+              ),
             ),
           ),
           const SizedBox(width: 12),

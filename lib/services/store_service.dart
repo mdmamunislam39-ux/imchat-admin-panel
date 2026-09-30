@@ -29,6 +29,10 @@ class StoreService {
     Map<String, dynamic>? metadata,
     String? adminId,
     Map<String, dynamic>? validityPrices,
+    bool isAnimated = false,
+    String? animationType,
+    double animationSpeed = 1.0,
+    String? animationColor,
   }) async {
     try {
       final itemId = _firestore.collection(_storeItemsCollection).doc().id;
@@ -53,6 +57,10 @@ class StoreService {
         lockedFileUrl: lockedFileUrl,
         metadata: metadata,
         validityPrices: validityPrices,
+        isAnimated: isAnimated,
+        animationType: animationType,
+        animationSpeed: animationSpeed,
+        animationColor: animationColor,
       );
 
       await _firestore.collection(_storeItemsCollection).doc(itemId).set(storeItem.toFirestore());
@@ -143,6 +151,10 @@ class StoreService {
     bool? isActive,
     String? thumbnailUrl,
     Map<String, dynamic>? metadata,
+    bool? isAnimated,
+    String? animationType,
+    double? animationSpeed,
+    String? animationColor,
   }) async {
     try {
       final updateData = <String, dynamic>{
@@ -157,6 +169,10 @@ class StoreService {
       if (isActive != null) updateData['isActive'] = isActive;
       if (thumbnailUrl != null) updateData['thumbnailUrl'] = thumbnailUrl;
       if (metadata != null) updateData['metadata'] = metadata;
+      if (isAnimated != null) updateData['isAnimated'] = isAnimated;
+      if (animationType != null) updateData['animationType'] = animationType;
+      if (animationSpeed != null) updateData['animationSpeed'] = animationSpeed;
+      if (animationColor != null) updateData['animationColor'] = animationColor;
 
       await _firestore.collection(_storeItemsCollection).doc(itemId).update(updateData);
 

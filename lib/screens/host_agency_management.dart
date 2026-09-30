@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/user_profile_model.dart';
 import '../services/user_profile_service.dart';
 import '../widgets/media_preview_widget.dart';
@@ -22,6 +24,7 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
   String _searchQuery = '';
   bool _showAgencyFilter = false;
   String? _selectedAgencyId;
+  StreamSubscription<List<UserProfileModel>>? _usersSubscription;
 
   @override
   void initState() {
@@ -37,44 +40,46 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
       CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
 
-    _loadData();
+    _startRealtimeListener();
     _animationController.forward();
   }
 
   @override
   void dispose() {
+    _usersSubscription?.cancel();
     _tabController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
+  void _startRealtimeListener() {
+    _usersSubscription?.cancel();
+    setState(() => _isLoading = true);
+
+    _usersSubscription = UserProfileService.getUserProfilesStream(limit: 300).listen(
+      (allUsers) {
+        if (mounted) {
+          setState(() {
+            _hosts = allUsers.where((user) => user.isHost).toList();
+            _regularUsers = allUsers
+                .where((user) => user.userType == UserType.regular)
+                .toList();
+            _isLoading = false;
+          });
+        }
+      },
+      onError: (e) {
+        debugPrint('Error in real-time user stream: $e');
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showErrorSnackBar('Failed to load user profiles in real time');
+        }
+      },
+    );
+  }
+
   Future<void> _loadData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final allUsers = await UserProfileService.getAllUserProfiles();
-      await UserProfileService.getUserStatistics();
-
-      if (mounted) {
-        setState(() {
-          _hosts = allUsers.where((user) => user.isHost).toList();
-          _regularUsers = allUsers
-              .where((user) => user.userType == UserType.regular)
-              .toList();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading host/agency data: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        _showErrorSnackBar('Failed to load host/agency data');
-      }
-    }
+    _startRealtimeListener();
   }
 
   void _showErrorSnackBar(String message) {
@@ -116,11 +121,15 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
     var filtered = _hosts;
 
     if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase().trim();
       filtered = filtered
           .where(
-            (host) => host.username.toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            ),
+            (host) =>
+                host.username.toLowerCase().contains(q) ||
+                (host.searchId?.toLowerCase().contains(q) ?? false) ||
+                (host.phone?.contains(q) ?? false) ||
+                (host.email?.toLowerCase().contains(q) ?? false) ||
+                host.userId.toLowerCase().contains(q),
           )
           .toList();
     }
@@ -138,11 +147,15 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
     var filtered = _regularUsers;
 
     if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase().trim();
       filtered = filtered
           .where(
-            (user) => user.username.toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            ),
+            (user) =>
+                user.username.toLowerCase().contains(q) ||
+                (user.searchId?.toLowerCase().contains(q) ?? false) ||
+                (user.phone?.contains(q) ?? false) ||
+                (user.email?.toLowerCase().contains(q) ?? false) ||
+                user.userId.toLowerCase().contains(q),
           )
           .toList();
     }
@@ -170,6 +183,14 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
         ),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loadData,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
@@ -829,7 +850,7 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: host.status == UserStatus.active ? Colors.purple : Colors.red,
           width: 2,
@@ -859,13 +880,39 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        host.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              host.username,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (host.searchId != null && host.searchId!.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                'ID: ${host.searchId}',
+                                style: const TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -873,7 +920,7 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
-                              vertical: 4,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.purple.withValues(alpha: 0.2),
@@ -890,21 +937,24 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                           ),
                           if (host.agencyName != null) ...[
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                host.agencyName!,
-                                style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  host.agencyName!,
+                                  style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
@@ -937,7 +987,96 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+
+            // Contact Info (Phone & Google / Email)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              ),
+              child: Row(
+                children: [
+                  // Phone
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_android_rounded, size: 13, color: Colors.greenAccent),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            host.hasPhone ? (host.phone ?? '') : 'No phone',
+                            style: TextStyle(
+                              color: host.hasPhone ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (host.hasPhone && host.phone != null) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: host.phone!));
+                              _showSuccessSnackBar('Host phone copied!');
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Google / Email
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text(
+                            'G',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            host.hasEmail ? (host.email ?? '') : 'No Google/email',
+                            style: TextStyle(
+                              color: host.hasEmail ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (host.hasEmail && host.email != null) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: host.email!));
+                              _showSuccessSnackBar('Host Google email copied!');
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             // Host Stats
             Container(
@@ -1004,7 +1143,7 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             // Action Buttons
             Row(
@@ -1012,12 +1151,12 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showHostDetailsDialog(host),
-                    icon: const Icon(Icons.info),
+                    icon: const Icon(Icons.info, size: 16),
                     label: const Text('Details'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -1025,12 +1164,12 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showEditHostDialog(host),
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Edit'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -1038,12 +1177,12 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _showAgencyManagementDialog(host),
-                    icon: const Icon(Icons.business),
+                    icon: const Icon(Icons.business, size: 16),
                     label: const Text('Agency'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.purple,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
                 ),
@@ -1060,7 +1199,7 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.grey[900],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: user.status == UserStatus.active ? Colors.blue : Colors.red,
           width: 2,
@@ -1090,19 +1229,45 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        user.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.username,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (user.searchId != null && user.searchId!.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                'ID: ${user.searchId}',
+                                style: const TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 4,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.blue.withValues(alpha: 0.2),
@@ -1141,6 +1306,95 @@ class _HostAgencyManagementState extends State<HostAgencyManagement>
                   ),
                 ),
               ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // Contact Info (Phone & Google / Email)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              ),
+              child: Row(
+                children: [
+                  // Phone
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_android_rounded, size: 13, color: Colors.greenAccent),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            user.hasPhone ? (user.phone ?? '') : 'No phone',
+                            style: TextStyle(
+                              color: user.hasPhone ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (user.hasPhone && user.phone != null) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: user.phone!));
+                              _showSuccessSnackBar('User phone copied!');
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Google / Email
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text(
+                            'G',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            user.hasEmail ? (user.email ?? '') : 'No Google/email',
+                            style: TextStyle(
+                              color: user.hasEmail ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (user.hasEmail && user.email != null) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: user.email!));
+                              _showSuccessSnackBar('User Google email copied!');
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 16),

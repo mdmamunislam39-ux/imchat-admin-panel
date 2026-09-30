@@ -4,8 +4,8 @@
   <script>
     (function() {
       var host = window.location.hostname.toLowerCase();
-      var isAdminDomain = host.includes('admin') || host === 'localhost' || host === '127.0.0.1';
-      if (!isAdminDomain && !window.location.pathname.endsWith('landing.html')) {
+      var isAllowedDomain = host.includes('admin') || host.includes('official') || host === 'localhost' || host === '127.0.0.1';
+      if (!isAllowedDomain && !window.location.pathname.endsWith('landing.html')) {
         window.location.replace('/landing.html' + window.location.search + window.location.hash);
       }
     })();

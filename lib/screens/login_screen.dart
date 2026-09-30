@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/admin_auth_service.dart';
 import '../widgets/animated_background.dart';
 import '../widgets/custom_text_field.dart';
@@ -88,15 +89,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
         if (success) {
+          final isOfficialDomain = kIsWeb && Uri.base.host.toLowerCase().contains('official');
+          if (isOfficialDomain && AdminAuthService.isMainAdmin()) {
+            await AdminAuthService.signOut();
+            setState(() {
+              _isLoading = false;
+              _errorMessage = 'Main Super Admin cannot log in to the Sub-Official portal.\nPlease use https://admin.imchatapp.com';
+            });
+            return;
+          }
+
+          setState(() {
+            _isLoading = false;
+          });
+
           if (widget.onLoginSuccess != null) {
             widget.onLoginSuccess!();
           }
         } else {
+          setState(() {
+            _isLoading = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Invalid email or password. Please try again.'),
@@ -177,29 +191,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildHeader() {
+    final isOfficialDomain = kIsWeb && Uri.base.host.toLowerCase().contains('official');
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            gradient: LinearGradient(
+              colors: isOfficialDomain
+                  ? const [Color(0xFF0F172A), Color(0xFF1E293B)]
+                  : const [Color(0xFF667eea), Color(0xFF764ba2)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(
-            Icons.admin_panel_settings,
+          child: Icon(
+            isOfficialDomain ? Icons.shield_outlined : Icons.admin_panel_settings,
             size: 48,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
-          'IMChat Admin',
-          style: TextStyle(
-            fontSize: 32,
+        Text(
+          isOfficialDomain ? 'IMChat Sub-Official' : 'IMChat Admin',
+          style: const TextStyle(
+            fontSize: 30,
             fontWeight: FontWeight.bold,
             color: Color(0xFF2D3748),
             letterSpacing: -0.5,
@@ -207,9 +224,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ),
         const SizedBox(height: 8),
         Text(
-          'Secure Access Portal',
+          isOfficialDomain ? 'Authorized Sub-Admin Portal' : 'Secure Access Portal',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             color: Colors.grey[600],
             fontWeight: FontWeight.w500,
           ),

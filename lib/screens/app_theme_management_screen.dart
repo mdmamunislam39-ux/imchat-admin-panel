@@ -51,7 +51,7 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _loadData();
   }
 
@@ -152,7 +152,13 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
     setState(() {
       _pendingUploads.remove(configKey);
       _pendingUploadFileNames.remove(configKey);
-      if (configKey == 'leaderboardBgUrl') {
+      if (configKey.startsWith('walletMenuIcon_')) {
+        final iconKey = configKey.replaceFirst('walletMenuIcon_', '');
+        _themeConfig['walletMenuIcons'] ??= {};
+        _themeConfig['walletMenuIcons'][iconKey] = '';
+        _themeConfig['profileMenuIcons'] ??= {};
+        _themeConfig['profileMenuIcons'][iconKey] = '';
+      } else if (configKey == 'leaderboardBgUrl') {
         _themeConfig['leaderboardBgUrl'] = '';
         _themeConfig['screenThemes'] ??= {};
         _themeConfig['screenThemes']['leaderboardBgUrl'] = '';
@@ -179,7 +185,22 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
         final bytes = entry.value;
         final fileName = _pendingUploadFileNames[key];
 
-        if (key.startsWith('roomSettingsIcon_')) {
+        if (key.startsWith('walletMenuIcon_')) {
+          final iconKey = key.replaceFirst('walletMenuIcon_', '');
+          final url = await AppThemeAdminService.uploadImage(
+            bytes,
+            'wallet_icons',
+            originalFileName: fileName,
+          );
+          _themeConfig['walletMenuIcons'] ??= {};
+          _themeConfig['walletMenuIcons'][iconKey] = url;
+          _themeConfig['profileMenuIcons'] ??= {};
+          _themeConfig['profileMenuIcons'][iconKey] = url;
+          if (iconKey == 'host_centre') {
+            _themeConfig['walletMenuIcons']['host_center'] = url;
+            _themeConfig['profileMenuIcons']['host_center'] = url;
+          }
+        } else if (key.startsWith('roomSettingsIcon_')) {
           final iconKey = key.replaceFirst('roomSettingsIcon_', '');
           final url = await AppThemeAdminService.uploadImage(
             bytes,
@@ -328,6 +349,7 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
                     Tab(text: 'Leaderboard Frames'),
                     Tab(text: 'Room & Controls Icons'),
                     Tab(text: 'TabBar Icons'),
+                    Tab(text: 'Wallet & Profile Icons'),
                   ],
                 ),
                 Expanded(
@@ -340,6 +362,7 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
                       _buildLeaderboardTab(),
                       _buildRoomAndControlsIconsTab(),
                       _buildTabBarIconsTab(),
+                      _buildWalletAndProfileIconsTab(),
                     ],
                   ),
                 ),
@@ -1573,4 +1596,778 @@ class _AppThemeManagementScreenState extends State<AppThemeManagementScreen>
       ),
     );
   }
+
+  // --- TAB 7: WALLET & PROFILE SCREEN ICONS ---
+
+  Widget _buildWalletAndProfileIconsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left: Information & Instructions
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.blue[900]!.withValues(alpha: 0.5),
+                            Colors.purple[900]!.withValues(alpha: 0.3),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet, color: Colors.amberAccent, size: 32),
+                          SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'App Wallet & Profile Screen Custom Icons',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'এখানে আপলোড করা সকল লোগো এবং আইকনগুলো মোবাইল অ্যাপের Wallet ও Profile (Me) স্ক্রিনে রিয়েলটাইমে পরিবর্তন হবে। Supports PNG, JPG, WEBP, GIF, and SVGA animation.',
+                                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              // Right: Live Phone Mockup Preview
+              _buildWalletLivePreviewCard(),
+            ],
+          ),
+          const SizedBox(height: 32),
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 24),
+
+          // --- SECTION 1: ALL 15 GRID MENU ICONS ---
+          const Row(
+            children: [
+              Icon(Icons.grid_view_rounded, color: Colors.blueAccent, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Wallet & Profile Menu Grid Action Icons (15 Items)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'স্ক্রিনশটে প্রদর্শিত ১৫টি অ্যাকশন মেনু আইকনসমূহ:',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 24,
+            crossAxisSpacing: 24,
+            childAspectRatio: 1.75,
+            children: [
+              _buildWalletIconUploader('1. My Level (লেভেল)', 'my_level', defaultIcon: Icons.military_tech),
+              _buildWalletIconUploader('2. Store (স্টোর)', 'store', defaultIcon: Icons.shopping_bag),
+              _buildWalletIconUploader('3. Badge (ব্যাজ)', 'badge', defaultIcon: Icons.verified),
+              _buildWalletIconUploader('4. My Items (আমার আইটেম)', 'my_items', defaultIcon: Icons.inventory_2),
+              _buildWalletIconUploader('5. Family (ফ্যামিলি)', 'family', defaultIcon: Icons.groups),
+              _buildWalletIconUploader('6. Agency Manager (এজেন্সি ম্যানেজার)', 'agency_manager', defaultIcon: Icons.assignment_ind),
+              _buildWalletIconUploader('7. Host Centre (হোস্ট সেন্টার)', 'host_centre', defaultIcon: Icons.mic_external_on),
+              _buildWalletIconUploader('8. Game Wall (গেম ওয়াল)', 'game_wall', defaultIcon: Icons.sports_esports),
+              _buildWalletIconUploader('9. Admin Dashboard (এডমিন ড্যাশবোর্ড)', 'admin_dashboard', defaultIcon: Icons.admin_panel_settings),
+              _buildWalletIconUploader('10. Diamondseller (ডায়মন্ড সেলার)', 'diamond_seller', defaultIcon: Icons.monetization_on),
+              _buildWalletIconUploader('11. Invite (ইনভাইট)', 'invite', defaultIcon: Icons.person_add),
+              _buildWalletIconUploader('12. Offline Seller (অফলাইন সেলার)', 'offline_seller', defaultIcon: Icons.wifi_off),
+              _buildWalletIconUploader('13. Setting (সেটিংস)', 'setting', defaultIcon: Icons.settings),
+              _buildWalletIconUploader('14. Help (হেল্প)', 'help', defaultIcon: Icons.help_outline),
+              _buildWalletIconUploader('15. About (অ্যাবাউট)', 'about', defaultIcon: Icons.info_outline),
+            ],
+          ),
+
+          const SizedBox(height: 36),
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 24),
+
+          // --- SECTION 2: VIP & PRIVILEGES BADGES ---
+          const Row(
+            children: [
+              Icon(Icons.workspace_premium, color: Colors.amberAccent, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'VIP & SVIP Privilege Banner Badges',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Configure the VIP and SVIP badges displayed on the top privileges cards.',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 24,
+            crossAxisSpacing: 24,
+            childAspectRatio: 2.1,
+            children: [
+              _buildWalletIconUploader('imChat VIP Badge / Privilege Icon', 'vip_badge', defaultIcon: Icons.shield),
+              _buildWalletIconUploader('imChat SVIP Badge / Privilege Icon', 'svip_badge', defaultIcon: Icons.stars),
+            ],
+          ),
+
+          const SizedBox(height: 36),
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 24),
+
+          // --- SECTION 3: WALLET BALANCES & HEADER ASSETS ---
+          const Row(
+            children: [
+              Icon(Icons.paid, color: Colors.tealAccent, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Wallet Balances & Profile Header Icons',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Configure Diamonds, Beans, User Level Badge, and Navigation icons.',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 24,
+            crossAxisSpacing: 24,
+            childAspectRatio: 1.75,
+            children: [
+              _buildWalletIconUploader('Diamonds Balance Icon', 'wallet_diamonds', defaultIcon: Icons.diamond),
+              _buildWalletIconUploader('Beans Balance Icon', 'wallet_beans', defaultIcon: Icons.monetization_on),
+              _buildWalletIconUploader('User Level Badge (Lv.11)', 'level_badge_icon', defaultIcon: Icons.shield_outlined),
+              _buildWalletIconUploader('Copy ID Icon', 'id_copy_icon', defaultIcon: Icons.copy),
+              _buildWalletIconUploader('Navigation Arrow Icon', 'arrow_nav_icon', defaultIcon: Icons.chevron_right),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletIconUploader(
+    String label,
+    String iconKey, {
+    IconData defaultIcon = Icons.image,
+  }) {
+    String? currentUrl =
+        (_themeConfig['walletMenuIcons'] as Map<String, dynamic>?)?[iconKey] ??
+        (_themeConfig['profileMenuIcons'] as Map<String, dynamic>?)?[iconKey];
+
+    // Fallback check if diamonds or beans icon is set globally
+    if ((currentUrl == null || currentUrl.isEmpty)) {
+      if (iconKey == 'wallet_diamonds') {
+        currentUrl = _themeConfig['diamondIconUrl'];
+      } else if (iconKey == 'wallet_beans') {
+        currentUrl = _themeConfig['beansIconUrl'];
+      }
+    }
+
+    final String pendingKey = 'walletMenuIcon_$iconKey';
+    final pendingBytes = _pendingUploads[pendingKey];
+    final bool hasImage =
+        pendingBytes != null || (currentUrl != null && currentUrl.isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                border: Border.all(
+                  color: hasImage
+                      ? Colors.blue.withValues(alpha: 0.6)
+                      : Colors.grey[800]!,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: pendingBytes != null
+                  ? (_pendingUploadFileNames[pendingKey]?.toLowerCase().endsWith('.svga') == true
+                      ? Container(
+                          color: Colors.grey[850],
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.animation, color: Colors.amberAccent, size: 28),
+                                SizedBox(height: 4),
+                                Text(
+                                  'SVGA',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Image.memory(pendingBytes, fit: BoxFit.contain))
+                  : (currentUrl != null && currentUrl.isNotEmpty)
+                  ? MediaPreviewWidget(
+                      url: currentUrl,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.contain,
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(defaultIcon, color: Colors.grey[600], size: 30),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Default',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _pickImage(pendingKey),
+                    icon: const Icon(Icons.upload_file, size: 14),
+                    label: Text(
+                      hasImage ? 'Change' : 'Upload',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                  if (hasImage) ...[
+                    const SizedBox(height: 6),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _pendingUploads.remove(pendingKey);
+                          _pendingUploadFileNames.remove(pendingKey);
+                          _themeConfig['walletMenuIcons'] ??= {};
+                          _themeConfig['walletMenuIcons'][iconKey] = '';
+                          _themeConfig['profileMenuIcons'] ??= {};
+                          _themeConfig['profileMenuIcons'][iconKey] = '';
+                        });
+                      },
+                      icon: const Icon(Icons.delete_forever, size: 14),
+                      label: const Text(
+                        'Remove',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[850],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- LIVE WALLET & PROFILE PHONE PREVIEW ---
+
+  Widget _getLiveIconWidget(
+    String iconKey,
+    IconData fallbackIcon, {
+    Color fallbackColor = Colors.purpleAccent,
+    double size = 26,
+  }) {
+    final String pendingKey = 'walletMenuIcon_$iconKey';
+    final pendingBytes = _pendingUploads[pendingKey];
+    String? currentUrl =
+        (_themeConfig['walletMenuIcons'] as Map<String, dynamic>?)?[iconKey] ??
+        (_themeConfig['profileMenuIcons'] as Map<String, dynamic>?)?[iconKey];
+
+    if ((currentUrl == null || currentUrl.isEmpty)) {
+      if (iconKey == 'wallet_diamonds') {
+        currentUrl = _themeConfig['diamondIconUrl'];
+      } else if (iconKey == 'wallet_beans') {
+        currentUrl = _themeConfig['beansIconUrl'];
+      }
+    }
+
+    if (pendingBytes != null) {
+      if (_pendingUploadFileNames[pendingKey]?.toLowerCase().endsWith('.svga') == true) {
+        return Icon(Icons.animation, color: Colors.amberAccent, size: size);
+      }
+      return Image.memory(pendingBytes, width: size, height: size, fit: BoxFit.contain);
+    }
+
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      return MediaPreviewWidget(
+        url: currentUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      );
+    }
+
+    return Icon(fallbackIcon, color: fallbackColor, size: size);
+  }
+
+  Widget _buildWalletLivePreviewCard() {
+    return Container(
+      width: 320,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F7FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: Colors.blue[900],
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.phone_android, size: 14, color: Colors.blueAccent),
+                    SizedBox(width: 6),
+                    Text(
+                      'Live Screen Preview',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Real-Time',
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Phone Body
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top User Header Info
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.amber[300],
+                      child: const Icon(Icons.person, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Text(
+                                'Boss',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Icon(Icons.chevron_right, size: 16, color: Colors.black45),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Text(
+                                'ID : 880',
+                                style: TextStyle(color: Colors.black54, fontSize: 11),
+                              ),
+                              const SizedBox(width: 4),
+                              _getLiveIconWidget('id_copy_icon', Icons.copy, fallbackColor: Colors.black45, size: 12),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal[400],
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Lv.11',
+                                  style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // VIP & SVIP Privilege Cards
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2C1810), Color(0xFF1A1020)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Text(
+                                    'imChat VIP',
+                                    style: TextStyle(
+                                      color: Color(0xFFFFD700),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Privileges',
+                                    style: TextStyle(color: Colors.white70, fontSize: 9),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _getLiveIconWidget('vip_badge', Icons.shield, fallbackColor: Colors.amberAccent, size: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1E1030), Color(0xFF101B2E)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Text(
+                                    'imChat SVIP',
+                                    style: TextStyle(
+                                      color: Color(0xFFFFD700),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  Text(
+                                    '15 Privileges',
+                                    style: TextStyle(color: Colors.white70, fontSize: 9),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _getLiveIconWidget('svip_badge', Icons.stars, fallbackColor: Colors.cyanAccent, size: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Diamonds & Beans Balance Card
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      _getLiveIconWidget('wallet_diamonds', Icons.diamond, fallbackColor: Colors.amber, size: 28),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '3,694,527',
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Diamonds >',
+                              style: TextStyle(color: Colors.pinkAccent, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(height: 28, width: 1, color: Colors.grey[200]),
+                      const SizedBox(width: 8),
+                      _getLiveIconWidget('wallet_beans', Icons.monetization_on, fallbackColor: Colors.orangeAccent, size: 28),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '49,126',
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Beans >',
+                              style: TextStyle(color: Colors.orange, fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Grid Menu 1 (8 items)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildPreviewGridItem('My Level', 'my_level', Icons.military_tech, Colors.pinkAccent),
+                          _buildPreviewGridItem('Store', 'store', Icons.shopping_bag, Colors.amber),
+                          _buildPreviewGridItem('Badge', 'badge', Icons.verified, Colors.amberAccent),
+                          _buildPreviewGridItem('My Items', 'my_items', Icons.inventory_2, Colors.purpleAccent),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildPreviewGridItem('Family', 'family', Icons.groups, Colors.cyan),
+                          _buildPreviewGridItem('Agency', 'agency_manager', Icons.assignment_ind, Colors.pinkAccent),
+                          _buildPreviewGridItem('Host Centre', 'host_centre', Icons.mic_external_on, Colors.tealAccent),
+                          _buildPreviewGridItem('Game Wall', 'game_wall', Icons.sports_esports, Colors.purpleAccent),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Grid Menu 2 (7 items)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildPreviewGridItem('Admin', 'admin_dashboard', Icons.admin_panel_settings, Colors.purpleAccent),
+                          _buildPreviewGridItem('Diamond seller', 'diamond_seller', Icons.monetization_on, Colors.amber),
+                          _buildPreviewGridItem('Invite', 'invite', Icons.person_add, Colors.amberAccent),
+                          _buildPreviewGridItem('Offline', 'offline_seller', Icons.wifi_off, Colors.cyan),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildPreviewGridItem('Setting', 'setting', Icons.settings, Colors.cyan),
+                          _buildPreviewGridItem('Help', 'help', Icons.help_outline, Colors.amber),
+                          _buildPreviewGridItem('About', 'about', Icons.info_outline, Colors.grey),
+                          const SizedBox(width: 54), // spacer
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewGridItem(
+    String label,
+    String iconKey,
+    IconData fallbackIcon,
+    Color fallbackColor,
+  ) {
+    return SizedBox(
+      width: 60,
+      child: Column(
+        children: [
+          _getLiveIconWidget(iconKey, fallbackIcon, fallbackColor: fallbackColor, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
 }
+

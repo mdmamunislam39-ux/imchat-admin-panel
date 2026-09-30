@@ -8,6 +8,8 @@ class SellerModel {
   final String? profilePicture;
   final String idNumber;
   final String profileId;
+  final String phone;
+  final String email;
   final double accountBalance;
   final bool isActive;
   final DateTime createdAt;
@@ -23,6 +25,8 @@ class SellerModel {
     this.profilePicture,
     required this.idNumber,
     required this.profileId,
+    this.phone = '',
+    this.email = '',
     this.accountBalance = 0.0,
     this.isActive = true,
     required this.createdAt,
@@ -42,6 +46,8 @@ class SellerModel {
         profilePicture: data['profilePicture'],
         idNumber: data['idNumber'] ?? '',
         profileId: data['profileId'] ?? '',
+        phone: data['phone'] ?? data['number'] ?? '',
+        email: data['email'] ?? data['googleEmail'] ?? '',
         accountBalance: (data['accountBalance'] ?? 0.0).toDouble(),
         isActive: data['isActive'] ?? true,
         createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -64,6 +70,8 @@ class SellerModel {
         'profilePicture': profilePicture,
         'idNumber': idNumber,
         'profileId': profileId,
+        'phone': phone,
+        'email': email,
         'accountBalance': accountBalance,
         'isActive': isActive,
         'createdAt': Timestamp.fromDate(createdAt),
@@ -85,6 +93,8 @@ class SellerModel {
     String? profilePicture,
     String? idNumber,
     String? profileId,
+    String? phone,
+    String? email,
     double? accountBalance,
     bool? isActive,
     DateTime? createdAt,
@@ -100,6 +110,8 @@ class SellerModel {
       profilePicture: profilePicture ?? this.profilePicture,
       idNumber: idNumber ?? this.idNumber,
       profileId: profileId ?? this.profileId,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
       accountBalance: accountBalance ?? this.accountBalance,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,

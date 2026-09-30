@@ -11,7 +11,9 @@ class AppRoutes {
   static const String agencyManagement = '/agency-management';
   static const String agencyDashboard = '/agency-dashboard';
   static const String createAgency = '/create-agency';
+  static const String agencyCommissionTiers = '/agency-commission-tiers';
   static const String sellerManagement = '/seller-management';
+  static const String sellerRequests = '/seller-requests';
   static const String addSeller = '/add-seller';
   static const String sellerDashboard = '/seller-dashboard';
   static const String sellerRecharge = '/seller-recharge';
@@ -23,6 +25,7 @@ class AppRoutes {
   static const String userProfileManagement = '/user-profile-management';
   static const String marketManagement = '/market-management';
   static const String userHistoryStats = '/user-history-stats';
+  static const String usersHistory = '/users-history';
   static const String blockedUsersManagement = '/blocked-users-management';
   static const String userBanManagement = '/user-ban-management';
   static const String levelSystemManagement = '/level-system-management';
@@ -49,6 +52,8 @@ class AppRoutes {
   static const String giftAnalytics = '/analytics-gifts';
   static const String sellerRechargeAnalytics = '/analytics-seller-recharge';
   static const String rechargeWalletManagement = '/recharge-wallet-management';
+  static const String userPositions = '/user-position';
+  static const String agencyTransfers = '/agency-transfers';
 
   // Route paths
   static const Map<String, String> routes = {
@@ -63,7 +68,10 @@ class AppRoutes {
     'agencyManagement': agencyManagement,
     'agencyDashboard': agencyDashboard,
     'createAgency': createAgency,
+    'agencyCommissionTiers': agencyCommissionTiers,
+    'agencyTransfers': agencyTransfers,
     'sellerManagement': sellerManagement,
+    'sellerRequests': sellerRequests,
     'addSeller': addSeller,
     'sellerDashboard': sellerDashboard,
     'sellerRecharge': sellerRecharge,
@@ -75,6 +83,7 @@ class AppRoutes {
     'userProfileManagement': userProfileManagement,
     'marketManagement': marketManagement,
     'userHistoryStats': userHistoryStats,
+    'usersHistory': usersHistory,
     'blockedUsersManagement': blockedUsersManagement,
     'userBanManagement': userBanManagement,
     'levelSystemManagement': levelSystemManagement,

@@ -216,6 +216,10 @@ class OfficialItemsService {
     String? hostSeatDecorUrl,
     double diamondPrice = 0,
     int? expirationDuration,
+    bool isAnimated = false,
+    String? animationType,
+    double animationSpeed = 1.0,
+    String? animationColor,
   }) async {
     try {
       // Use the same doc ID for both collections
@@ -239,6 +243,10 @@ class OfficialItemsService {
         isActive: true,
         createdAt: DateTime.now(),
         displayId: displayId,
+        isAnimated: isAnimated,
+        animationType: animationType,
+        animationSpeed: animationSpeed,
+        animationColor: animationColor,
       );
 
       final officialMap = item.toFirestore();
@@ -274,6 +282,10 @@ class OfficialItemsService {
         'expirationDuration': expirationDuration,
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
+        'isAnimated': isAnimated,
+        if (animationType != null) 'animationType': animationType,
+        'animationSpeed': animationSpeed,
+        if (animationColor != null) 'animationColor': animationColor,
       });
 
       return docId;
@@ -299,6 +311,10 @@ class OfficialItemsService {
     String? lockedFileUrl,
     double diamondPrice = 0,
     int? expirationDuration,
+    bool? isAnimated,
+    String? animationType,
+    double? animationSpeed,
+    String? animationColor,
   }) async {
     try {
       final updateData = {
@@ -313,6 +329,10 @@ class OfficialItemsService {
         'badgeSubCategory': badgeSubCategory,
         if (thumbnailUrl != null) 'thumbnailUrl': thumbnailUrl,
         if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
+        if (isAnimated != null) 'isAnimated': isAnimated,
+        if (animationType != null) 'animationType': animationType,
+        if (animationSpeed != null) 'animationSpeed': animationSpeed,
+        if (animationColor != null) 'animationColor': animationColor,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -335,6 +355,10 @@ class OfficialItemsService {
         if (lockedFileUrl != null) 'lockedFileUrl': lockedFileUrl,
         'diamondPrice': diamondPrice,
         if (expirationDuration != null) 'expirationDuration': expirationDuration,
+        if (isAnimated != null) 'isAnimated': isAnimated,
+        if (animationType != null) 'animationType': animationType,
+        if (animationSpeed != null) 'animationSpeed': animationSpeed,
+        if (animationColor != null) 'animationColor': animationColor,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 

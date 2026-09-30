@@ -9,6 +9,7 @@ import '../services/official_items_service.dart';
 import '../models/official_item_model.dart';
 import '../widgets/media_preview_widget.dart';
 import '../services/room_decoration_admin_service.dart';
+import '../widgets/golden_seat_widget.dart';
 
 class MarketManagement extends StatefulWidget {
   const MarketManagement({super.key});
@@ -124,6 +125,69 @@ class _MarketManagementState extends State<MarketManagement>
     setState(() {
       _showFilters = !_showFilters;
     });
+  }
+
+  Color _getAnimationColorValue(String colorKey) {
+    switch (colorKey) {
+      case 'purple':
+        return const Color(0xFFFF00D4);
+      case 'golden':
+        return const Color(0xFFFFD700);
+      case 'emerald':
+        return const Color(0xFF00E676);
+      case 'amber':
+        return const Color(0xFFFF9100);
+      case 'cyan':
+      default:
+        return const Color(0xFF00FFE0);
+    }
+  }
+
+  String _getAnimationTypeName(String? type) {
+    switch (type) {
+      case 'beamSweep':
+      case 'lightBeam':
+      case 'lightBeamSweep':
+        return 'Laser Light Beam Sweep';
+      case 'neonPulse':
+        return 'Breathing Neon Pulse';
+      case 'starSparkle':
+        return 'Orbiting Star Sparkles';
+      case 'rippleWave':
+        return 'Cyber Sonar Ripple';
+      case 'goldenShimmer':
+        return 'Holographic Shimmer';
+      case 'rotatingRing':
+      default:
+        return '360° Rotating Neon Ring';
+    }
+  }
+
+  Future<void> _quickToggleSeatAnimation(StoreItemModel item, bool isAnimated) async {
+    try {
+      final updatedItem = item.copyWith(
+        isAnimated: isAnimated,
+        updatedAt: DateTime.now(),
+      );
+      await UserProfileService.updateStoreItem(updatedItem);
+      try {
+        await FirebaseFirestore.instance
+            .collection('official_items')
+            .doc(item.id)
+            .update({
+          'isAnimated': isAnimated,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+      _loadData();
+      _showSuccessSnackBar(
+        isAnimated
+            ? '⚡ Seat Animation ACTIVATED for "${item.name}"'
+            : '⚪ Seat Animation DEACTIVATED for "${item.name}"',
+      );
+    } catch (e) {
+      _showErrorSnackBar('Failed to update animation: $e');
+    }
   }
 
   @override
@@ -881,13 +945,17 @@ class _MarketManagementState extends State<MarketManagement>
             // File Preview
             if (item.type == StoreItemType.seatDecor && (item.fileUrl.isNotEmpty || (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty) || (item.hostSeatDecorUrl != null && item.hostSeatDecorUrl!.isNotEmpty)))
               Container(
-                height: 110,
+                height: 120,
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey[850],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(
+                    color: item.isAnimated
+                        ? Colors.cyanAccent.withValues(alpha: 0.4)
+                        : Colors.white12,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -906,17 +974,26 @@ class _MarketManagementState extends State<MarketManagement>
                           ),
                           const SizedBox(height: 6),
                           Expanded(
-                            child: MediaPreviewWidget(
-                              url: (item.hostSeatDecorUrl != null && item.hostSeatDecorUrl!.isNotEmpty)
-                                  ? item.hostSeatDecorUrl!
-                                  : (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty ? item.thumbnailUrl! : item.fileUrl),
-                              fit: BoxFit.contain,
+                            child: Center(
+                              child: AnimatedSeatDecorWidget(
+                                isAnimated: item.isAnimated,
+                                animationType: item.animationType,
+                                animationSpeed: item.animationSpeed,
+                                glowColor: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                                size: 54,
+                                child: MediaPreviewWidget(
+                                  url: (item.hostSeatDecorUrl != null && item.hostSeatDecorUrl!.isNotEmpty)
+                                      ? item.hostSeatDecorUrl!
+                                      : (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty ? item.thumbnailUrl! : item.fileUrl),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 75, color: Colors.grey[700]),
+                    Container(width: 1, height: 80, color: Colors.grey[700]),
                     // 2. Unlock Seat
                     Expanded(
                       child: Column(
@@ -932,17 +1009,26 @@ class _MarketManagementState extends State<MarketManagement>
                           ),
                           const SizedBox(height: 6),
                           Expanded(
-                            child: MediaPreviewWidget(
-                              url: item.fileUrl.isNotEmpty
-                                  ? item.fileUrl
-                                  : (item.thumbnailUrl ?? ''),
-                              fit: BoxFit.contain,
+                            child: Center(
+                              child: AnimatedSeatDecorWidget(
+                                isAnimated: item.isAnimated,
+                                animationType: item.animationType,
+                                animationSpeed: item.animationSpeed,
+                                glowColor: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                                size: 54,
+                                child: MediaPreviewWidget(
+                                  url: item.fileUrl.isNotEmpty
+                                      ? item.fileUrl
+                                      : (item.thumbnailUrl ?? ''),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Container(width: 1, height: 75, color: Colors.grey[700]),
+                    Container(width: 1, height: 80, color: Colors.grey[700]),
                     // 3. Lock Seat
                     Expanded(
                       child: Column(
@@ -958,14 +1044,21 @@ class _MarketManagementState extends State<MarketManagement>
                           ),
                           const SizedBox(height: 6),
                           Expanded(
-                            child: (item.lockedFileUrl != null && item.lockedFileUrl!.isNotEmpty)
-                                ? MediaPreviewWidget(
-                                    url: item.lockedFileUrl!,
-                                    fit: BoxFit.contain,
-                                  )
-                                : const Center(
-                                    child: Icon(Icons.lock, color: Colors.white38, size: 28),
-                                  ),
+                            child: Center(
+                              child: (item.lockedFileUrl != null && item.lockedFileUrl!.isNotEmpty)
+                                  ? AnimatedSeatDecorWidget(
+                                      isAnimated: item.isAnimated,
+                                      animationType: item.animationType,
+                                      animationSpeed: item.animationSpeed,
+                                      glowColor: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                                      size: 54,
+                                      child: MediaPreviewWidget(
+                                        url: item.lockedFileUrl!,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    )
+                                  : const Icon(Icons.lock, color: Colors.white38, size: 28),
+                            ),
                           ),
                         ],
                       ),
@@ -1070,19 +1163,32 @@ class _MarketManagementState extends State<MarketManagement>
               )
             else if (item.type == StoreItemType.seatDecor)
               Container(
-                height: 100,
+                height: 110,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.grey[850],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(
+                    color: item.isAnimated
+                        ? Colors.cyanAccent.withValues(alpha: 0.4)
+                        : Colors.white12,
+                  ),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Center(child: _buildSeatDecorModePreview(item)),
+                      Center(
+                        child: AnimatedSeatDecorWidget(
+                          isAnimated: item.isAnimated,
+                          animationType: item.animationType,
+                          animationSpeed: item.animationSpeed,
+                          glowColor: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                          size: 60,
+                          child: _buildSeatDecorModePreview(item),
+                        ),
+                      ),
                       Positioned(
                         top: 4,
                         right: 4,
@@ -1102,6 +1208,90 @@ class _MarketManagementState extends State<MarketManagement>
                   ),
                 ),
               ),
+
+            // ── Seat Animation Status & Quick Toggle Bar ──
+            if (item.type == StoreItemType.seatDecor) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: item.isAnimated
+                      ? Colors.cyan.withValues(alpha: 0.12)
+                      : Colors.black38,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: item.isAnimated
+                        ? Colors.cyanAccent.withValues(alpha: 0.5)
+                        : Colors.white12,
+                    width: item.isAnimated ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      color: item.isAnimated ? Colors.cyanAccent : Colors.grey,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                item.isAnimated
+                                    ? '⚡ ANIMATION: ACTIVE'
+                                    : '⚪ ANIMATION: DEACTIVATED',
+                                style: TextStyle(
+                                  color: item.isAnimated ? Colors.cyanAccent : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (item.isAnimated)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _getAnimationColorValue(item.animationColor ?? 'cyan').withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _getAnimationTypeName(item.animationType),
+                                    style: TextStyle(
+                                      color: _getAnimationColorValue(item.animationColor ?? 'cyan'),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.isAnimated
+                                ? 'সিটে লাইভ নিয়ন অরা ও স্পার্কল এনিমেশন চালু রয়েছে।'
+                                : 'সিটে এনিমেশন বন্ধ আছে। চালু করতে টগল করুন।',
+                            style: const TextStyle(color: Colors.white54, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: item.isAnimated,
+                      activeColor: Colors.cyanAccent,
+                      onChanged: (val) => _quickToggleSeatAnimation(item, val),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 16),
 
@@ -1477,143 +1667,471 @@ class _MarketManagementState extends State<MarketManagement>
 
     StoreItemType selectedType = item.type;
     bool isActive = item.isActive;
+    bool isAnimated = item.isAnimated;
+    String animationType = item.animationType ?? 'rotatingRing';
+    String animationColor = item.animationColor ?? 'cyan';
+    double animationSpeed = item.animationSpeed;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Edit Market Item',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        builder: (context, setState) {
+          final glowColor = _getAnimationColorValue(animationColor);
+
+          return AlertDialog(
+            backgroundColor: Colors.grey[900],
+            title: Row(
               children: [
-                TextField(
-                  controller: nameController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Item Name',
-                    labelStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    labelStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: priceController,
-                  style: const TextStyle(color: Colors.white),
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Price',
-                    labelStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<StoreItemType>(
-                  initialValue: selectedType,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: 'Item Type',
-                    labelStyle: TextStyle(color: Colors.white),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: StoreItemType.values.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type.name.toUpperCase()),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Text(
-                      'Active: ',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    Switch(
-                      value: isActive,
-                      onChanged: (value) {
-                        setState(() {
-                          isActive = value;
-                        });
-                      },
-                    ),
-                  ],
+                const Icon(Icons.edit_note, color: Colors.blueAccent),
+                const SizedBox(width: 8),
+                const Text(
+                  'Edit Market Item',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Item Name',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.black26,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.black26,
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: priceController,
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Price (Diamonds)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.black26,
+                        suffixText: '💎',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<StoreItemType>(
+                      initialValue: selectedType,
+                      dropdownColor: Colors.grey[900],
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Item Type',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.black26,
+                      ),
+                      items: StoreItemType.values.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type.name.toUpperCase()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => selectedType = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Active Switch
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isActive ? Icons.check_circle : Icons.cancel,
+                                color: isActive ? Colors.greenAccent : Colors.redAccent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Item Status (Active/Inactive):',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: isActive,
+                            activeColor: Colors.greenAccent,
+                            onChanged: (value) => setState(() => isActive = value),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Seat Animation & Live Effects Controls ──
+                    if (selectedType == StoreItemType.seatDecor) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[850],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isAnimated
+                                ? Colors.cyanAccent.withValues(alpha: 0.6)
+                                : Colors.white12,
+                            width: isAnimated ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Row with Switch
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isAnimated
+                                        ? Colors.cyanAccent.withValues(alpha: 0.2)
+                                        : Colors.white10,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.auto_awesome,
+                                    color: isAnimated ? Colors.cyanAccent : Colors.grey,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Seat Animation & Effects (সিট অ্যানিমেশন)',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'অন রাখলে সিটে রিয়েল-টাইম ঘুরন্ত নিয়ন অরা, স্পার্কল বা পালসিং এনিমেশন হবে।',
+                                        style: TextStyle(color: Colors.white60, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: isAnimated,
+                                  activeColor: Colors.cyanAccent,
+                                  onChanged: (val) => setState(() => isAnimated = val),
+                                ),
+                              ],
+                            ),
+
+                            if (isAnimated) ...[
+                              const Divider(color: Colors.white24, height: 24),
+
+                              // Live Animated Preview
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    AnimatedSeatDecorWidget(
+                                      isAnimated: true,
+                                      animationType: animationType,
+                                      animationSpeed: animationSpeed,
+                                      glowColor: glowColor,
+                                      size: 58,
+                                      child: (item.fileUrl.isNotEmpty || (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty))
+                                          ? MediaPreviewWidget(
+                                              url: item.fileUrl.isNotEmpty ? item.fileUrl : item.thumbnailUrl!,
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.contain,
+                                            )
+                                          : const CyberEmeraldDiamondOrbWidget(
+                                              size: 48,
+                                              child: Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+                                            ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: const [
+                                              Icon(Icons.play_circle_fill, color: Colors.greenAccent, size: 15),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Live Animation Preview',
+                                                style: TextStyle(
+                                                  color: Colors.greenAccent,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Style: ${_getAnimationTypeName(animationType)}',
+                                            style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                          ),
+                                          Text(
+                                            'Speed: ${animationSpeed.toStringAsFixed(1)}x • Color: ${animationColor.toUpperCase()}',
+                                            style: TextStyle(color: glowColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Animation Effect Dropdown
+                              const Text(
+                                'Animation Effect Style (অ্যানিমেশন ইফেক্ট):',
+                                style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              DropdownButtonFormField<String>(
+                                value: animationType,
+                                dropdownColor: Colors.grey[900],
+                                style: const TextStyle(color: Colors.white),
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  filled: true,
+                                  fillColor: Colors.black38,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                items: const [
+                                    DropdownMenuItem(
+                                      value: 'beamSweep',
+                                      child: Text('⚡ Laser Light Beam Sweep (বাম থেকে ডানে আলো যাওয়া)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rotatingRing',
+                                    child: Text('💫 360° Rotating Neon Aura Ring (ঘুরন্ত নিয়ন রিং)'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'neonPulse',
+                                    child: Text('💓 Breathing Neon Glow Pulse (পালসিং গ্লো)'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'starSparkle',
+                                    child: Text('✨ Orbiting Star Sparkles (স্পার্কলিং স্টার)'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'rippleWave',
+                                    child: Text('🌊 Cyber Sonar Ripple Wave (রিপল ওয়েভ)'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'goldenShimmer',
+                                    child: Text('🌟 Holographic Shimmer Sweep (শিমার ইফেক্ট)'),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setState(() => animationType = val);
+                                },
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Aura Glow Color
+                              const Text(
+                                'Aura Glow Color (অরা নিয়ন কালার):',
+                                style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _buildColorChoiceChip('Cyan', 'cyan', const Color(0xFF00FFE0), animationColor, (c) => setState(() => animationColor = c)),
+                                  _buildColorChoiceChip('Purple', 'purple', const Color(0xFFFF00D4), animationColor, (c) => setState(() => animationColor = c)),
+                                  _buildColorChoiceChip('Gold', 'golden', const Color(0xFFFFD700), animationColor, (c) => setState(() => animationColor = c)),
+                                  _buildColorChoiceChip('Emerald', 'emerald', const Color(0xFF00E676), animationColor, (c) => setState(() => animationColor = c)),
+                                  _buildColorChoiceChip('Amber', 'amber', const Color(0xFFFF9100), animationColor, (c) => setState(() => animationColor = c)),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Animation Speed Slider
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Animation Speed (গতি):',
+                                    style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '${animationSpeed.toStringAsFixed(1)}x',
+                                    style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: animationSpeed,
+                                min: 0.5,
+                                max: 2.5,
+                                divisions: 8,
+                                activeColor: Colors.cyanAccent,
+                                inactiveColor: Colors.white24,
+                                onChanged: (val) => setState(() => animationSpeed = val),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final updatedItem = item.copyWith(
-                    name: nameController.text,
-                    description: descriptionController.text,
-                    diamondPrice:
-                        double.tryParse(priceController.text) ??
-                        item.diamondPrice,
-                    type: selectedType,
-                    isActive: isActive,
-                    updatedAt: DateTime.now(),
-                  );
-
-                  await UserProfileService.updateStoreItem(updatedItem);
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save, size: 18),
+                onPressed: () async {
                   try {
-                    await FirebaseFirestore.instance
-                        .collection('official_items')
-                        .doc(item.id)
-                        .update({
-                      'name': updatedItem.name,
-                      'description': updatedItem.description,
-                      'diamondPrice': updatedItem.diamondPrice,
-                      'isActive': updatedItem.isActive,
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
-                  } catch (_) {}
+                    final updatedItem = item.copyWith(
+                      name: nameController.text.trim(),
+                      description: descriptionController.text.trim(),
+                      diamondPrice: double.tryParse(priceController.text) ?? item.diamondPrice,
+                      type: selectedType,
+                      isActive: isActive,
+                      isAnimated: isAnimated,
+                      animationType: isAnimated ? animationType : null,
+                      animationColor: isAnimated ? animationColor : null,
+                      animationSpeed: animationSpeed,
+                      updatedAt: DateTime.now(),
+                    );
 
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  _loadData();
-                  _showSuccessSnackBar('Market item updated successfully');
-                } catch (e) {
-                  if (!context.mounted) return;
-                  _showErrorSnackBar('Error updating item: $e');
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              child: const Text('Save Changes'),
-            ),
-          ],
-        ),
+                    await UserProfileService.updateStoreItem(updatedItem);
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('official_items')
+                          .doc(item.id)
+                          .update({
+                        'name': updatedItem.name,
+                        'description': updatedItem.description,
+                        'diamondPrice': updatedItem.diamondPrice,
+                        'isActive': updatedItem.isActive,
+                        'isAnimated': isAnimated,
+                        'animationType': isAnimated ? animationType : null,
+                        'animationColor': isAnimated ? animationColor : null,
+                        'animationSpeed': animationSpeed,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                    } catch (_) {}
+
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('store_items')
+                          .doc(item.id)
+                          .update({
+                        'name': updatedItem.name,
+                        'description': updatedItem.description,
+                        'diamondPrice': updatedItem.diamondPrice,
+                        'isActive': updatedItem.isActive,
+                        'isAnimated': isAnimated,
+                        'animationType': isAnimated ? animationType : null,
+                        'animationColor': isAnimated ? animationColor : null,
+                        'animationSpeed': animationSpeed,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                    } catch (_) {}
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    _loadData();
+                    _showSuccessSnackBar('Market item updated successfully!');
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    _showErrorSnackBar('Error updating item: $e');
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                label: const Text('Save Changes'),
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildColorChoiceChip(
+    String label,
+    String key,
+    Color color,
+    String currentKey,
+    ValueChanged<String> onSelected,
+  ) {
+    final isSelected = currentKey == key;
+    return ChoiceChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      backgroundColor: Colors.grey[800],
+      onSelected: (_) => onSelected(key),
     );
   }
 
@@ -1718,6 +2236,12 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
   String? _unlockSeatName;
   Uint8List? _lockedSeatBytes;
   String? _lockedSeatName;
+
+  // Seat Animation Settings
+  bool _isAnimated = false;
+  String _animationType = 'rotatingRing';
+  String _animationColor = 'cyan';
+  double _animationSpeed = 1.0;
 
   @override
   void initState() {
@@ -2046,6 +2570,170 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
                             }
                             return null;
                           },
+                        ),
+                      ],
+
+                      // ── Seat Animation Section (For Seat Decor) ──
+                      if (_selectedType == StoreItemType.seatDecor) ...[
+                        const SizedBox(height: 24),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[850],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _isAnimated
+                                  ? Colors.cyanAccent.withValues(alpha: 0.6)
+                                  : Colors.white12,
+                              width: _isAnimated ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: _isAnimated
+                                          ? Colors.cyanAccent.withValues(alpha: 0.2)
+                                          : Colors.white10,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.auto_awesome,
+                                      color: _isAnimated ? Colors.cyanAccent : Colors.grey,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: const [
+                                        Text(
+                                          'Seat Animation & Effects (সিট অ্যানিমেশন)',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'অন রাখলে নতুন সিটটিতে রিয়েল-টাইমে ৩৬০° ঘুরন্ত নিয়ন অরা বা পালসিং এনিমেশন হবে।',
+                                          style: TextStyle(color: Colors.white60, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Switch(
+                                    value: _isAnimated,
+                                    activeColor: Colors.cyanAccent,
+                                    onChanged: (val) => setState(() => _isAnimated = val),
+                                  ),
+                                ],
+                              ),
+
+                              if (_isAnimated) ...[
+                                const Divider(color: Colors.white24, height: 24),
+
+                                // Animation Effect Dropdown
+                                const Text(
+                                  'Animation Effect Style (অ্যানিমেশন ইফেক্ট):',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 6),
+                                DropdownButtonFormField<String>(
+                                  value: _animationType,
+                                  dropdownColor: Colors.grey[900],
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    filled: true,
+                                    fillColor: Colors.black38,
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'beamSweep',
+                                      child: Text('⚡ Laser Light Beam Sweep (বাম থেকে ডানে আলো যাওয়া)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rotatingRing',
+                                      child: Text('💫 360° Rotating Neon Aura Ring (ঘুরন্ত নিয়ন রিং)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'neonPulse',
+                                      child: Text('💓 Breathing Neon Glow Pulse (পালসিং গ্লো)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'starSparkle',
+                                      child: Text('✨ Orbiting Star Sparkles (স্পার্কলিং স্টার)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rippleWave',
+                                      child: Text('🌊 Cyber Sonar Ripple Wave (রিপল ওয়েভ)'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'goldenShimmer',
+                                      child: Text('🌟 Holographic Shimmer Sweep (শিমার ইফেক্ট)'),
+                                    ),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _animationType = val);
+                                  },
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Aura Glow Color
+                                const Text(
+                                  'Aura Glow Color (অরা নিয়ন কালার):',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _buildAddDialogColorChip('Cyan', 'cyan', const Color(0xFF00FFE0)),
+                                    _buildAddDialogColorChip('Purple', 'purple', const Color(0xFFFF00D4)),
+                                    _buildAddDialogColorChip('Gold', 'golden', const Color(0xFFFFD700)),
+                                    _buildAddDialogColorChip('Emerald', 'emerald', const Color(0xFF00E676)),
+                                    _buildAddDialogColorChip('Amber', 'amber', const Color(0xFFFF9100)),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 14),
+
+                                // Animation Speed Slider
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Animation Speed (গতি):',
+                                      style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      '${_animationSpeed.toStringAsFixed(1)}x',
+                                      style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                Slider(
+                                  value: _animationSpeed,
+                                  min: 0.5,
+                                  max: 2.5,
+                                  divisions: 8,
+                                  activeColor: Colors.cyanAccent,
+                                  inactiveColor: Colors.white24,
+                                  onChanged: (val) => setState(() => _animationSpeed = val),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ],
                     ],
@@ -2477,6 +3165,10 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
           starRating: 1,
           diamondPrice: price,
           expirationDuration: duration,
+          isAnimated: _isAnimated,
+          animationType: _isAnimated ? _animationType : null,
+          animationSpeed: _animationSpeed,
+          animationColor: _isAnimated ? _animationColor : null,
         );
         success = officialId != null;
       } else {
@@ -2540,6 +3232,28 @@ class _AddMarketItemDialogState extends State<AddMarketItemDialog> {
         });
       }
     }
+  }
+
+  Widget _buildAddDialogColorChip(String label, String key, Color color) {
+    final isSelected = _animationColor == key;
+    return ChoiceChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: isSelected ? Colors.black : Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      backgroundColor: Colors.grey[800],
+      onSelected: (_) => setState(() => _animationColor = key),
+    );
   }
 
   void _showErrorSnackBar(String message) {

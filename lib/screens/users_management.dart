@@ -5,6 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/base_screen.dart';
 import '../widgets/media_preview_widget.dart';
 import 'user_profile_management.dart';
+import 'users_history_screen.dart';
+import 'user_position_management_screen.dart';
+import '../services/user_position_service.dart';
 
 class UsersManagement extends StatefulWidget {
   const UsersManagement({super.key});
@@ -180,6 +183,28 @@ class _UsersManagementState extends State<UsersManagement> {
       }
     }
     return '-';
+  }
+
+  // Parse Real-time Google / Email Address
+  String _getEmail(Map<String, dynamic> user) {
+    for (final key in ['email', 'googleEmail', 'userEmail', 'mail', 'google', 'user_email']) {
+      final val = user[key];
+      if (val != null && val.toString().trim().isNotEmpty) {
+        return val.toString().trim();
+      }
+    }
+    return '';
+  }
+
+  // Parse login provider
+  String _getLoginProvider(Map<String, dynamic> user) {
+    for (final key in ['loginProvider', 'provider', 'authProvider', 'login_provider']) {
+      final val = user[key];
+      if (val != null && val.toString().trim().isNotEmpty) {
+        return val.toString().trim().toLowerCase();
+      }
+    }
+    return '';
   }
 
   String _getFullName(Map<String, dynamic> user) {
@@ -513,17 +538,18 @@ class _UsersManagementState extends State<UsersManagement> {
   List<Map<String, dynamic>> get _filteredUsers {
     var list = List<Map<String, dynamic>>.from(_rawUsers);
 
-    // Search filter (real-time name, searchId, phone, country, id)
+    // Search filter (real-time name, searchId, phone, email, country, id)
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       list = list.where((u) {
         final name = _getFullName(u).toLowerCase();
         final sid = _getSearchId(u).toLowerCase();
         final phone = _getPhoneNumber(u).toLowerCase();
+        final email = _getEmail(u).toLowerCase();
         final cData = _getCountryData(u);
         final country = cData['name']!.toLowerCase();
         final id = (u['id'] ?? '').toString().toLowerCase();
-        return name.contains(q) || sid.contains(q) || phone.contains(q) || country.contains(q) || id.contains(q);
+        return name.contains(q) || sid.contains(q) || phone.contains(q) || email.contains(q) || country.contains(q) || id.contains(q);
       }).toList();
     }
 
@@ -628,6 +654,16 @@ class _UsersManagementState extends State<UsersManagement> {
     return BaseScreen(
       title: 'Users Management',
       actions: [
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UsersHistoryScreen()),
+            );
+          },
+          icon: const Icon(Icons.manage_history, color: Colors.amberAccent),
+          tooltip: 'Users History & Activity',
+        ),
         IconButton(
           onPressed: _showAddDiamondsOrBeansDialog,
           icon: const Icon(Icons.currency_exchange, color: Colors.blueAccent),
@@ -763,7 +799,7 @@ class _UsersManagementState extends State<UsersManagement> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search by name, searchId, phone, country',
+                hintText: 'Search by name, searchId, phone, Google/email, country',
                 hintStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 border: InputBorder.none,
@@ -939,7 +975,7 @@ class _UsersManagementState extends State<UsersManagement> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double minTableWidth = 1450;
+        const double minTableWidth = 1580;
         final double effectiveWidth = constraints.maxWidth < minTableWidth ? minTableWidth : constraints.maxWidth;
 
         return SingleChildScrollView(
@@ -987,7 +1023,7 @@ class _UsersManagementState extends State<UsersManagement> {
           const SizedBox(width: 55, child: Text('Image', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
           const Expanded(flex: 3, child: Text('Name', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
           const Expanded(flex: 3, child: Text('Search Id', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
-          const Expanded(flex: 3, child: Text('Phone Number', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
+          const Expanded(flex: 4, child: Text('Phone & Google Account', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
           const Expanded(flex: 2, child: Text('Gender', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w600))),
           
           // Beans Sort Header (with PNG Icon)
@@ -1153,6 +1189,10 @@ class _UsersManagementState extends State<UsersManagement> {
     final photoUrl = _getPhotoUrl(user);
     final searchId = _getSearchId(user);
     final phone = _getPhoneNumber(user);
+    final email = _getEmail(user);
+    final provider = _getLoginProvider(user);
+    final hasPhone = phone != '-' && phone.trim().isNotEmpty;
+    final hasEmail = email.isNotEmpty && email != '-';
     final gender = _getGender(user);
     final beans = _getBeans(user);
     final diamonds = _getDiamonds(user);
@@ -1162,6 +1202,10 @@ class _UsersManagementState extends State<UsersManagement> {
     final vipText = _getVipText(user);
     final svipText = _getSvipText(user);
     final isHost = _isHost(user);
+    final isAgency = user['isAgency'] == true || user['agency'] == true;
+    final isSeller = user['isSeller'] == true || user['seller'] == true;
+    final isOfficial = user['isOfficial'] == true || user['official'] == true;
+    final isOfficialAssistant = user['isOfficialAssistant'] == true;
     final isOnline = user['isOnline'] == true;
     final isVerified = user['isVerified'] == true || user['verified'] == true;
 
@@ -1280,34 +1324,99 @@ class _UsersManagementState extends State<UsersManagement> {
             ),
           ),
 
-          // 5. Phone Number with Copy Icon
+          // 5. Contact Info: Phone Number & Google / Email Account
           Expanded(
-            flex: 3,
-            child: Row(
+            flex: 4,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: Text(
-                    phone,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: phone == '-' ? const Color(0xFF6B7280) : const Color(0xFF93C5FD),
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w500,
-                    ),
+                if (hasPhone)
+                  Row(
+                    children: [
+                      const Icon(Icons.phone_iphone, color: Color(0xFF34D399), size: 13),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          phone,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF93C5FD),
+                            fontSize: 12.5,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => _copyToClipboard(phone, 'Phone Number'),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2.0),
+                          child: Icon(Icons.copy, color: Color(0xFF9CA3AF), size: 12),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                if (phone != '-') ...[
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: () => _copyToClipboard(phone, 'Phone Number'),
-                    borderRadius: BorderRadius.circular(4),
-                    child: const Padding(
-                      padding: EdgeInsets.all(2.0),
-                      child: Icon(Icons.copy, color: Color(0xFF9CA3AF), size: 13),
-                    ),
+                if (hasPhone && hasEmail)
+                  const SizedBox(height: 3),
+                if (hasEmail)
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: (provider == 'google' || email.toLowerCase().contains('gmail'))
+                              ? const Color(0xFFEA4335).withValues(alpha: 0.2)
+                              : const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: (provider == 'google' || email.toLowerCase().contains('gmail'))
+                                ? const Color(0xFFEA4335).withValues(alpha: 0.4)
+                                : const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          (provider == 'google' || email.toLowerCase().contains('gmail')) ? 'G' : '@',
+                          style: TextStyle(
+                            color: (provider == 'google' || email.toLowerCase().contains('gmail'))
+                                ? const Color(0xFFF87171)
+                                : const Color(0xFF60A5FA),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          email,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFFCA5A5),
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: () => _copyToClipboard(email, 'Google / Email'),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2.0),
+                          child: Icon(Icons.copy, color: Color(0xFF9CA3AF), size: 12),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                if (!hasPhone && !hasEmail)
+                  const Text(
+                    '-',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  ),
               ],
             ),
           ),
@@ -1565,16 +1674,68 @@ class _UsersManagementState extends State<UsersManagement> {
                         ],
                       ),
                     ),
+                    const PopupMenuDivider(height: 8),
                     PopupMenuItem(
                       value: 'toggle_host',
                       child: Row(
                         children: [
-                          Icon(isHost ? Icons.mic_off : Icons.mic, color: Colors.greenAccent, size: 18),
+                          Icon(isHost ? Icons.mic_off : Icons.mic, color: const Color(0xFF10B981), size: 18),
                           const SizedBox(width: 8),
-                          Text(isHost ? 'Remove Host' : 'Make Host', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                          Text(isHost ? 'Remove Host' : 'Make Host 🎙️', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
                         ],
                       ),
                     ),
+                    PopupMenuItem(
+                      value: 'toggle_agency',
+                      child: Row(
+                        children: [
+                          Icon(isAgency ? Icons.domain_disabled : Icons.apartment, color: const Color(0xFF3B82F6), size: 18),
+                          const SizedBox(width: 8),
+                          Text(isAgency ? 'Remove Agency' : 'Make Agency 🏢', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'toggle_seller',
+                      child: Row(
+                        children: [
+                          Icon(isSeller ? Icons.remove_shopping_cart : Icons.store, color: const Color(0xFFF59E0B), size: 18),
+                          const SizedBox(width: 8),
+                          Text(isSeller ? 'Remove Seller' : 'Make Seller 🛒', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'toggle_official',
+                      child: Row(
+                        children: [
+                          Icon(isOfficial ? Icons.remove_moderator : Icons.verified, color: const Color(0xFF8B5CF6), size: 18),
+                          const SizedBox(width: 8),
+                          Text(isOfficial ? 'Remove Official' : 'Make Official 🛡️', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'toggle_official_assistant',
+                      child: Row(
+                        children: [
+                          Icon(isOfficialAssistant ? Icons.person_off : Icons.support_agent, color: const Color(0xFFEC4899), size: 18),
+                          const SizedBox(width: 8),
+                          Text(isOfficialAssistant ? 'Remove Official Asst' : 'Make Official Asst 🎖️', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'manage_positions',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.workspace_premium, color: Color(0xFF38BDF8), size: 18),
+                          const SizedBox(width: 8),
+                          Text('Positions Manager', style: TextStyle(color: Colors.grey[200], fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(height: 8),
                     PopupMenuItem(
                       value: 'toggle_vip',
                       child: Row(
@@ -1860,6 +2021,15 @@ class _UsersManagementState extends State<UsersManagement> {
         _showUserEditDialog(user);
         break;
 
+      case 'manage_positions':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserPositionManagementScreen(),
+          ),
+        );
+        break;
+
       case 'toggle_host':
         final isHost = _isHost(user);
         final nextHost = !isHost;
@@ -1867,7 +2037,124 @@ class _UsersManagementState extends State<UsersManagement> {
           'isHost': nextHost,
           'userType': nextHost ? 'host' : 'regular',
         });
-        _showSuccessSnackBar('$name is now ${nextHost ? "a Host" : "a Regular User"}');
+        try {
+          if (nextHost) {
+            await UserPositionService.applyPositionToUser(
+              userId: userId,
+              positionKey: 'host',
+              userName: name,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: userId,
+              positionKey: 'host',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating host position items: $e');
+        }
+        _showSuccessSnackBar('$name is now ${nextHost ? "a Host 🎙️" : "a Regular User"}');
+        break;
+
+      case 'toggle_agency':
+        final isAgency = user['isAgency'] == true || user['agency'] == true;
+        final nextAgency = !isAgency;
+        await _firestore.collection('Users').doc(userId).update({
+          'isAgency': nextAgency,
+          'userType': nextAgency ? 'agency' : 'regular',
+        });
+        try {
+          if (nextAgency) {
+            await UserPositionService.applyPositionToUser(
+              userId: userId,
+              positionKey: 'agency',
+              userName: name,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: userId,
+              positionKey: 'agency',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating agency position items: $e');
+        }
+        _showSuccessSnackBar('$name is now ${nextAgency ? "an Agency 🏢" : "a Regular User"}');
+        break;
+
+      case 'toggle_seller':
+        final isSeller = user['isSeller'] == true || user['seller'] == true;
+        final nextSeller = !isSeller;
+        await _firestore.collection('Users').doc(userId).update({
+          'isSeller': nextSeller,
+        });
+        try {
+          if (nextSeller) {
+            await UserPositionService.applyPositionToUser(
+              userId: userId,
+              positionKey: 'seller',
+              userName: name,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: userId,
+              positionKey: 'seller',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating seller position items: $e');
+        }
+        _showSuccessSnackBar('$name is now ${nextSeller ? "a Seller 🛒" : "a Regular User"}');
+        break;
+
+      case 'toggle_official':
+        final isOfficial = user['isOfficial'] == true || user['official'] == true;
+        final nextOfficial = !isOfficial;
+        await _firestore.collection('Users').doc(userId).update({
+          'isOfficial': nextOfficial,
+        });
+        try {
+          if (nextOfficial) {
+            await UserPositionService.applyPositionToUser(
+              userId: userId,
+              positionKey: 'official',
+              userName: name,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: userId,
+              positionKey: 'official',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating official position items: $e');
+        }
+        _showSuccessSnackBar('$name is now ${nextOfficial ? "an Official 🛡️" : "a Regular User"}');
+        break;
+
+      case 'toggle_official_assistant':
+        final isOfficialAsst = user['isOfficialAssistant'] == true;
+        final nextOfficialAsst = !isOfficialAsst;
+        await _firestore.collection('Users').doc(userId).update({
+          'isOfficialAssistant': nextOfficialAsst,
+        });
+        try {
+          if (nextOfficialAsst) {
+            await UserPositionService.applyPositionToUser(
+              userId: userId,
+              positionKey: 'official_assistant',
+              userName: name,
+            );
+          } else {
+            await UserPositionService.removePositionFromUser(
+              userId: userId,
+              positionKey: 'official_assistant',
+            );
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error updating official assistant position items: $e');
+        }
+        _showSuccessSnackBar('$name is now ${nextOfficialAsst ? "an Official Assistant 🎖️" : "a Regular User"}');
         break;
 
       case 'toggle_vip':
@@ -1934,6 +2221,7 @@ class _UsersManagementState extends State<UsersManagement> {
     final name = _getFullName(user);
     final currentSearchId = _getSearchId(user);
     final currentPhone = _getPhoneNumber(user);
+    final currentEmail = _getEmail(user);
     final currentDiamonds = _getDiamonds(user);
     final currentBeans = _getBeans(user);
     final currentSendLevel = _getSendingLevel(user);
@@ -1955,6 +2243,7 @@ class _UsersManagementState extends State<UsersManagement> {
 
     final searchIdController = TextEditingController(text: currentSearchId == '-' ? '' : currentSearchId);
     final phoneController = TextEditingController(text: currentPhone == '-' ? '' : currentPhone);
+    final emailController = TextEditingController(text: currentEmail == '-' ? '' : currentEmail);
     final diamondsController = TextEditingController(text: currentDiamonds.toString());
     final beansController = TextEditingController(text: currentBeans.toString());
     final sendLevelController = TextEditingController(text: currentSendLevel.toString());
@@ -1975,7 +2264,7 @@ class _UsersManagementState extends State<UsersManagement> {
           ],
         ),
         content: SizedBox(
-          width: 440,
+          width: 460,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2012,6 +2301,19 @@ class _UsersManagementState extends State<UsersManagement> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.alternate_email, color: Color(0xFFF87171), size: 20),
+                    labelText: 'Google / Email Account',
+                    labelStyle: const TextStyle(color: Color(0xFFF87171)),
+                    filled: true,
+                    fillColor: const Color(0xFF141622),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -2132,6 +2434,7 @@ class _UsersManagementState extends State<UsersManagement> {
             onPressed: () async {
               final newSearchId = searchIdController.text.trim();
               final newPhone = phoneController.text.trim();
+              final newEmail = emailController.text.trim();
               final newDiamonds = int.tryParse(diamondsController.text) ?? currentDiamonds.toInt();
               final newBeans = int.tryParse(beansController.text) ?? currentBeans.toInt();
               final newSendLevel = int.tryParse(sendLevelController.text) ?? currentSendLevel;
@@ -2148,6 +2451,8 @@ class _UsersManagementState extends State<UsersManagement> {
                 'walletBeans': newBeans,
                 'rcoin': newBeans,
                 'rcoins': newBeans,
+                'email': newEmail,
+                'googleEmail': newEmail,
                 'sendingLevel': {
                   'level': newSendLevel,
                   'levelName': 'Level $newSendLevel',

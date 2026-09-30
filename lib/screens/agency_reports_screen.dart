@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/host_model.dart';
+import '../models/agency_model.dart';
 import '../services/agency_service.dart';
 
 class AgencyReportsScreen extends StatefulWidget {
@@ -15,40 +18,105 @@ class AgencyReportsScreen extends StatefulWidget {
 }
 
 class _AgencyReportsScreenState extends State<AgencyReportsScreen> {
+  AgencyModel? _agency;
   List<HostModel> _hosts = [];
   Map<String, dynamic> _analytics = {};
   bool _isLoading = true;
   String _selectedTimeRange = '7d';
 
+  StreamSubscription<DocumentSnapshot>? _agencySub;
+  StreamSubscription<List<HostModel>>? _hostsSub;
+
   @override
   void initState() {
     super.initState();
-    _loadReportsData();
+    _startRealtimeListeners();
+  }
+
+  @override
+  void dispose() {
+    _agencySub?.cancel();
+    _hostsSub?.cancel();
+    super.dispose();
+  }
+
+  void _startRealtimeListeners() {
+    _agencySub?.cancel();
+    _hostsSub?.cancel();
+
+    if (mounted) setState(() => _isLoading = true);
+
+    _agencySub = FirebaseFirestore.instance
+        .collection('agencies')
+        .doc(widget.agencyId)
+        .snapshots()
+        .listen(
+          (doc) {
+            if (!mounted) return;
+            if (doc.exists) {
+              setState(() {
+                _agency = AgencyModel.fromFirestore(doc);
+                _recalculateAnalytics();
+                _isLoading = false;
+              });
+            }
+          },
+          onError: (e) {
+            debugPrint('Error listening to agency: $e');
+            if (mounted) setState(() => _isLoading = false);
+          },
+        );
+
+    _hostsSub = AgencyService.getAgencyHostsStream(widget.agencyId).listen(
+      (hosts) {
+        if (!mounted) return;
+        setState(() {
+          _hosts = hosts;
+          _recalculateAnalytics();
+          _isLoading = false;
+        });
+      },
+      onError: (e) {
+        debugPrint('Error listening to hosts: $e');
+        if (mounted) setState(() => _isLoading = false);
+      },
+    );
+  }
+
+  void _recalculateAnalytics() {
+    double totalDiamonds = 0.0;
+    int totalLiveHours = 0;
+    int totalGifts = 0;
+
+    for (final host in _hosts) {
+      totalDiamonds += host.performance.totalDiamonds;
+      totalLiveHours += host.performance.totalLiveHours;
+      totalGifts += host.performance.totalGiftsReceived;
+    }
+
+    final rate = _agency?.commissionRate ?? 0.10;
+    final totalCommission = totalDiamonds * rate;
+
+    _analytics = {
+      'totalHosts': _hosts.length,
+      'activeHosts': _hosts.where((h) => h.isActive).length,
+      'totalDiamonds': totalDiamonds,
+      'totalLiveHours': totalLiveHours,
+      'totalGifts': totalGifts,
+      'totalCommission': totalCommission,
+      'commissionRate': rate,
+      'isCommissionHeld': _agency?.isCommissionHeld ?? false,
+      'averageHostRating': _hosts.isNotEmpty
+          ? _hosts
+                  .map((h) => h.performance.averageRating)
+                  .reduce((a, b) => a + b) /
+              _hosts.length
+          : 0.0,
+    };
   }
 
   Future<void> _loadReportsData() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Load hosts
-      final hosts = await AgencyService.getAgencyHosts(widget.agencyId);
-      _hosts = hosts;
-
-      // Load analytics
-      final analytics = await AgencyService.getAgencyAnalytics(widget.agencyId);
-      _analytics = analytics;
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading reports data: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _startRealtimeListeners();
   }
 
   @override

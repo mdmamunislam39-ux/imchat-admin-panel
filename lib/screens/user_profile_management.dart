@@ -993,9 +993,17 @@ class _UserProfileManagementState extends State<UserProfileManagement>
                       ),
                       if (profile.phone != null && profile.phone!.isNotEmpty)
                         Text(
-                          'Phone: ${profile.phone}',
+                          '📱 Phone: ${profile.phone}',
                           style: const TextStyle(
                             color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      if (profile.email != null && profile.email!.isNotEmpty)
+                        Text(
+                          '🌐 Google/Email: ${profile.email}',
+                          style: const TextStyle(
+                            color: Color(0xFFFCA5A5),
                             fontSize: 12,
                           ),
                         ),
@@ -1757,6 +1765,8 @@ class _UserProfileManagementState extends State<UserProfileManagement>
             children: [
               if (profile.phone != null && profile.phone!.isNotEmpty)
                 _buildDetailRow('📱 Phone', profile.phone!),
+              if (profile.email != null && profile.email!.isNotEmpty)
+                _buildDetailRow('🌐 Google / Email', profile.email!),
               _buildDetailRow('💎 Diamonds', profile.totalDiamonds.toStringAsFixed(0)),
               _buildDetailRow('🫘 Beans', profile.totalBeans.toStringAsFixed(0)),
               _buildDetailRow('📤 Sending Level', 'Level ${profile.sendingLevel.level}'),
@@ -1835,6 +1845,7 @@ class _UserProfileManagementState extends State<UserProfileManagement>
   void _showEditUserDialog(UserProfileModel profile) {
     final usernameController = TextEditingController(text: profile.username);
     final phoneController = TextEditingController(text: profile.phone ?? '');
+    final emailController = TextEditingController(text: profile.email ?? '');
     final diamondsController = TextEditingController(text: profile.totalDiamonds.toString());
     final beansController = TextEditingController(text: profile.totalBeans.toString());
     final sendingLevelController = TextEditingController(text: profile.sendingLevel.level.toString());
@@ -1874,6 +1885,16 @@ class _UserProfileManagementState extends State<UserProfileManagement>
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Phone Number',
+                    labelStyle: TextStyle(color: Colors.white),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Google / Email Account',
                     labelStyle: TextStyle(color: Colors.white),
                     border: OutlineInputBorder(),
                   ),
@@ -2045,6 +2066,7 @@ class _UserProfileManagementState extends State<UserProfileManagement>
                   final updatedProfile = profile.copyWith(
                     username: usernameController.text,
                     phone: phoneController.text,
+                    email: emailController.text.trim(),
                     totalDiamonds: double.tryParse(diamondsController.text) ?? profile.totalDiamonds,
                     totalBeans: double.tryParse(beansController.text) ?? profile.totalBeans,
                     diamondsSent: newSendingProgress,

@@ -1,47 +1,311 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script>
-    (function() {
-      var host = window.location.hostname.toLowerCase();
-      var isAdminDomain = host.includes('admin') || host === 'localhost' || host === '127.0.0.1';
-      if (!isAdminDomain && !window.location.pathname.endsWith('landing.html')) {
-        window.location.replace('/landing.html' + window.location.search + window.location.hash);
-      }
-    })();
-  </script>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="/">
-
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMChat Official Sub-Admin Portal</title>
+  <meta name="description" content="IMChat Official Sub-Admin Realtime Management Portal">
+  <link rel="icon" type="image/png" href="favicon.png">
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="imchat_adminpanel">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <title>imchat_adminpanel</title>
-  <link rel="manifest" href="manifest.json">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+
+  <!-- ====================================================================== -->
+  <!-- 1. SUB-OFFICIAL ADMIN LOGIN SCREEN -->
+  <!-- ====================================================================== -->
+  <div id="login-container" class="login-view-container">
+    <div class="login-glow"></div>
+    <div class="login-card">
+      <div class="brand-header">
+        <div class="brand-icon-box">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h1 class="brand-title">IMChat Sub-Official</h1>
+        <p class="brand-subtitle">Authorized Sub-Administrator Portal</p>
+        <div class="official-badge">
+          <i class="fa-solid fa-lock"></i> Official Portal Access
+        </div>
+      </div>
+
+      <div id="login-error" class="alert-error" style="display: none;">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="login-error-msg">Invalid login credentials</span>
+      </div>
+
+      <form id="login-form" autocomplete="on">
+        <div class="form-group">
+          <label for="login-email">Sub-Admin Email Address</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-envelope input-icon"></i>
+            <input type="email" id="login-email" placeholder="official@imchatapp.com" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Access Password</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-lock input-icon"></i>
+            <input type="password" id="login-password" placeholder="••••••••••••" required autocomplete="current-password">
+            <button type="button" id="toggle-pwd-btn" class="toggle-password" title="Toggle password visibility">
+              <i id="pwd-icon" class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-login-submit" class="btn-primary" style="margin-top: 10px;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to Portal
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; text-align: center; font-size: 12px; color: var(--text-dim);">
+        <i class="fa-solid fa-shield"></i> Protected by IMChat Enterprise Security
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 2. MAIN SUB-OFFICIAL PORTAL LAYOUT -->
+  <!-- ====================================================================== -->
+  <div id="app-container" class="app-container" style="display: none;">
+    <!-- Sidebar -->
+    <aside id="app-sidebar" class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <div class="sidebar-brand-name">IMChat</div>
+          <div class="sidebar-badge">SUB-OFFICIAL</div>
+        </div>
+      </div>
+
+      <!-- Realtime Dynamic Menu List -->
+      <nav id="sidebar-menu-list" class="sidebar-menu">
+        <!-- Injected dynamically by app.js based on assigned permissions -->
+      </nav>
+
+      <!-- Sub-Admin Profile Bar & Sign Out -->
+      <div class="sidebar-footer">
+        <div class="user-profile-bar">
+          <div id="current-user-avatar" class="user-avatar">A</div>
+          <div class="user-info-text">
+            <div id="current-user-name" class="user-name">Sub Official Admin</div>
+            <div id="current-user-email" class="user-email">official@imchatapp.com</div>
+          </div>
+          <button id="btn-logout" class="btn-logout" title="Sign Out">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Top Navigation Header -->
+      <header class="top-header">
+        <div style="display: flex; align-items: center;">
+          <button id="mobile-menu-toggle" class="mobile-menu-btn" title="Toggle Sidebar">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div>
+            <h2 id="current-page-title" class="page-title">Dashboard Overview</h2>
+            <p id="current-page-subtitle" class="page-subtitle">Real-time overview of assigned modules & quick actions</p>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <div class="live-status-pill">
+            <span class="pulse-dot"></span>
+            <span>Realtime Live</span>
+          </div>
+          <div class="official-pill">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Sub-Official Portal</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content View Area -->
+      <div class="content-wrapper">
+        <div id="content-view-area">
+          <!-- Views rendered dynamically by app.js -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- 3. ACTION MODALS -->
+  <!-- ====================================================================== -->
+
+  <!-- Adjust Diamonds Modal -->
+  <div id="modal-adjust-diamonds" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h4><i class="fa-solid fa-gem" style="color: #60a5fa; margin-right: 8px;"></i> Adjust User Diamonds</h4>
+        <button class="close-modal-btn" onclick="closeModal('modal-adjust-diamonds')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="padding: 12px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); margin-bottom: 18px;">
+          <div style="font-size: 13px; color: var(--text-muted);">Target User:</div>
+          <div style="font-size: 15px; font-weight: 700; color: #fff;" id="modal-target-username">-</div>
+          <div style="font-size: 11.5px; color: var(--text-dim); font-family: monospace;" id="modal-target-userid">-</div>
+        </div>
+        <div class="form-group">
+          <label>Action Type</label>
+          <select id="modal-diamond-action-type">
+            <option value="add">➕ Add / Recharge Diamonds</option>
+            <option value="deduct">➖ Deduct / Reclaim Diamonds</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Diamond Amount</label>
+          <input type="number" id="modal-diamond-amount" placeholder="Enter amount (e.g. 5000)" min="1">
+        </div>
+        <div class="form-group">
+          <label>Audit Note / Reason</label>
+          <input type="text" id="modal-diamond-note" placeholder="e.g. Event Reward, Customer Support Credit">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="closeModal('modal-adjust-diamonds')">Cancel</button>
+        <button id="btn-confirm-adjust-diamonds" class="btn-primary" style="width: auto; padding: 10px 22px;">Save & Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div id="modal-edit-user" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h4><i class="fa-solid fa-user-pen" style="color: var(--primary); margin-right: 8px;"></i> Edit User Profile</h4>
+        <button class="close-modal-btn" onclick="closeModal('modal-edit-user')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-user-uid">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="edit-user-fullname" placeholder="Full name">
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="edit-user-username" placeholder="@username">
+        </div>
+        <div class="form-group">
+          <label>Short Search ID</label>
+          <input type="text" id="edit-user-searchid" placeholder="e.g. 10001">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="text" id="edit-user-phone" placeholder="Phone number">
+        </div>
+        <div class="form-group">
+          <label>Account Role / Type</label>
+          <select id="edit-user-usertype">
+            <option value="regular">Regular User</option>
+            <option value="host">Official Host</option>
+            <option value="agency">Agency Leader</option>
+            <option value="seller">Coin Seller</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Account Access Status</label>
+          <select id="edit-user-banstatus">
+            <option value="active">Active (Normal)</option>
+            <option value="banned">Banned (Restricted)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="closeModal('modal-edit-user')">Cancel</button>
+        <button id="btn-confirm-save-user-details" class="btn-primary" style="width: auto; padding: 10px 22px;">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Banner Modal -->
+  <div id="modal-add-banner" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h4><i class="fa-solid fa-images" style="color: var(--accent-cyan); margin-right: 8px;"></i> Add Promotional Banner</h4>
+        <button class="close-modal-btn" onclick="closeModal('modal-add-banner')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Banner Title</label>
+          <input type="text" id="modal-banner-title" placeholder="e.g. Summer Mega Event">
+        </div>
+        <div class="form-group">
+          <label>Banner Image Direct URL</label>
+          <input type="url" id="modal-banner-image-url" placeholder="https://example.com/banner.jpg">
+        </div>
+        <div class="form-group">
+          <label>Action / Navigation Target URL (Optional)</label>
+          <input type="text" id="modal-banner-action-url" placeholder="https://imchatapp.com or in-app route">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="closeModal('modal-add-banner')">Cancel</button>
+        <button id="btn-confirm-add-banner" class="btn-primary" style="width: auto; padding: 10px 22px;">Publish Banner</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Virtual Gift Modal -->
+  <div id="modal-add-gift" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h4><i class="fa-solid fa-gift" style="color: var(--accent-amber); margin-right: 8px;"></i> Create Virtual Gift</h4>
+        <button class="close-modal-btn" onclick="closeModal('modal-add-gift')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Gift Name</label>
+          <input type="text" id="modal-gift-name" placeholder="e.g. Golden Dragon Castle">
+        </div>
+        <div class="form-group">
+          <label>Diamond Price</label>
+          <input type="number" id="modal-gift-price" placeholder="e.g. 1000" min="1">
+        </div>
+        <div class="form-group">
+          <label>Gift Icon / Animation URL</label>
+          <input type="url" id="modal-gift-icon-url" placeholder="https://example.com/gift.png">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="modal-gift-category">
+            <option value="normal">Normal Gift</option>
+            <option value="luxury">Luxury Gift</option>
+            <option value="special">Special Effect / VAP</option>
+            <option value="lucky">Lucky Box Gift</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" style="background: rgba(255,255,255,0.08); color: #fff;" onclick="closeModal('modal-add-gift')">Cancel</button>
+        <button id="btn-confirm-add-gift" class="btn-primary" style="width: auto; padding: 10px 22px;">Create Gift</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Firebase Compat Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <!-- Sub-Official Portal Engine -->
+  <script src="app.js"></script>
 </body>
 </html>

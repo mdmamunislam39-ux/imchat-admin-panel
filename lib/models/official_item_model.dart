@@ -114,6 +114,10 @@ class OfficialItemModel {
   final bool isActive;
   final DateTime createdAt;
   final int? displayId;
+  final bool isAnimated;
+  final String? animationType; // 'rotatingRing', 'neonPulse', 'starSparkle', 'rippleWave', 'goldenShimmer'
+  final double animationSpeed;
+  final String? animationColor;
 
   OfficialItemModel({
     required this.id,
@@ -131,6 +135,10 @@ class OfficialItemModel {
     this.isActive = true,
     required this.createdAt,
     this.displayId,
+    this.isAnimated = false,
+    this.animationType,
+    this.animationSpeed = 1.0,
+    this.animationColor,
   });
 
   factory OfficialItemModel.fromFirestore(DocumentSnapshot doc) {
@@ -154,6 +162,10 @@ class OfficialItemModel {
       isActive: data['isActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       displayId: data['displayId'],
+      isAnimated: data['isAnimated'] ?? false,
+      animationType: data['animationType'],
+      animationSpeed: (data['animationSpeed'] ?? 1.0).toDouble(),
+      animationColor: data['animationColor'],
     );
   }
 
@@ -173,6 +185,10 @@ class OfficialItemModel {
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       if (displayId != null) 'displayId': displayId,
+      'isAnimated': isAnimated,
+      if (animationType != null) 'animationType': animationType,
+      'animationSpeed': animationSpeed,
+      if (animationColor != null) 'animationColor': animationColor,
     };
   }
 
@@ -192,6 +208,10 @@ class OfficialItemModel {
     bool? isActive,
     DateTime? createdAt,
     int? displayId,
+    bool? isAnimated,
+    String? animationType,
+    double? animationSpeed,
+    String? animationColor,
   }) {
     return OfficialItemModel(
       id: id ?? this.id,
@@ -209,6 +229,10 @@ class OfficialItemModel {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       displayId: displayId ?? this.displayId,
+      isAnimated: isAnimated ?? this.isAnimated,
+      animationType: animationType ?? this.animationType,
+      animationSpeed: animationSpeed ?? this.animationSpeed,
+      animationColor: animationColor ?? this.animationColor,
     );
   }
 

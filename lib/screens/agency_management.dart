@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/agency_model.dart';
 import '../services/agency_service.dart';
 import '../widgets/media_preview_widget.dart';
 import 'agency_dashboard.dart';
 import 'create_agency_screen.dart';
+import 'agency_commission_tier_management.dart';
 
 class AgencyManagement extends StatefulWidget {
   const AgencyManagement({super.key});
@@ -52,13 +54,23 @@ class _AgencyManagementState extends State<AgencyManagement> {
 
   List<AgencyModel> get _filteredAgencies {
     if (_searchQuery.isEmpty) return _agencies;
-    final q = _searchQuery.toLowerCase();
+    final q = _searchQuery.toLowerCase().trim();
     return _agencies.where((agency) {
       return agency.agencyName.toLowerCase().contains(q) ||
              agency.agencyIdNumber.toLowerCase().contains(q) ||
              agency.owner.name.toLowerCase().contains(q) ||
-             agency.owner.email.toLowerCase().contains(q);
+             agency.owner.email.toLowerCase().contains(q) ||
+             agency.owner.phone.contains(q);
     }).toList();
+  }
+
+  void _openCommissionTiers() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AgencyCommissionTierManagementScreen(),
+      ),
+    );
   }
 
   @override
@@ -76,14 +88,21 @@ class _AgencyManagementState extends State<AgencyManagement> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.military_tech_rounded, color: Colors.amber),
+            tooltip: 'Level-Based Commission (লেভেল বেস কমিশন)',
+            onPressed: _openCommissionTiers,
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: _startRealtimeListener,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
+          _buildCommissionTiersBanner(),
           _buildSearchBar(),
           // Real-time live indicator
           _buildLiveIndicator(),
@@ -98,6 +117,83 @@ class _AgencyManagementState extends State<AgencyManagement> {
         onPressed: _createNewAgency,
         backgroundColor: Colors.blue,
         child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildCommissionTiersBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.stars_rounded, color: Colors.amber, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Level-Based Commission (লেভেল বেস কমিশন)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Set diamond target thresholds, commission rates %, and weekly tier bonus rewards.',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _openCommissionTiers,
+            icon: const Icon(Icons.tune_rounded, size: 14),
+            label: const Text('Configure Tiers', style: TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -377,18 +473,57 @@ class _AgencyManagementState extends State<AgencyManagement> {
 
   Widget _buildOwnerRow(AgencyModel agency) {
     if (agency.owner.userId == null || agency.owner.userId!.isEmpty) {
-      return Row(
-        children: [
-          const Icon(Icons.person, color: Colors.grey, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Owner: ${agency.owner.name}',
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
-              overflow: TextOverflow.ellipsis,
+      final hasPhone = agency.owner.phone.isNotEmpty;
+      final hasEmail = agency.owner.email.isNotEmpty;
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.person, color: Colors.grey, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Owner: ${agency.owner.name}',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            if (hasPhone || hasEmail) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (hasPhone) ...[
+                    const Icon(Icons.phone_android_rounded, size: 13, color: Colors.greenAccent),
+                    const SizedBox(width: 4),
+                    Text(agency.owner.phone, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  ],
+                  if (hasPhone && hasEmail) const SizedBox(width: 12),
+                  if (hasEmail) ...[
+                    const Icon(Icons.alternate_email_rounded, size: 13, color: Colors.redAccent),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        agency.owner.email,
+                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        ),
       );
     }
 
@@ -401,48 +536,174 @@ class _AgencyManagementState extends State<AgencyManagement> {
         String ownerName = agency.owner.name;
         String? ownerPhoto = agency.owner.profileImageUrl;
         String searchId = '';
+        String ownerPhone = agency.owner.phone;
+        String ownerEmail = agency.owner.email;
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final ud = snapshot.data!.data() as Map<String, dynamic>;
-          ownerName = ud['fullname'] ?? ud['username'] ?? ownerName;
+          ownerName = ud['fullname'] ?? ud['name'] ?? ud['username'] ?? ownerName;
           ownerPhoto = ud['photoUrl'] ?? ud['profileImageUrl'] ?? ownerPhoto;
-          searchId = ud['searchId'] ?? '';
+          searchId = ud['searchId']?.toString() ?? '';
+          ownerPhone = (ud['number'] ?? ud['phone'] ?? ownerPhone).toString();
+          ownerEmail = (ud['email'] ?? ud['googleEmail'] ?? ud['mail'] ?? ownerEmail).toString();
         }
 
-        return Row(
-          children: [
-            ownerPhoto != null && ownerPhoto.isNotEmpty
-                ? MediaPreviewWidget(
-                    url: ownerPhoto,
-                    width: 24,
-                    height: 24,
-                    borderRadius: BorderRadius.circular(12),
-                  )
-                : const Icon(Icons.person, color: Colors.grey, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Owner: $ownerName',
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
-                overflow: TextOverflow.ellipsis,
+        final hasPhone = ownerPhone.trim().isNotEmpty;
+        final hasEmail = ownerEmail.trim().isNotEmpty;
+
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Owner Header Row
+              Row(
+                children: [
+                  ownerPhoto != null && ownerPhoto.isNotEmpty
+                      ? MediaPreviewWidget(
+                          url: ownerPhoto,
+                          width: 28,
+                          height: 28,
+                          borderRadius: BorderRadius.circular(14),
+                        )
+                      : const CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Color(0xFF3B82F6),
+                          child: Icon(Icons.person, color: Colors.white, size: 16),
+                        ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Owner: $ownerName',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (searchId.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        'ID: $searchId',
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
-            if (searchId.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  'ID: $searchId',
-                  style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
+
+              const SizedBox(height: 8),
+
+              // Owner Contacts (Phone & Google / Email)
+              Row(
+                children: [
+                  // Phone
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_android_rounded, size: 14, color: Colors.greenAccent),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            hasPhone ? ownerPhone : 'No phone',
+                            style: TextStyle(
+                              color: hasPhone ? Colors.grey[200] : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (hasPhone) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: ownerPhone));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Owner phone copied!'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Google / Email
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text(
+                            'G',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            hasEmail ? ownerEmail : 'No Google/email',
+                            style: TextStyle(
+                              color: hasEmail ? Colors.grey[200] : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (hasEmail) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: ownerEmail));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Owner Google email copied!'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            child: const Icon(Icons.copy_rounded, size: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
-          ],
+          ),
         );
       },
     );

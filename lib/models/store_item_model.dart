@@ -40,6 +40,10 @@ class StoreItemModel {
   final Map<String, dynamic>? metadata; // Additional data like dimensions, etc.
   final int? displayId;
   final Map<String, dynamic>? validityPrices; // Prices for validity periods e.g. {"3": 500, "7": 1000, "15": 2000, "30": 3500}
+  final bool isAnimated;
+  final String? animationType; // 'rotatingRing', 'neonPulse', 'starSparkle', 'rippleWave', 'goldenShimmer'
+  final double animationSpeed;
+  final String? animationColor;
 
   StoreItemModel({
     required this.id,
@@ -62,6 +66,10 @@ class StoreItemModel {
     this.metadata,
     this.displayId,
     this.validityPrices,
+    this.isAnimated = false,
+    this.animationType,
+    this.animationSpeed = 1.0,
+    this.animationColor,
   });
 
   factory StoreItemModel.fromFirestore(DocumentSnapshot doc) {
@@ -102,6 +110,10 @@ class StoreItemModel {
         validityPrices: data['validityPrices'] != null
             ? Map<String, dynamic>.from(data['validityPrices'])
             : null,
+        isAnimated: data['isAnimated'] ?? false,
+        animationType: data['animationType'],
+        animationSpeed: (data['animationSpeed'] ?? 1.0).toDouble(),
+        animationColor: data['animationColor'],
       );
     } catch (e) {
       debugPrint('Error creating StoreItemModel from Firestore: $e');
@@ -131,6 +143,10 @@ class StoreItemModel {
         'metadata': metadata,
         if (displayId != null) 'displayId': displayId,
         if (validityPrices != null) 'validityPrices': validityPrices,
+        'isAnimated': isAnimated,
+        if (animationType != null) 'animationType': animationType,
+        'animationSpeed': animationSpeed,
+        if (animationColor != null) 'animationColor': animationColor,
       };
     } catch (e) {
       debugPrint('Error converting StoreItemModel to Firestore: $e');
@@ -159,6 +175,10 @@ class StoreItemModel {
     Map<String, dynamic>? metadata,
     int? displayId,
     Map<String, dynamic>? validityPrices,
+    bool? isAnimated,
+    String? animationType,
+    double? animationSpeed,
+    String? animationColor,
   }) {
     return StoreItemModel(
       id: id ?? this.id,
@@ -181,6 +201,10 @@ class StoreItemModel {
       metadata: metadata ?? this.metadata,
       displayId: displayId ?? this.displayId,
       validityPrices: validityPrices ?? this.validityPrices,
+      isAnimated: isAnimated ?? this.isAnimated,
+      animationType: animationType ?? this.animationType,
+      animationSpeed: animationSpeed ?? this.animationSpeed,
+      animationColor: animationColor ?? this.animationColor,
     );
   }
 

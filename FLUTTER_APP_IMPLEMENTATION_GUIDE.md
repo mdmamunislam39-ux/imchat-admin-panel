@@ -1776,3 +1776,579 @@ class _BorderlessGameWebViewState extends State<BorderlessGameWebView> {
 
 This implementation guide provides everything needed to integrate the admin panel features into your main Flutter app. Each section includes complete code examples and implementation details.
 
+---
+
+## 🪑 **GRAB THE TOP — Flutter App Implementation**
+
+### Overview
+
+**Grab the Top** is a feature that shows a special animated banner (full-screen or overlay) whenever a user sends a specific configured gift in the required minimum quantity.
+
+> ⚠️ **Critical Rule**: Grab the Top banner **ONLY** triggers when:
+> 1. The global feature is **enabled** (`isFeatureEnabled == true`)
+> 2. The sent gift's `giftId` **matches** one of the **active** rules in `platform_config/grab_the_top/rules`
+> 3. The quantity sent **meets or exceeds** `minGiftCount` of that rule
+>
+> **Any other gift** — even rare or expensive ones — **will NOT trigger** Grab the Top.
+
+---
+
+### Firestore Structure
+
+```
+platform_config/
+  grab_the_top/           ← Global config doc
+    isFeatureEnabled: true
+    updatedAt: Timestamp
+
+    rules/                ← Sub-collection of trigger rules
+      {ruleId}/
+        giftId: "2023"
+        giftName: "Lion"
+        giftImageUrl: "https://..."
+        minGiftCount: 9
+        showingTimeSeconds: 100
+        isActive: true
+        bannerTitle: "👑 {sender} sent {count}x {gift} to {receiver} and Grabbed the Top! 🪑"
+        createdAt: Timestamp
+        updatedAt: Timestamp
+```
+
+---
+
+### Step 1 — GrabTheTopService
+
+**File:** `lib/services/grab_the_top_service.dart`
+
+```dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Model for a single Grab the Top rule
+class GrabTheTopRule {
+  final String id;
+  final String giftId;
+  final String giftName;
+  final String? giftImageUrl;
+  final int minGiftCount;
+  final int showingTimeSeconds;
+  final bool isActive;
+  final String bannerTitle;
+
+  GrabTheTopRule({
+    required this.id,
+    required this.giftId,
+    required this.giftName,
+    this.giftImageUrl,
+    required this.minGiftCount,
+    required this.showingTimeSeconds,
+    required this.isActive,
+    required this.bannerTitle,
+  });
+
+  factory GrabTheTopRule.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return GrabTheTopRule(
+      id: doc.id,
+      giftId: data['giftId']?.toString() ?? '',
+      giftName: data['giftName']?.toString() ?? 'Gift',
+      giftImageUrl: data['giftImageUrl']?.toString(),
+      minGiftCount: (data['minGiftCount'] ?? data['giftQuantity'] ?? 1) as int,
+      showingTimeSeconds: (data['showingTimeSeconds'] ?? data['showingTime'] ?? 10) as int,
+      isActive: data['isActive'] ?? true,
+      bannerTitle: data['bannerTitle']?.toString() ??
+          '👑 {sender} sent {count}x {gift} to {receiver} and Grabbed the Top! 🪑',
+    );
+  }
+}
+
+/// Result returned when a gift triggers Grab the Top
+class GrabTheTopTriggerResult {
+  final bool triggered;
+  final GrabTheTopRule? rule;
+  final String resolvedBannerTitle;
+
+  GrabTheTopTriggerResult({
+    required this.triggered,
+    this.rule,
+    this.resolvedBannerTitle = '',
+  });
+}
+
+class GrabTheTopService {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _configPath = 'platform_config';
+  static const String _configDoc = 'grab_the_top';
+  static const String _rulesSubCollection = 'rules';
+
+  // In-memory cache (optional — reduces Firestore reads)
+  static bool? _isFeatureEnabled;
+  static List<GrabTheTopRule>? _cachedRules;
+  static DateTime? _lastFetched;
+  static const Duration _cacheDuration = Duration(minutes: 5);
+
+  /// Invalidate cache (call when app resumes or on logout)
+  static void invalidateCache() {
+    _isFeatureEnabled = null;
+    _cachedRules = null;
+    _lastFetched = null;
+  }
+
+  /// Fetch global feature toggle
+  static Future<bool> isFeatureEnabled() async {
+    try {
+      final doc = await _firestore
+          .collection(_configPath)
+          .doc(_configDoc)
+          .get();
+      if (!doc.exists) return false;
+      return doc.data()?['isFeatureEnabled'] ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Fetch all ACTIVE rules from Firestore
+  static Future<List<GrabTheTopRule>> _fetchActiveRules() async {
+    // Use cache if still fresh
+    if (_cachedRules != null &&
+        _lastFetched != null &&
+        DateTime.now().difference(_lastFetched!) < _cacheDuration) {
+      return _cachedRules!;
+    }
+
+    try {
+      final snap = await _firestore
+          .collection(_configPath)
+          .doc(_configDoc)
+          .collection(_rulesSubCollection)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      final rules = snap.docs.map((d) => GrabTheTopRule.fromFirestore(d)).toList();
+      _cachedRules = rules;
+      _lastFetched = DateTime.now();
+      return rules;
+    } catch (e) {
+      return _cachedRules ?? [];
+    }
+  }
+
+  /// MAIN CHECK — Call this after a gift is sent.
+  ///
+  /// [giftId]    : The ID of the gift that was sent (e.g. "2023")
+  /// [giftCount] : How many copies were sent at once
+  /// [senderName]: Display name of the sender
+  /// [receiverName]: Display name of the receiver
+  ///
+  /// Returns a [GrabTheTopTriggerResult]. If [triggered] is true,
+  /// show the Grab the Top banner using [rule] and [resolvedBannerTitle].
+  static Future<GrabTheTopTriggerResult> checkGiftTrigger({
+    required String giftId,
+    required int giftCount,
+    required String senderName,
+    required String receiverName,
+  }) async {
+    // 1. Check global toggle
+    final featureOn = await isFeatureEnabled();
+    if (!featureOn) {
+      return GrabTheTopTriggerResult(triggered: false);
+    }
+
+    // 2. Load active rules
+    final activeRules = await _fetchActiveRules();
+    if (activeRules.isEmpty) {
+      return GrabTheTopTriggerResult(triggered: false);
+    }
+
+    // 3. Find matching rule by giftId ONLY
+    GrabTheTopRule? matchedRule;
+    for (final rule in activeRules) {
+      if (rule.giftId == giftId) {
+        matchedRule = rule;
+        break;
+      }
+    }
+
+    // No rule found for this gift → DO NOT trigger
+    if (matchedRule == null) {
+      return GrabTheTopTriggerResult(triggered: false);
+    }
+
+    // 4. Check minimum count threshold
+    if (giftCount < matchedRule.minGiftCount) {
+      return GrabTheTopTriggerResult(triggered: false);
+    }
+
+    // 5. All conditions met → Trigger!
+    final resolvedTitle = matchedRule.bannerTitle
+        .replaceAll('{sender}', senderName)
+        .replaceAll('{receiver}', receiverName)
+        .replaceAll('{count}', giftCount.toString())
+        .replaceAll('{gift}', matchedRule.giftName);
+
+    return GrabTheTopTriggerResult(
+      triggered: true,
+      rule: matchedRule,
+      resolvedBannerTitle: resolvedTitle,
+    );
+  }
+}
+```
+
+---
+
+### Step 2 — GrabTheTopBanner Widget
+
+**File:** `lib/widgets/grab_the_top_banner.dart`
+
+```dart
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../services/grab_the_top_service.dart';
+
+/// Overlay banner shown when Grab the Top is triggered.
+/// Displays the sender, receiver, gift image, and custom message.
+/// Auto-dismisses after [rule.showingTimeSeconds] seconds.
+class GrabTheTopBanner extends StatefulWidget {
+  final GrabTheTopRule rule;
+  final String resolvedTitle;
+  final String senderName;
+  final String senderPhotoUrl;
+  final String receiverName;
+  final String receiverPhotoUrl;
+  final VoidCallback onDismiss;
+
+  const GrabTheTopBanner({
+    super.key,
+    required this.rule,
+    required this.resolvedTitle,
+    required this.senderName,
+    required this.senderPhotoUrl,
+    required this.receiverName,
+    required this.receiverPhotoUrl,
+    required this.onDismiss,
+  });
+
+  @override
+  State<GrabTheTopBanner> createState() => _GrabTheTopBannerState();
+}
+
+class _GrabTheTopBannerState extends State<GrabTheTopBanner>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _opacityAnim;
+  Timer? _autoDismissTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _scaleAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.elasticOut,
+    );
+
+    _opacityAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeIn,
+    );
+
+    _animController.forward();
+
+    // Auto-dismiss
+    _autoDismissTimer = Timer(
+      Duration(seconds: widget.rule.showingTimeSeconds),
+      widget.onDismiss,
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoDismissTimer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacityAnim,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1A0A3B), Color(0xFF3D1A6E), Color(0xFF1A0A3B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFFFD700),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Crown + Title
+                const Text(
+                  '👑  GRAB THE TOP  🪑',
+                  style: TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Sender → Gift → Receiver
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildUserAvatar(widget.senderPhotoUrl, widget.senderName),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(Icons.arrow_forward_rounded, color: Colors.amber, size: 22),
+                    ),
+                    // Gift image
+                    if (widget.rule.giftImageUrl != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          widget.rule.giftImageUrl!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.card_giftcard,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                        ),
+                      )
+                    else
+                      const Icon(Icons.card_giftcard, color: Colors.amber, size: 36),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(Icons.arrow_forward_rounded, color: Colors.amber, size: 22),
+                    ),
+                    _buildUserAvatar(widget.receiverPhotoUrl, widget.receiverName),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Resolved banner title
+                Text(
+                  widget.resolvedTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Dismiss button
+                TextButton(
+                  onPressed: widget.onDismiss,
+                  child: const Text(
+                    'Dismiss',
+                    style: TextStyle(color: Colors.amber, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(String photoUrl, String name) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          radius: 26,
+          backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+          backgroundColor: Colors.purple[800],
+          child: photoUrl.isEmpty
+              ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+              : null,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          name.length > 10 ? '${name.substring(0, 10)}...' : name,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+```
+
+---
+
+### Step 3 — Integration in Gift Send Flow
+
+In your gift sending screen/service, after a gift is successfully sent, call `GrabTheTopService.checkGiftTrigger()` and show the banner if triggered.
+
+```dart
+// Inside your gift-send handler:
+
+Future<void> onGiftSent({
+  required String giftId,
+  required int giftCount,
+  required String senderName,
+  required String senderPhotoUrl,
+  required String receiverName,
+  required String receiverPhotoUrl,
+}) async {
+  // ... your existing gift send logic ...
+
+  // ─── Grab the Top Check ───────────────────────────────────────
+  final grabResult = await GrabTheTopService.checkGiftTrigger(
+    giftId: giftId,
+    giftCount: giftCount,
+    senderName: senderName,
+    receiverName: receiverName,
+  );
+
+  if (grabResult.triggered && grabResult.rule != null && mounted) {
+    _showGrabTheTopBanner(
+      rule: grabResult.rule!,
+      resolvedTitle: grabResult.resolvedBannerTitle,
+      senderName: senderName,
+      senderPhotoUrl: senderPhotoUrl,
+      receiverName: receiverName,
+      receiverPhotoUrl: receiverPhotoUrl,
+    );
+  }
+  // ─────────────────────────────────────────────────────────────
+}
+
+/// Show Grab the Top banner as an overlay entry
+OverlayEntry? _grabTheTopOverlay;
+
+void _showGrabTheTopBanner({
+  required GrabTheTopRule rule,
+  required String resolvedTitle,
+  required String senderName,
+  required String senderPhotoUrl,
+  required String receiverName,
+  required String receiverPhotoUrl,
+}) {
+  _grabTheTopOverlay?.remove();
+
+  _grabTheTopOverlay = OverlayEntry(
+    builder: (context) => Positioned(
+      top: MediaQuery.of(context).padding.top + 8,
+      left: 0,
+      right: 0,
+      child: GrabTheTopBanner(
+        rule: rule,
+        resolvedTitle: resolvedTitle,
+        senderName: senderName,
+        senderPhotoUrl: senderPhotoUrl,
+        receiverName: receiverName,
+        receiverPhotoUrl: receiverPhotoUrl,
+        onDismiss: () {
+          _grabTheTopOverlay?.remove();
+          _grabTheTopOverlay = null;
+        },
+      ),
+    ),
+  );
+
+  Overlay.of(context).insert(_grabTheTopOverlay!);
+}
+```
+
+---
+
+### Step 4 — Real-time Listener (Optional, Recommended)
+
+If you want the app to react instantly when admin enables/disables the feature or changes rules, add a real-time listener in your room controller or provider:
+
+```dart
+StreamSubscription? _grabTheTopSub;
+
+void listenToGrabTheTopConfig() {
+  _grabTheTopSub = FirebaseFirestore.instance
+      .collection('platform_config')
+      .doc('grab_the_top')
+      .snapshots()
+      .listen((snap) {
+    // Invalidate local cache so next gift-send fetches fresh data
+    GrabTheTopService.invalidateCache();
+  });
+}
+
+@override
+void dispose() {
+  _grabTheTopSub?.cancel();
+  super.dispose();
+}
+```
+
+---
+
+### Decision Flow Diagram
+
+```
+Gift Sent
+    │
+    ▼
+isFeatureEnabled == true?  ──No──▶ Skip (no banner)
+    │Yes
+    ▼
+Active rules exist?  ──No──▶ Skip (no banner)
+    │Yes
+    ▼
+giftId matches any rule?  ──No──▶ Skip (no banner)
+    │Yes
+    ▼
+giftCount >= rule.minGiftCount?  ──No──▶ Skip (no banner)
+    │Yes
+    ▼
+🪑 Show Grab the Top Banner!
+   (auto-dismiss after rule.showingTimeSeconds)
+```
+
+---
+
+### Key Rules Summary
+
+| Condition | Required Value | If Fails |
+|---|---|---|
+| Global feature toggle | `isFeatureEnabled == true` | No banner |
+| Gift ID in rules | Gift's `giftId` must match a rule's `giftId` | No banner |
+| Rule is active | `rule.isActive == true` | No banner |
+| Quantity threshold | `giftCount >= rule.minGiftCount` | No banner |
+| Any other gift | Not in rules | No banner |
+
+> ✅ Only gifts **explicitly added** in the Admin Panel's **Grab the Top Management** screen will ever trigger the banner.
+

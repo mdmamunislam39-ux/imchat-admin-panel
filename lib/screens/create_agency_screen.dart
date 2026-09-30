@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/agency_model.dart';
 import '../services/agency_service.dart';
+import '../services/user_position_service.dart';
+import '../services/auth_service.dart';
 import '../helpers/official_team_helper.dart';
 
 class CreateAgencyScreen extends StatefulWidget {
@@ -162,6 +164,19 @@ class _CreateAgencyScreenState extends State<CreateAgencyScreen> {
         'userType': 'agency_owner',
         'roles': FieldValue.arrayUnion(['agency']),
       });
+
+      // Automatically apply Agency position items (Frame, Badge, Nameplate)
+      try {
+        await UserPositionService.applyPositionToUser(
+          userId: ownerUserId,
+          positionKey: 'agency',
+          adminId: AuthService.currentUser?.uid,
+          userProfileId: _foundUser!['profileId'] ?? _foundUser!['searchId'],
+          userName: _foundUser!['name'],
+        );
+      } catch (ex) {
+        debugPrint('⚠️ Failed to apply agency position items: $ex');
+      }
       
       // Send congratulations message via imChat official team
       try {
